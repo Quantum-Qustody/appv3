@@ -426,20 +426,160 @@ const LandingPage = () => {
   const { go, addLog, scenarios } = useApp();
   const enter = () => { addLog({ type:"info", message:"Entered sandbox" }); go("auth"); };
   const FAQ=({q,a})=>{const[o,setO]=useState(false);return<div className="glass cursor-pointer" onClick={()=>setO(!o)}><div className="p-6 fm text-purple-300 font-bold flex justify-between items-center text-sm">{q}<span className={`text-purple-500 transition-transform duration-300 ${o?"rotate-180":""}`}>▼</span></div>{o&&<div className="px-6 pb-6 text-gray-400 fm text-sm leading-relaxed border-t border-purple-500/10 pt-4 anim">{a}</div>}</div>};
+
+  const diffRows = [
+    { axis: "PRIMARY PROMISE", traditional: "Keep assets safe", qq: "Prove control under governance" },
+    { axis: "CORE ACTION", traditional: "Store & transfer", qq: "Governed movement with policy enforcement" },
+    { axis: "EVIDENCE MODEL", traditional: "Transaction history", qq: "Institutionally legible evidence packs" },
+    { axis: "POLICY LAYER", traditional: "Operational checklist", qq: "Programmatic enforcement at execution" },
+    { axis: "OVERSIGHT FIT", traditional: "Export CSV, reconcile", qq: "First-class oversight outputs" },
+    { axis: "DISCLOSURE", traditional: "All or nothing", qq: "Selective verification (ZKP)" },
+    { axis: "CRYPTO POSTURE", traditional: "Fixed primitives", qq: "Crypto-agility across current + PQC" },
+    { axis: "BUYER QUESTION", traditional: "Are my keys safe?", qq: "Can I defend every movement to an auditor?" },
+  ];
+
   return (
     <div className="min-h-screen">
-      <nav className="fixed top-0 w-full z-50 p-4"><div className="max-w-7xl mx-auto glass rounded-sm flex justify-between items-center px-6 py-3"><div className="flex items-center gap-3"><span className="font-bold text-lg tracking-tight">QUANTUM_QUSTODY</span><span className="text-purple-500 fm" style={{animation:"pulse 2s infinite"}}>_</span><Badge c="fuchsia">SANDBOX</Badge></div><div className="hidden md:flex gap-6 text-sm text-gray-400 fm"><a href="#scenarios" className="hover:text-purple-400 transition-colors">[ SCENARIOS ]</a></div><button onClick={enter} className="bg-purple-500/10 border border-purple-500/50 text-purple-400 px-4 py-2 text-sm fm hover:bg-purple-500/20 transition-all cursor-pointer">ACCESS SANDBOX</button></div></nav>
+      <nav className="fixed top-0 w-full z-50 p-4"><div className="max-w-7xl mx-auto glass rounded-sm flex justify-between items-center px-6 py-3"><div className="flex items-center gap-3"><span className="font-bold text-lg tracking-tight">QUANTUM_QUSTODY</span><span className="text-purple-500 fm" style={{animation:"pulse 2s infinite"}}>_</span><Badge c="fuchsia">SANDBOX</Badge></div><div className="hidden md:flex gap-6 text-sm text-gray-400 fm"><a href="#approach" className="hover:text-purple-400 transition-colors">[ APPROACH ]</a><a href="#difference" className="hover:text-purple-400 transition-colors">[ DIFFERENCE ]</a><a href="#scenarios" className="hover:text-purple-400 transition-colors">[ SCENARIOS ]</a><a href="#engagement" className="hover:text-purple-400 transition-colors">[ ENGAGEMENT ]</a></div><button onClick={enter} className="bg-purple-500/10 border border-purple-500/50 text-purple-400 px-4 py-2 text-sm fm hover:bg-purple-500/20 transition-all cursor-pointer">ACCESS SANDBOX</button></div></nav>
+
+      {/* HERO */}
       <section className="pt-48 pb-24 px-4 flex flex-col items-center justify-center text-center relative">
         <div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(168,85,247,.1) 0%,transparent 50%)"}}/>
         <div className="glass px-4 py-1.5 rounded-full mb-8 fm text-xs text-purple-400 flex items-center gap-2 anim"><span className="w-2 h-2 rounded-full bg-purple-500" style={{animation:"pulse 2s infinite"}}/>MVP ALPHA SANDBOX</div>
         <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-tight anim-d1">Institutional Control.<br/><span className="tg">Defensible Evidence.</span></h1>
-        <p className="text-gray-400 text-lg md:text-xl max-w-2xl fm mb-10 leading-relaxed anim-d2">Governed movement, policy enforcement, selective verification, and crypto-agile evidence.</p>
-        <div className="flex flex-col sm:flex-row gap-4 anim-d3"><button onClick={enter} className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-8 py-4 fm font-bold hover:from-purple-500 hover:to-fuchsia-500 transition-colors glow cursor-pointer">ENTER SANDBOX</button></div>
+        <p className="text-gray-400 text-lg md:text-xl max-w-2xl fm mb-10 leading-relaxed anim-d2">A new institutional operating model built around governed movement, policy enforcement, selective verification, and crypto-agile evidence.</p>
+        <div className="flex flex-col sm:flex-row gap-4 anim-d3"><button onClick={enter} className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-8 py-4 fm font-bold hover:from-purple-500 hover:to-fuchsia-500 transition-colors glow cursor-pointer">ENTER SANDBOX</button><a href="#difference" className="glass text-gray-300 px-8 py-4 fm hover:text-white transition-colors cursor-pointer text-center">[ HOW WE DIFFER ]</a></div>
       </section>
-      <div className="w-full border-y border-purple-500/20 py-4" style={{background:"rgba(3,4,11,.8)"}}><div className="flex justify-center gap-8 md:gap-16 px-8 max-w-7xl mx-auto fm text-sm"><div className="flex gap-2"><span className="text-gray-500">[MODE]:</span><span className="text-fuchsia-400">SANDBOX</span></div><div className="flex gap-2"><span className="text-gray-500">[SCENARIOS]:</span><span className="text-white">5</span></div><div className="flex gap-2"><span className="text-gray-500">[AUTH]:</span><span className="text-emerald-400">SUPABASE</span></div><div className="flex gap-2"><span className="text-gray-500">[DB]:</span><span className="text-purple-400">PERSISTENT</span></div></div></div>
-      <section id="scenarios" className="py-24 px-4" style={{background:"linear-gradient(to bottom,transparent,rgba(88,28,135,.08))"}}><div className="max-w-7xl mx-auto"><h2 className="text-center text-sm fm text-purple-500 tracking-widest mb-4">[ SANDBOX SCENARIOS ]</h2><h3 className="text-center text-3xl font-bold mb-12">Five Questions That Matter</h3><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{scenarios.map(s=><div key={s.id} className="glass p-6 hover:-translate-y-2 transition-transform duration-300" style={{borderTop:`2px solid ${s.color==="purple"?"rgba(168,85,247,.5)":s.color==="fuchsia"?"rgba(217,70,239,.5)":"rgba(99,102,241,.5)"}`}}><div className="flex items-center gap-2 mb-3"><Badge c={s.tier===1?"green":"yellow"}>TIER {s.tier}</Badge></div><h4 className="font-bold text-sm mb-3">{s.title}</h4><p className="text-xs fm text-gray-400">{s.question}</p></div>)}</div></div></section>
-      <section className="py-24 px-4 max-w-3xl mx-auto"><h2 className="text-2xl font-bold mb-8 text-center">Evaluation Questions</h2><div className="space-y-4"><FAQ q="What is the sandbox?" a="A bounded institutional evaluation environment demonstrating governed movement, policy enforcement, evidence generation, selective verification, and crypto-agility."/><FAQ q="Is data persistent?" a="Yes. Your sandbox session, scenario progress, audit logs, and evidence outputs are stored in Supabase and persist across sessions."/></div></section>
-      <footer className="border-t border-purple-500/20 bg-black py-12 px-6"><div className="max-w-7xl mx-auto flex justify-between items-center fm text-xs text-gray-600"><div className="flex items-center gap-2"><span className="font-bold text-white text-sm">QUANTUM_QUSTODY</span><Badge c="fuchsia">SANDBOX</Badge></div><div>© 2026 MVP ALPHA</div></div></footer>
+
+      {/* STATS RIBBON */}
+      <div className="w-full border-y border-purple-500/20 py-4 overflow-x-auto" style={{background:"rgba(3,4,11,.8)"}}><div className="flex justify-center gap-8 md:gap-16 min-w-max px-8 max-w-7xl mx-auto fm text-sm md:text-base"><div className="flex gap-2"><span className="text-gray-500">[MODE]:</span><span className="text-fuchsia-400">SANDBOX</span></div><div className="flex gap-2"><span className="text-gray-500">[SCENARIOS]:</span><span className="text-white">5</span></div><div className="flex gap-2"><span className="text-gray-500">[AUTH]:</span><span className="text-emerald-400">SUPABASE</span></div><div className="flex gap-2"><span className="text-gray-500">[DB]:</span><span className="text-purple-400">PERSISTENT</span></div><div className="flex gap-2"><span className="text-gray-500">[EVIDENCE]:</span><span className="text-emerald-400">STRUCTURED</span></div></div></div>
+
+      {/* APPROACH — tech section with orbit */}
+      <section id="approach" className="py-24 px-4 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
+        <div className="flex-1">
+          <h2 className="text-sm fm text-fuchsia-500 tracking-widest mb-4">[ INSTITUTIONAL OPERATING MODEL ]</h2>
+          <h3 className="text-4xl font-bold mb-6">Beyond Custody.<br/>Governed Movement.</h3>
+          <p className="text-gray-400 fm mb-6 leading-relaxed">Quantum Qustody turns custody into an institution-controlled, policy-governed, evidence-rich, selectively verifiable, crypto-agile operating model.</p>
+          <ul className="space-y-4 fm text-sm text-gray-300">
+            <li className="flex items-start gap-3"><span className="text-purple-500 mt-0.5">▹</span> <span>Policy-enforced movement with institutional accountability at every step</span></li>
+            <li className="flex items-start gap-3"><span className="text-purple-500 mt-0.5">▹</span> <span>Oversight-ready evidence as a first-class output, not an afterthought</span></li>
+            <li className="flex items-start gap-3"><span className="text-purple-500 mt-0.5">▹</span> <span>Selective verification without unnecessary disclosure of sensitive data</span></li>
+            <li className="flex items-start gap-3"><span className="text-purple-500 mt-0.5">▹</span> <span>PQC transition readiness at the operating-model level, not a future patch</span></li>
+          </ul>
+        </div>
+        <div className="flex-1 flex justify-center py-12">
+          <div className="relative w-64 h-64 flex items-center justify-center" style={{perspective:"1000px"}}>
+            <div className="absolute w-full h-full border-2 border-purple-500/30 rounded-full orb1" style={{boxShadow:"0 0 15px rgba(168,85,247,.2)"}}/>
+            <div className="absolute w-full h-full border-2 border-fuchsia-500/30 rounded-full orb2" style={{boxShadow:"0 0 15px rgba(217,70,239,.2)"}}/>
+            <div className="absolute w-full h-full border-2 border-indigo-500/30 rounded-full orb3" style={{boxShadow:"0 0 15px rgba(99,102,241,.2)"}}/>
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-fuchsia-600 rounded-full" style={{boxShadow:"0 0 30px #a855f7",animation:"pulse 2s infinite"}}/>
+          </div>
+        </div>
+      </section>
+
+      {/* DIFFERENCE — new section */}
+      <section id="difference" className="py-24 px-4" style={{background:"linear-gradient(to bottom,rgba(88,28,135,.05),transparent)"}}>
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-center text-sm fm text-fuchsia-500 tracking-widest mb-4">[ DIFFERENCE ]</h2>
+          <h3 className="text-center text-4xl font-bold mb-6">Not Another Custody Platform.</h3>
+          <p className="text-center text-gray-400 fm max-w-2xl mx-auto mb-14 leading-relaxed">Traditional custody protects keys. Quantum Qustody protects decisions. Here is how the operating model actually differs across the dimensions institutional buyers care about.</p>
+          <GC className="p-0 overflow-hidden">
+            <div className="grid grid-cols-12 border-b border-purple-500/20 fm text-xs text-gray-500 uppercase tracking-wider">
+              <div className="col-span-4 p-4 border-r border-purple-500/10">Dimension</div>
+              <div className="col-span-4 p-4 border-r border-purple-500/10">Traditional Custody</div>
+              <div className="col-span-4 p-4 text-purple-400">Quantum Qustody</div>
+            </div>
+            {diffRows.map((r, i) => (
+              <div key={i} className="grid grid-cols-12 border-b border-purple-500/5 hover:bg-purple-500/5 transition-colors">
+                <div className="col-span-4 p-4 border-r border-purple-500/10 fm text-xs text-fuchsia-500">{r.axis}</div>
+                <div className="col-span-4 p-4 border-r border-purple-500/10 fm text-sm text-gray-500">{r.traditional}</div>
+                <div className="col-span-4 p-4 fm text-sm text-gray-200">{r.qq}</div>
+              </div>
+            ))}
+          </GC>
+          <p className="text-center text-gray-500 fm text-xs mt-8 italic">The shift: from "are my keys safe" to "can I defend every movement to an auditor."</p>
+        </div>
+      </section>
+
+      {/* SCENARIOS */}
+      <section id="scenarios" className="py-24 px-4" style={{background:"linear-gradient(to bottom,transparent,rgba(88,28,135,.08))"}}>
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-center text-sm fm text-purple-500 tracking-widest mb-4">[ SANDBOX SCENARIOS ]</h2>
+          <h3 className="text-center text-3xl font-bold mb-4">Five Questions That Matter</h3>
+          <p className="text-center text-gray-500 fm text-sm mb-12 max-w-2xl mx-auto">Each scenario answers a specific institutional question. Run them in the sandbox, see the evidence, take it to your team.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {scenarios.map(s => (
+              <div key={s.id} className="glass p-6 hover:-translate-y-2 transition-transform duration-300" style={{borderTop:`2px solid ${s.color==="purple"?"rgba(168,85,247,.5)":s.color==="fuchsia"?"rgba(217,70,239,.5)":"rgba(99,102,241,.5)"}`}}>
+                <div className="flex items-center gap-2 mb-3"><Badge c={s.tier===1?"green":"yellow"}>TIER {s.tier}</Badge><span className="fm text-xs text-gray-600">{s.num}</span></div>
+                <h4 className="font-bold text-sm mb-3">{s.title}</h4>
+                <p className="text-xs fm text-gray-400 leading-relaxed">{s.question}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ENGAGEMENT PATH */}
+      <section id="engagement" className="py-24 px-4 max-w-7xl mx-auto">
+        <h2 className="text-center text-sm fm text-purple-500 tracking-widest mb-4">[ ENGAGEMENT PATH ]</h2>
+        <h3 className="text-center text-3xl font-bold mb-2">Sandbox → Workshop → Pilot</h3>
+        <p className="text-center text-gray-500 fm text-sm mb-16">A staged path from free evaluation to bounded production validation.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="glass p-8 flex flex-col" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}>
+            <h3 className="text-purple-400 fm mb-4">[ SANDBOX ]</h3>
+            <div className="text-2xl font-bold mb-6">Guided Evaluation</div>
+            <ul className="space-y-4 mb-8 text-gray-400 text-sm fm flex-grow">
+              <li>✓ 5 Named Scenarios</li>
+              <li>✓ Structured Evidence Outputs</li>
+              <li>✓ Persistent Session State</li>
+              <li>✓ Self-Guided or Supported</li>
+            </ul>
+            <button onClick={enter} className="w-full py-3 bg-purple-600 text-white hover:bg-purple-500 fm font-bold transition-colors glow cursor-pointer">ENTER_SANDBOX</button>
+          </div>
+          <div className="glass p-8 flex flex-col" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+            <h3 className="text-fuchsia-400 fm mb-4">[ WORKSHOP ]</h3>
+            <div className="text-2xl font-bold mb-6">Institutional Deep-Dive</div>
+            <ul className="space-y-4 mb-8 text-gray-300 text-sm fm flex-grow">
+              <li>✓ Custom Policy Mapping</li>
+              <li>✓ Evidence Review Session</li>
+              <li>✓ Integration Architecture</li>
+              <li>✓ Pilot Scoping</li>
+            </ul>
+            <button className="w-full py-3 border border-gray-600 text-gray-300 hover:bg-white hover:text-black fm transition-colors cursor-pointer">REQUEST_WORKSHOP</button>
+          </div>
+          <div className="glass p-8 flex flex-col" style={{borderTop:"2px solid rgba(99,102,241,.5)"}}>
+            <h3 className="text-indigo-400 fm mb-4">[ BOUNDED PILOT ]</h3>
+            <div className="text-2xl font-bold mb-6">Production Validation</div>
+            <ul className="space-y-4 mb-8 text-gray-400 text-sm fm flex-grow">
+              <li>✓ Real Asset Boundaries</li>
+              <li>✓ Live Policy Enforcement</li>
+              <li>✓ Full Evidence Generation</li>
+              <li>✓ Audit-Ready Outputs</li>
+            </ul>
+            <button className="w-full py-3 border border-gray-600 text-gray-300 hover:bg-white hover:text-black fm transition-colors cursor-pointer">DISCUSS_PILOT</button>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-24 px-4 max-w-3xl mx-auto">
+        <h2 className="text-2xl font-bold mb-8 text-center">Evaluation Questions</h2>
+        <div className="space-y-4">
+          <FAQ q="What is the sandbox?" a="A bounded institutional evaluation environment. It lets prospective clients experience named scenarios that demonstrate how Quantum Qustody governs movement, enforces policy, produces evidence, and supports selective verification and crypto-agility."/>
+          <FAQ q="How is this different from a regular custody platform?" a="Traditional custody protects keys and records transactions. Quantum Qustody protects decisions: every movement is policy-governed, every outcome produces institutionally legible evidence, and every control result can be selectively verified without exposing sensitive data. See the Difference section above for the full breakdown."/>
+          <FAQ q="What is live vs simulated?" a="Core governance workflows, policy application, evidence generation, audit logging, and persistent state are live in the sandbox — backed by a real Postgres database and edge functions. Cryptographic signing, on-chain execution, and certain PQC operations are simulated with realistic outputs."/>
+          <FAQ q="Is my data persistent?" a="Yes. Your sandbox session, scenario progress, audit logs, and evidence outputs are stored in Supabase and persist across browser sessions and re-logins. You can leave and come back."/>
+          <FAQ q="How does this lead to a workshop or pilot?" a="Each scenario is designed to trigger specific institutional questions. After evaluation, we map those questions to your context in a paid workshop, then validate with a bounded pilot against real assets and policies."/>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-purple-500/20 bg-black py-12 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 fm text-xs text-gray-600">
+          <div className="flex items-center gap-2"><span className="font-bold text-white text-sm">QUANTUM_QUSTODY</span><span className="text-purple-500">_</span><Badge c="fuchsia">SANDBOX</Badge></div>
+          <div>© 2026 QUANTUM QUSTODY · MVP ALPHA</div>
+        </div>
+      </footer>
     </div>
   );
 };

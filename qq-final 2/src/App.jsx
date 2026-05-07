@@ -614,7 +614,7 @@ const AuthScreen = () => {
     <div className="min-h-screen flex items-center justify-center p-6 relative">
       <div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(168,85,247,.06) 0%,transparent 50%)"}}/>
       <div className="w-full max-w-md anim">
-        <div className="text-center mb-8"><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span><span className="text-purple-500 fm" style={{animation:"pulse 2s infinite"}}> _</span><div className="mt-2"><Badge c="fuchsia">SANDBOX</Badge></div></div>
+        <div className="text-center mb-8"><div className="flex items-center justify-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-9 h-9" style={{filter:"drop-shadow(0 0 10px rgba(168,85,247,.4))"}}/><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span></div></div>
         <GC className="p-8">
           <SL>SIGN IN / SIGN UP</SL>
           <div className="space-y-4">
@@ -652,7 +652,7 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen">
-      <nav className="fixed top-0 w-full z-50 p-4"><div className="max-w-7xl mx-auto glass rounded-sm flex justify-between items-center px-6 py-3"><div className="flex items-center gap-3"><span className="font-bold text-lg tracking-tight">QUANTUM_QUSTODY</span></div><div className="hidden md:flex gap-6 text-sm text-gray-400 fm"><a href="#home" className="hover:text-purple-400 transition-colors">[ HOME ]</a></div><button onClick={enter} className="bg-purple-500/10 border border-purple-500/50 text-purple-400 px-4 py-2 text-sm fm hover:bg-purple-500/20 transition-all cursor-pointer">ACCESS SANDBOX</button></div></nav>
+      <nav className="fixed top-0 w-full z-50 p-4"><div className="max-w-7xl mx-auto glass rounded-sm flex justify-between items-center px-6 py-3"><div className="flex items-center gap-3"><img src="/qq-logo.svg" alt="QQ" className="w-8 h-8" style={{filter:"drop-shadow(0 0 8px rgba(168,85,247,.3))"}}/><span className="font-bold text-lg tracking-tight">QUANTUM_QUSTODY</span></div><div className="hidden md:flex gap-6 text-sm text-gray-400 fm"><a href="#home" className="hover:text-purple-400 transition-colors">[ HOME ]</a></div><button onClick={enter} className="bg-purple-500/10 border border-purple-500/50 text-purple-400 px-4 py-2 text-sm fm hover:bg-purple-500/20 transition-all cursor-pointer">ACCESS SANDBOX</button></div></nav>
 
       {/* HERO */}
       <section id="home" className="pt-32 md:pt-48 pb-16 md:pb-24 px-4 flex flex-col items-center justify-center text-center relative">
@@ -784,7 +784,7 @@ const LandingPage = () => {
       {/* FOOTER */}
       <footer className="border-t border-purple-500/20 bg-black py-12 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 fm text-xs text-gray-600">
-          <div className="flex items-center gap-2"><span className="font-bold text-white text-sm">QUANTUM_QUSTODY</span></div>
+          <div className="flex items-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-6 h-6"/><span className="font-bold text-white text-sm">QUANTUM_QUSTODY</span></div>
           <div className="flex items-center gap-3">
             <a href="https://x.com/quantumqustody" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/></svg></a>
             <a href="https://www.instagram.com/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a>
@@ -816,7 +816,7 @@ const SandboxSetup = () => {
   const steps=[{l:"CONTEXT",n:"01"},{l:"ROLES",n:"02"},{l:"POSTURE",n:"03"},{l:"LAUNCH",n:"04"}];
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative"><div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(168,85,247,.06) 0%,transparent 50%)"}}/>
-      <div className="w-full max-w-2xl anim"><div className="text-center mb-10"><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span><span className="text-purple-500 fm" style={{animation:"pulse 2s infinite"}}> _</span><h1 className="text-3xl font-bold mb-2 mt-4">Sandbox Setup</h1><p className="fm text-sm text-gray-500">CONFIGURE EVALUATION ENVIRONMENT</p></div>
+      <div className="w-full max-w-2xl anim"><div className="text-center mb-10"><div className="flex items-center justify-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-9 h-9" style={{filter:"drop-shadow(0 0 10px rgba(168,85,247,.4))"}}/><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span></div><h1 className="text-3xl font-bold mb-2 mt-4">Sandbox Setup</h1><p className="fm text-sm text-gray-500">CONFIGURE EVALUATION ENVIRONMENT</p></div>
         <div className="flex items-center justify-center gap-1 mb-10">{steps.map((s,i)=><div key={i} className="flex items-center"><div className={`flex items-center gap-2 px-3 py-1.5 fm text-xs transition-all ${i===step?"text-purple-400 bg-purple-500/10 border border-purple-500/30":i<step?"text-emerald-400":"text-gray-600"}`}><span>{i<step?"✓":s.n}</span><span className="hidden sm:inline">{s.l}</span></div>{i<3&&<div className={`w-8 h-px mx-1 ${i<step?"bg-emerald-500/50":"bg-gray-800"}`}/>}</div>)}</div>
         <GC className="p-8">
           {step===0&&<div className="space-y-5 anim" key="s0"><SL>ORGANIZATION CONTEXT</SL><div><label className="fm text-xs text-gray-500 mb-2 block">ORGANIZATION *</label><input placeholder="Institution name" value={f.orgName} onChange={e=>u("orgName",e.target.value)}/></div><div className="grid grid-cols-2 gap-4"><div><label className="fm text-xs text-gray-500 mb-2 block">INSTITUTION_TYPE</label><select value={f.instType} onChange={e=>u("instType",e.target.value)}><option value="">Select...</option><option>Asset Manager</option><option>Bank / Custodian</option><option>Fund</option><option>Corporate Treasury</option></select></div><div><label className="fm text-xs text-gray-500 mb-2 block">JURISDICTION</label><select value={f.jurisdiction} onChange={e=>u("jurisdiction",e.target.value)}><option value="">Select...</option><option>United States</option><option>European Union</option><option>United Kingdom</option><option>Singapore</option></select></div></div><div><label className="fm text-xs text-gray-500 mb-2 block">EVALUATION_OBJECTIVE</label><input placeholder="e.g., Assess governed treasury controls" value={f.evalObjective} onChange={e=>u("evalObjective",e.target.value)}/></div></div>}
@@ -989,36 +989,99 @@ const ScenarioDetail = () => {
 // ASSET BOUNDARY
 // ═══════════════════════════════════════════════════════════════════
 const AssetBoundary = () => {
-  const { assets, wallets, chains, addAsset, removeAsset, addLog, setActiveView } = useApp();
-  const [show, setShow] = useState(false);
+  const { assets, wallets, chains, addAsset, removeAsset, addWallet, removeWallet, addLog, setActiveView, org } = useApp();
+  const [mode, setMode] = useState(null); // null | "wallet" | "manual"
   const [f, setF] = useState({ name:"", chain:"", balance:"", balance_usd:"", scope:"in-scope", boundary_tag:"Operating Reserve", control_model:"Threshold Governance", evidence_path:"", wallet_id:"" });
   const u = (k,v) => setF(p=>({...p,[k]:v}));
-  const total = assets.reduce((s,a) => s + (Number(String(a.balance_usd||"").replace(/[^0-9.-]/g,""))||0), 0);
-  const submit = async () => { if (!f.name) return; await addAsset({ ...f, wallet_id: f.wallet_id || null, balance_usd: f.balance_usd ? `$${Number(f.balance_usd).toLocaleString()}` : "" }); setF({ name:"", chain:"", balance:"", balance_usd:"", scope:"in-scope", boundary_tag:"Operating Reserve", control_model:"Threshold Governance", evidence_path:"", wallet_id:"" }); setShow(false); };
+
+  const w = useWallet();
+
+  // Auto-persist a connected MetaMask wallet to the wallets table the first time we see it.
+  useEffect(() => {
+    if (!w.address || !org?.id) return;
+    const sepoliaChain = chains.find(c => c.network === "ethereum-sepolia");
+    if (!sepoliaChain) return;
+    const exists = wallets.find(x => x.address?.toLowerCase() === w.address.toLowerCase());
+    if (exists) return;
+    addWallet({ chain_id: sepoliaChain.id, label: "MetaMask Sepolia", address: w.address, type: "EOA" });
+  }, [w.address, org?.id, chains.length]);
+
+  const manualUsd = assets.reduce((s,a) => s + (Number(String(a.balance_usd||"").replace(/[^0-9.-]/g,""))||0), 0);
+  const liveEth = w.isConnected ? Number(w.balance||0) : 0;
+  const liveWeth = w.isConnected ? Number(w.wethBalance||0) : 0;
+
+  const submit = async () => {
+    if (!f.name) return;
+    await addAsset({ ...f, wallet_id: f.wallet_id || null, balance_usd: f.balance_usd ? `$${Number(f.balance_usd).toLocaleString()}` : "" });
+    setF({ name:"", chain:"", balance:"", balance_usd:"", scope:"in-scope", boundary_tag:"Operating Reserve", control_model:"Threshold Governance", evidence_path:"", wallet_id:"" });
+    setMode(null);
+  };
+
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
     <div className="flex items-start justify-between gap-4 flex-wrap">
       <div><h2 className="text-2xl font-bold mb-1">Digital Assets</h2><p className="fm text-sm text-gray-500 flex items-center gap-2">IN-SCOPE ASSETS <Tip text="Quantum Qustody never holds your private keys. Instead, write access is delegated through your governance EOA — the underlying signer remains with your custody provider while policy enforcement runs on every movement."/></p></div>
-      <Btn onClick={()=>setShow(s=>!s)}><Plus/> IMPORT_CRYPTO</Btn>
+      <div className="flex gap-2 flex-wrap"><Btn onClick={()=>setMode("wallet")}><Wallet/> IMPORT_CRYPTO</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div>
     </div>
 
     <GC className="p-5 anim-d1"><div className="flex items-center justify-between flex-wrap gap-3">
-      <div><div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL_BALANCE_HIGHLIGHTED <Tip text="Sum of USD-valued in-scope assets across all connected wallets and chains. Updates as you add or remove assets."/></div><div className="text-3xl font-black tg">${total.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>
+      <div><div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL_BALANCE_HIGHLIGHTED <Tip text="Sum of USD-valued in-scope assets across all connected wallets and chains. Live wallet balances are shown separately as Sepolia testnet (no real USD value)."/></div><div className="text-3xl font-black tg">${manualUsd.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>
       <div className="fm text-xs text-gray-500 text-right"><div>{assets.filter(a=>a.scope==="in-scope").length} IN-SCOPE</div><div className="text-emerald-400">{wallets.length} WALLETS · {chains.length} CHAINS</div></div>
     </div></GC>
 
-    {show && <GC className="p-5 anim"><SL>NEW IN-SCOPE ASSET</SL><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <Field label="NAME *"><input placeholder="e.g., ETH Treasury Reserve" value={f.name} onChange={e=>u("name",e.target.value)}/></Field>
-      <Field label="CHAIN" hint="Connect a chain on the Governed Movement page first if you don't see your network."><select value={f.chain} onChange={e=>u("chain",e.target.value)}><option value="">— Select —</option>{chains.map(c=><option key={c.id} value={c.symbol}>{c.name}{c.is_testnet?" (Testnet)":""}</option>)}</select></Field>
-      <Field label="BALANCE"><input placeholder="0.00 ETH" value={f.balance} onChange={e=>u("balance",e.target.value)}/></Field>
-      <Field label="USD VALUE"><input type="number" placeholder="0" value={f.balance_usd} onChange={e=>u("balance_usd",e.target.value)}/></Field>
-      <Field label="WALLET" hint="Bind this asset to an imported EOA wallet. Quantum Qustody delegates write access via this address — keys remain with your custody provider."><select value={f.wallet_id} onChange={e=>u("wallet_id",e.target.value)}><option value="">— None —</option>{wallets.map(w=><option key={w.id} value={w.id}>{w.label||w.address?.slice(0,12)} · {w.chain?.name}</option>)}</select></Field>
-      <Field label="SCOPE"><select value={f.scope} onChange={e=>u("scope",e.target.value)}><option value="in-scope">In-Scope</option><option value="out-of-scope">Out-of-Scope</option></select></Field>
-      <Field label="BOUNDARY"><select value={f.boundary_tag} onChange={e=>u("boundary_tag",e.target.value)}><option>Primary Reserve</option><option>Operating Reserve</option><option>Liquidity Buffer</option><option>Operational</option></select></Field>
-      <Field label="CONTROL"><select value={f.control_model} onChange={e=>u("control_model",e.target.value)}><option>Multi-Approval</option><option>Threshold Governance</option><option>Policy-Governed</option><option>Standard</option></select></Field>
-    </div><div className="flex gap-3 mt-5"><Btn onClick={submit}>SAVE_ASSET <Chk/></Btn><Btn v="ghost" onClick={()=>setShow(false)}>CANCEL</Btn></div></GC>}
+    {/* IMPORT_CRYPTO: connect wallet flow (same as Governed Movement) */}
+    {mode==="wallet" && <GC className="p-5 anim" style={{borderTop:"2px solid rgba(34,197,94,.4)"}}>
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div className="flex-1 min-w-[240px]">
+          <SL>CONNECT WALLET · SEPOLIA TESTNET</SL>
+          {!w.hasProvider && <div className="fm text-xs text-yellow-300">No EIP-1193 wallet detected. Install <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">MetaMask</a>, Coinbase Wallet, Rabby, or Brave to import.</div>}
+          {w.hasProvider && !w.isConnected && <div className="fm text-xs text-gray-400 mb-3">Click CONNECT WALLET — MetaMask will ask permission and we'll auto-switch to Sepolia. Your private key never leaves your wallet; the address is delegated for policy enforcement only.</div>}
+          {w.isConnected && (<div className="space-y-2 fm text-xs">
+            <div className="flex items-center gap-2 flex-wrap"><span className="text-gray-500">ADDRESS:</span><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="text-purple-300 hover:text-purple-200 hover:underline">{shortAddr(w.address)}</a><Badge c={w.isSepolia?"green":"red"}>{w.isSepolia?"SEPOLIA":`WRONG NETWORK (${w.chainId||"?"})`}</Badge></div>
+            <div className="flex items-center gap-4 flex-wrap"><span className="text-gray-500">ETH:</span><span className="text-emerald-400 font-bold">{liveEth.toFixed(6)} SEP</span><span className="text-gray-500">WETH:</span><span className="text-fuchsia-400 font-bold">{liveWeth.toFixed(6)}</span><button onClick={()=>w.refreshBalance()} className="fm text-[10px] text-purple-400 hover:text-purple-300 cursor-pointer">[ REFRESH ]</button></div>
+          </div>)}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {!w.isConnected && w.hasProvider && <Btn onClick={w.connect} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>}
+          {w.isConnected && !w.isSepolia && <Btn v="secondary" onClick={w.ensureSepolia}>SWITCH TO SEPOLIA</Btn>}
+          {w.isConnected && <Btn v="ghost" onClick={()=>setMode(null)}>DONE</Btn>}
+        </div>
+      </div>
+      {w.error && <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 fm text-xs text-red-300">{w.error}</div>}
+    </GC>}
+
+    {/* Live wallet balance card — shown whenever a wallet is connected */}
+    {w.isConnected && mode!=="wallet" && <GC className="p-5" style={{borderLeft:"3px solid #22c55e"}}>
+      <div className="flex items-center justify-between flex-wrap gap-3"><SL>LIVE WALLET</SL><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="fm text-xs text-purple-300 hover:underline">{shortAddr(w.address)} ↗</a></div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+        <div className="p-3 border border-gray-800 bg-black/20"><div className="fm text-[10px] text-gray-500 mb-1">SEPOLIA ETH</div><div className="text-xl font-bold text-emerald-400">{liveEth.toFixed(6)}</div></div>
+        <div className="p-3 border border-gray-800 bg-black/20"><div className="fm text-[10px] text-gray-500 mb-1">WETH</div><div className="text-xl font-bold text-fuchsia-400">{liveWeth.toFixed(6)}</div></div>
+        <div className="p-3 border border-gray-800 bg-black/20 flex items-center justify-center"><button onClick={()=>w.refreshBalance()} className="fm text-xs text-purple-400 hover:text-purple-300 cursor-pointer">REFRESH BALANCES</button></div>
+      </div>
+      <div className="fm text-[10px] text-gray-500 mt-2">Live testnet balances — read directly from the Sepolia public RPC. Not summed into the USD total because Sepolia ETH has no real value.</div>
+    </GC>}
+
+    {/* ADD MANUAL form — kept for non-EVM assets (BTC, SOL, etc.) and read-only address tracking */}
+    {mode==="manual" && <GC className="p-5 anim" style={{borderTop:"2px solid rgba(99,102,241,.5)"}}><SL>ADD ASSET MANUALLY</SL>
+      <p className="fm text-xs text-gray-400 mb-4">Use this for assets that aren't on Sepolia (BTC, SOL, etc.) or for read-only address tracking. Connected MetaMask wallets are tracked live above.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="NAME *"><input placeholder="e.g., ETH Treasury Reserve" value={f.name} onChange={e=>u("name",e.target.value)}/></Field>
+        <Field label="CHAIN"><select value={f.chain} onChange={e=>u("chain",e.target.value)}><option value="">— Select —</option>{chains.map(c=><option key={c.id} value={c.symbol}>{c.name}{c.is_testnet?" (Testnet)":""}</option>)}</select></Field>
+        <Field label="BALANCE"><input placeholder="0.00 ETH" value={f.balance} onChange={e=>u("balance",e.target.value)}/></Field>
+        <Field label="USD VALUE"><input type="number" placeholder="0" value={f.balance_usd} onChange={e=>u("balance_usd",e.target.value)}/></Field>
+        <Field label="WALLET" hint="Optional — bind to an imported EOA wallet."><select value={f.wallet_id} onChange={e=>u("wallet_id",e.target.value)}><option value="">— None —</option>{wallets.map(wl=><option key={wl.id} value={wl.id}>{wl.label||wl.address?.slice(0,12)} · {wl.chain?.name}</option>)}</select></Field>
+        <Field label="SCOPE"><select value={f.scope} onChange={e=>u("scope",e.target.value)}><option value="in-scope">In-Scope</option><option value="out-of-scope">Out-of-Scope</option></select></Field>
+        <Field label="BOUNDARY"><select value={f.boundary_tag} onChange={e=>u("boundary_tag",e.target.value)}><option>Primary Reserve</option><option>Operating Reserve</option><option>Liquidity Buffer</option><option>Operational</option></select></Field>
+        <Field label="CONTROL"><select value={f.control_model} onChange={e=>u("control_model",e.target.value)}><option>Multi-Approval</option><option>Threshold Governance</option><option>Policy-Governed</option><option>Standard</option></select></Field>
+      </div>
+      <div className="flex gap-3 mt-5"><Btn onClick={submit}>SAVE_ASSET <Chk/></Btn><Btn v="ghost" onClick={()=>setMode(null)}>CANCEL</Btn></div>
+    </GC>}
+
+    {/* Saved (imported) wallets list */}
+    {wallets.length>0 && <GC className="p-4"><SL>IMPORTED WALLETS ({wallets.length})</SL><div className="space-y-2">{wallets.map(wl=>(<div key={wl.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50 flex-wrap gap-2"><div className="flex items-center gap-3 min-w-0 flex-1"><Wallet/><div className="fm text-xs min-w-0"><div className="text-gray-300 font-bold truncate">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><a href={wl.chain?.explorer_url ? `${wl.chain.explorer_url}/address/${wl.address}` : "#"} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-400 truncate block">{wl.address}</a></div></div><div className="flex items-center gap-2"><Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>))}</div></GC>}
 
     <div className="space-y-3">
-      {assets.length===0 && <Empty>No assets yet. Click IMPORT_CRYPTO to delegate an EOA and add your first row.</Empty>}
+      {assets.length===0 && !w.isConnected && <Empty>No assets yet. Click IMPORT_CRYPTO to connect a wallet, or ADD_MANUALLY to track a non-EVM asset.</Empty>}
+      {assets.length===0 && w.isConnected && <Empty>Wallet connected — your live Sepolia balance is shown above. ADD_MANUALLY to also track non-EVM assets.</Empty>}
       {assets.map((a,i)=>(<GC key={a.id} className={`p-5 flex items-center justify-between anim-d${Math.min(i,3)+1}`}>
         <div className="flex items-center gap-4 cursor-pointer" onClick={()=>{addLog({type:"info",message:`Asset selected: ${a.name}`,detail:`BOUNDARY: ${a.boundary_tag}`});setActiveView("movement")}}>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center fm text-xs font-bold ${a.scope==="in-scope"?"bg-gradient-to-br from-purple-500/30 to-fuchsia-500/30 text-purple-300":"bg-gray-800/50 text-gray-500"}`}>{(a.chain||a.name||"?").slice(0,3).toUpperCase()}</div>
@@ -1643,6 +1706,7 @@ function AppShell() {
       <div className="h-14 border-b border-purple-500/20 flex items-center justify-between px-3 md:px-5 flex-shrink-0 gap-2" style={{background:"rgba(5,2,15,.8)"}}>
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
           <button onClick={()=>setSidebarOpen(true)} className="md:hidden text-gray-300 hover:text-purple-400 cursor-pointer flex-shrink-0" aria-label="Open menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+          <img src="/qq-logo.svg" alt="QQ" className="w-7 h-7 flex-shrink-0" style={{filter:"drop-shadow(0 0 6px rgba(168,85,247,.35))"}}/>
           <span className="font-bold tracking-tight text-sm md:text-base truncate">QUANTUM_QUSTODY</span>
           {activeScenario&&<><span className="hidden md:inline text-gray-700">|</span><span className="hidden md:inline fm text-xs text-gray-500">SCENARIO {activeScenario.num}</span></>}
         </div>

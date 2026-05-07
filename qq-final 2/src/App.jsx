@@ -115,18 +115,38 @@ function AppProvider({ children }) {
     })();
   }, []);
 
+  // ── Invitation token fallback: if URL has ?invite=TOKEN, call the RPC ──
+  // Runs after sign-in. Safety net in case the auth.users INSERT trigger
+  // didn't link the participant (silently caught by EXCEPTION handler).
+  const tryAcceptInvitationFromUrl = async (userId) => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("invite");
+      if (!token || !userId) return;
+      const { data, error } = await supabase.rpc("accept_team_invitation", { p_token: token, p_user_id: userId });
+      if (error) { console.warn("accept_team_invitation rpc:", error.message); return; }
+      // Whether OK or already-accepted, drop the param so we don't re-run
+      params.delete("invite");
+      const next = window.location.pathname + (params.toString() ? `?${params.toString()}` : "") + window.location.hash;
+      window.history.replaceState({}, "", next);
+    } catch (e) { console.warn("invite fallback error:", e); }
+  };
+
   // ── Auth state listener ──
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: authSession } }) => {
       if (authSession?.user) {
         setUser(authSession.user);
+        tryAcceptInvitationFromUrl(authSession.user.id);
         loadActiveSession(authSession.user.id);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, authSession) => {
       setUser(authSession?.user ?? null);
-      if (!authSession?.user) {
+      if (authSession?.user) {
+        tryAcceptInvitationFromUrl(authSession.user.id);
+      } else {
         setSession(null);
         setOrg(null);
         setPhase("landing");
@@ -294,9 +314,27 @@ function AppProvider({ children }) {
         (payload) => { setProgress(prev => ({ ...prev, [payload.new.scenario_id]: payload.new })); })
       .subscribe();
 
+    // Live updates when an invitee accepts → participants row appears
+    const orgId = session.org_id;
+    const participantsChannel = orgId ? supabase
+      .channel(`participants-${orgId}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "participants", filter: `org_id=eq.${orgId}` },
+        async () => { const { data } = await supabase.from("participants").select("*").eq("org_id", orgId); setParticipants(data || []); reloadInvitations(); })
+      .subscribe() : null;
+
+    const invitationsChannel = orgId ? supabase
+      .channel(`invitations-${orgId}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "team_invitations", filter: `org_id=eq.${orgId}` },
+        () => { reloadInvitations(); })
+      .subscribe() : null;
+
     return () => {
       supabase.removeChannel(auditChannel);
       supabase.removeChannel(progressChannel);
+      if (participantsChannel) supabase.removeChannel(participantsChannel);
+      if (invitationsChannel) supabase.removeChannel(invitationsChannel);
     };
   }, [session?.id]);
 
@@ -436,7 +474,7 @@ function AppProvider({ children }) {
       addBank, removeBank, addWallet, removeWallet, addAsset, removeAsset,
       addParticipant, removeParticipant, updateThreshold,
       addPaymentMethod, removePaymentMethod, switchPlan, submitTicket, updateSettings, setTheme,
-      invitations, sendInvitation, resendInvitation, revokeInvitation, reloadInvitations,
+      invitations, sendInvitation, resendInvitation, revokeInvitation, reloadInvitations, reloadParticipants,
     }}>
       {children}
     </AppContext.Provider>
@@ -1291,7 +1329,9 @@ const GovernedMovement = () => {
 // ═══════════════════════════════════════════════════════════════════
 const Team = () => {
   const { participants, threshold, addParticipant, removeParticipant, updateThreshold,
-          invitations, sendInvitation, resendInvitation, revokeInvitation } = useApp();
+          invitations, sendInvitation, resendInvitation, revokeInvitation, reloadInvitations, reloadParticipants } = useApp();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => { setRefreshing(true); try { await Promise.all([reloadParticipants(), reloadInvitations()]); } finally { setRefreshing(false); } };
   const [mode, setMode] = useState(null); // null | "invite" | "manual"
   const [busy, setBusy] = useState(false);
   const [inv, setInv] = useState({ email:"", full_name:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 });
@@ -1313,7 +1353,7 @@ const Team = () => {
   const pending = (invitations||[]).filter(i => i.status === "pending");
 
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
-    <div className="flex items-start justify-between gap-4 flex-wrap"><div><h2 className="text-2xl font-bold mb-1">Team</h2><p className="fm text-sm text-gray-500">INVITATIONS · ROLES · AUTHORITY · THRESHOLD</p></div><div className="flex gap-2"><Btn onClick={()=>setMode("invite")}>{sIcons.mail}INVITE_BY_EMAIL</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div></div>
+    <div className="flex items-start justify-between gap-4 flex-wrap"><div><h2 className="text-2xl font-bold mb-1">Team</h2><p className="fm text-sm text-gray-500">INVITATIONS · ROLES · AUTHORITY · THRESHOLD</p></div><div className="flex gap-2 flex-wrap"><Btn v="ghost" onClick={refresh} disabled={refreshing}>{refreshing?"REFRESHING...":"REFRESH"}</Btn><Btn onClick={()=>setMode("invite")}>{sIcons.mail}INVITE_BY_EMAIL</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div></div>
 
     <GC className="p-5"><SL>THRESHOLD SETTINGS</SL><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <Field label="REQUIRED_APPROVALS" hint="Number of Approver-role members who must approve before a movement can execute."><input type="number" min="1" value={t.required_approvals} onChange={e=>setT(p=>({...p,required_approvals:e.target.value}))}/></Field>

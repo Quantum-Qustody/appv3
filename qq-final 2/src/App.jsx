@@ -89,6 +89,7 @@ function AppProvider({ children }) {
   const [wallets, setWallets] = useState([]);
   const [threshold, setThreshold] = useState(null);
   const [invoices, setInvoices] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [plans, setPlans] = useState([]);
   const [subscription, setSubscription] = useState(null);
@@ -209,6 +210,9 @@ function AppProvider({ children }) {
   // Apply theme to <html data-theme>
   useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
 
+  // Load invitations whenever the active org changes
+  useEffect(() => { if (org?.id) reloadInvitations(); }, [org?.id]);
+
   // Reload helpers — re-fetch a single table after a mutation
   const reloadBanks = async () => { if (!org?.id) return; const { data } = await supabase.from("banks").select("*").eq("org_id", org.id).order("created_at"); setBanks(data || []); };
   const reloadWallets = async () => { if (!org?.id) return; const { data } = await supabase.from("wallets").select("*, chain:chains(*)").eq("org_id", org.id).order("imported_at"); setWallets(data || []); };
@@ -234,6 +238,33 @@ function AppProvider({ children }) {
   const removePaymentMethod = async (id) => { const { error } = await supabase.from("payment_methods").delete().eq("id", id); if (!error) { addLog({type:"warning",message:"Card removed"}); reloadPaymentMethods(); } };
   const switchPlan = async (planId, planName) => { if (!org?.id) return; const renews = new Date(Date.now() + 30*86400000).toISOString().slice(0,10); const { error } = await supabase.from("org_subscriptions").upsert({ org_id: org.id, plan_id: planId, renews_at: renews }); if (!error) { addLog({type:"success",message:`Plan changed to ${planName||planId}`}); reloadSubscription(); } };
   const submitTicket = async (t) => { if (!org?.id) return { error: new Error("No org") }; const { error } = await supabase.from("support_tickets").insert({ ...t, user_id: user?.id, org_id: org.id }); if (error) addLog({type:"error",message:`Ticket failed: ${error.message}`}); else addLog({type:"success",message:`Support ticket submitted: ${t.subject||t.category}`}); return { error }; };
+
+  // Team email invitations — uses team-invite edge function
+  const reloadInvitations = async () => {
+    if (!org?.id) return;
+    try { const r = await callFunction("team-invite", { action: "list", org_id: org.id }); setInvitations(r?.invitations || []); }
+    catch (e) { /* fall back: empty list */ setInvitations([]); }
+  };
+  const sendInvitation = async (payload) => {
+    if (!org?.id) return { error: new Error("No org") };
+    try {
+      const r = await callFunction("team-invite", { action: "send", org_id: org.id, ...payload });
+      addLog({ type: "success", message: `Invitation sent to ${payload.email}`, detail: r?.mode || "" });
+      reloadInvitations();
+      return { ok: true };
+    } catch (e) {
+      addLog({ type: "error", message: `Invite failed: ${e.message}` });
+      return { error: e };
+    }
+  };
+  const resendInvitation = async (invite_id) => {
+    try { await callFunction("team-invite", { action: "resend", invite_id }); addLog({ type: "info", message: "Invitation resent" }); reloadInvitations(); }
+    catch (e) { addLog({ type: "error", message: `Resend failed: ${e.message}` }); }
+  };
+  const revokeInvitation = async (invite_id) => {
+    try { await callFunction("team-invite", { action: "revoke", invite_id }); addLog({ type: "warning", message: "Invitation revoked" }); reloadInvitations(); }
+    catch (e) { addLog({ type: "error", message: `Revoke failed: ${e.message}` }); }
+  };
   const updateSettings = async (patch) => { if (!org?.id) return; const next = { ...(settings||{}), ...patch, org_id: org.id }; const { error } = await supabase.from("user_settings").upsert(next); if (!error) { setSettings(next); if (patch.theme) setThemeState(patch.theme); } };
   const setTheme = (t) => { setThemeState(t); updateSettings({ theme: t }); };
 
@@ -405,6 +436,7 @@ function AppProvider({ children }) {
       addBank, removeBank, addWallet, removeWallet, addAsset, removeAsset,
       addParticipant, removeParticipant, updateThreshold,
       addPaymentMethod, removePaymentMethod, switchPlan, submitTicket, updateSettings, setTheme,
+      invitations, sendInvitation, resendInvitation, revokeInvitation, reloadInvitations,
     }}>
       {children}
     </AppContext.Provider>
@@ -1195,18 +1227,30 @@ const GovernedMovement = () => {
 // TEAM (item 12 — renamed from Participants)
 // ═══════════════════════════════════════════════════════════════════
 const Team = () => {
-  const { participants, threshold, addParticipant, removeParticipant, updateThreshold } = useApp();
-  const [show, setShow] = useState(false);
-  const [f, setF] = useState({ name:"", email:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 });
+  const { participants, threshold, addParticipant, removeParticipant, updateThreshold,
+          invitations, sendInvitation, resendInvitation, revokeInvitation } = useApp();
+  const [mode, setMode] = useState(null); // null | "invite" | "manual"
+  const [busy, setBusy] = useState(false);
+  const [inv, setInv] = useState({ email:"", full_name:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 });
+  const [m, setM] = useState({ name:"", email:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 });
   const [t, setT] = useState({ required_approvals: threshold?.required_approvals||2, required_reviewers: threshold?.required_reviewers||1, policy_version: threshold?.policy_version||"v2.1" });
   useEffect(() => { setT({ required_approvals: threshold?.required_approvals||2, required_reviewers: threshold?.required_reviewers||1, policy_version: threshold?.policy_version||"v2.1" }); }, [threshold]);
-  const u = (k,v) => setF(p=>({...p,[k]:v}));
-  const submit = async () => { if (!f.name) return; await addParticipant(f); setF({ name:"", email:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 }); setShow(false); };
+  const ui = (k,v) => setInv(p=>({...p,[k]:v}));
+  const um = (k,v) => setM(p=>({...p,[k]:v}));
+  const sendInvite = async () => {
+    if (!inv.email) return;
+    setBusy(true);
+    const r = await sendInvitation(inv);
+    setBusy(false);
+    if (r?.ok) { setInv({ email:"", full_name:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 }); setMode(null); }
+  };
+  const submitManual = async () => { if (!m.name) return; await addParticipant(m); setM({ name:"", email:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 }); setMode(null); };
   const saveThresh = () => updateThreshold({ required_approvals: Number(t.required_approvals), required_reviewers: Number(t.required_reviewers), policy_version: t.policy_version });
   const roleColor = { Requester:"purple", Approver:"fuchsia", Reviewer:"blue", Oversight:"indigo", Observer:"gray" };
+  const pending = (invitations||[]).filter(i => i.status === "pending");
 
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
-    <div className="flex items-start justify-between gap-4 flex-wrap"><div><h2 className="text-2xl font-bold mb-1">Team</h2><p className="fm text-sm text-gray-500">ROLES · AUTHORITY · THRESHOLD</p></div><Btn onClick={()=>setShow(s=>!s)}><Plus/> ADD_TEAM_MEMBER</Btn></div>
+    <div className="flex items-start justify-between gap-4 flex-wrap"><div><h2 className="text-2xl font-bold mb-1">Team</h2><p className="fm text-sm text-gray-500">INVITATIONS · ROLES · AUTHORITY · THRESHOLD</p></div><div className="flex gap-2"><Btn onClick={()=>setMode("invite")}>{sIcons.mail}INVITE_BY_EMAIL</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div></div>
 
     <GC className="p-5"><SL>THRESHOLD SETTINGS</SL><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <Field label="REQUIRED_APPROVALS" hint="Number of Approver-role members who must approve before a movement can execute."><input type="number" min="1" value={t.required_approvals} onChange={e=>setT(p=>({...p,required_approvals:e.target.value}))}/></Field>
@@ -1214,24 +1258,59 @@ const Team = () => {
       <Field label="POLICY_VERSION"><input value={t.policy_version} onChange={e=>setT(p=>({...p,policy_version:e.target.value}))}/></Field>
     </div><div className="mt-4"><Btn v="secondary" onClick={saveThresh}>SAVE_THRESHOLD <Chk/></Btn></div></GC>
 
-    {show && <GC className="p-5"><SL>NEW TEAM MEMBER</SL><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <Field label="NAME *"><input placeholder="Full name" value={f.name} onChange={e=>u("name",e.target.value)}/></Field>
-      <Field label="EMAIL"><input type="email" placeholder="name@org" value={f.email} onChange={e=>u("email",e.target.value)}/></Field>
-      <Field label="FUNCTION"><select value={f.institution_fn} onChange={e=>u("institution_fn",e.target.value)}><option value="">— Select —</option><option>Treasury / Operations</option><option>Risk Management</option><option>Compliance</option><option>Audit / Internal Audit</option><option>Finance</option><option>Legal</option><option>Engineering</option></select></Field>
-      <Field label="ROLE"><select value={f.scenario_role} onChange={e=>u("scenario_role",e.target.value)}><option>Requester</option><option>Approver</option><option>Reviewer</option><option>Oversight</option><option>Observer</option></select></Field>
-      <Field label="THRESHOLD_WEIGHT"><input type="number" min="1" value={f.threshold_weight} onChange={e=>u("threshold_weight",Number(e.target.value))}/></Field>
-    </div><div className="flex gap-3 mt-5"><Btn onClick={submit}>SAVE_MEMBER <Chk/></Btn><Btn v="ghost" onClick={()=>setShow(false)}>CANCEL</Btn></div></GC>}
+    {mode==="invite" && <GC className="p-5" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}><SL>SEND INVITATION</SL>
+      <p className="fm text-xs text-gray-400 mb-4">An email is sent via Supabase Auth. The invitee clicks the link, signs up, and is automatically added to your org with the role you pick.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="EMAIL *"><input type="email" placeholder="name@org.com" value={inv.email} onChange={e=>ui("email",e.target.value)}/></Field>
+        <Field label="FULL NAME (optional)"><input placeholder="Their full name" value={inv.full_name} onChange={e=>ui("full_name",e.target.value)}/></Field>
+        <Field label="FUNCTION"><select value={inv.institution_fn} onChange={e=>ui("institution_fn",e.target.value)}><option value="">— Select —</option><option>Treasury / Operations</option><option>Risk Management</option><option>Compliance</option><option>Audit / Internal Audit</option><option>Finance</option><option>Legal</option><option>Engineering</option></select></Field>
+        <Field label="ROLE"><select value={inv.scenario_role} onChange={e=>ui("scenario_role",e.target.value)}><option>Requester</option><option>Approver</option><option>Reviewer</option><option>Oversight</option><option>Observer</option></select></Field>
+        <Field label="THRESHOLD_WEIGHT"><input type="number" min="1" value={inv.threshold_weight} onChange={e=>ui("threshold_weight",Number(e.target.value))}/></Field>
+      </div><div className="flex gap-3 mt-5"><Btn onClick={sendInvite} disabled={busy||!inv.email}>{busy?"SENDING...":"SEND_INVITATION"} {sIcons.mail}</Btn><Btn v="ghost" onClick={()=>setMode(null)}>CANCEL</Btn></div>
+    </GC>}
 
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {participants.length===0 && <Empty>No team members yet — add the first one above.</Empty>}
-      {participants.map(p=>(<GC key={p.id} className="p-5 flex flex-col" style={{borderTop:`2px solid ${p.scenario_role==="Approver"?"rgba(217,70,239,.5)":p.scenario_role==="Reviewer"?"rgba(59,130,246,.5)":"rgba(168,85,247,.4)"}`}}>
-        <div className="flex items-center gap-3 mb-4"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center font-bold">{p.initials}</div><div><div className="font-bold">{p.name}</div><div className="fm text-xs text-gray-500">{p.institution_fn}</div></div></div>
-        <div className="space-y-2 mb-4 fm text-xs">
-          <div className="flex justify-between"><span className="text-gray-500">EMAIL</span><span className="text-gray-300 truncate ml-2 max-w-[160px]">{p.email||"—"}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">WEIGHT</span><span className="text-gray-300">{p.threshold_weight||1}</span></div>
+    {mode==="manual" && <GC className="p-5" style={{borderTop:"2px solid rgba(99,102,241,.5)"}}><SL>ADD MEMBER MANUALLY</SL>
+      <p className="fm text-xs text-gray-400 mb-4">Use this for record-keeping when a member already exists outside the platform — they won't be able to log in until invited by email.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="NAME *"><input placeholder="Full name" value={m.name} onChange={e=>um("name",e.target.value)}/></Field>
+        <Field label="EMAIL"><input type="email" placeholder="name@org" value={m.email} onChange={e=>um("email",e.target.value)}/></Field>
+        <Field label="FUNCTION"><select value={m.institution_fn} onChange={e=>um("institution_fn",e.target.value)}><option value="">— Select —</option><option>Treasury / Operations</option><option>Risk Management</option><option>Compliance</option><option>Audit / Internal Audit</option><option>Finance</option><option>Legal</option><option>Engineering</option></select></Field>
+        <Field label="ROLE"><select value={m.scenario_role} onChange={e=>um("scenario_role",e.target.value)}><option>Requester</option><option>Approver</option><option>Reviewer</option><option>Oversight</option><option>Observer</option></select></Field>
+        <Field label="THRESHOLD_WEIGHT"><input type="number" min="1" value={m.threshold_weight} onChange={e=>um("threshold_weight",Number(e.target.value))}/></Field>
+      </div><div className="flex gap-3 mt-5"><Btn onClick={submitManual}>SAVE_MEMBER <Chk/></Btn><Btn v="ghost" onClick={()=>setMode(null)}>CANCEL</Btn></div>
+    </GC>}
+
+    {/* Pending invitations */}
+    {pending.length>0 && <GC className="p-5"><SL>PENDING INVITATIONS ({pending.length})</SL><div className="space-y-2">
+      {pending.map(i=>(<div key={i.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50 flex-wrap gap-2">
+        <div className="flex items-center gap-3 fm text-xs min-w-0 flex-1">
+          <Badge c="yellow">PENDING</Badge>
+          <span className="text-gray-300 font-bold truncate">{i.email}</span>
+          <Badge c={roleColor[i.scenario_role]||"purple"}>{(i.scenario_role||"").toUpperCase()}</Badge>
+          {i.institution_fn && <span className="text-gray-500 truncate">{i.institution_fn}</span>}
+          <span className="text-gray-600 hidden md:inline">expires {new Date(i.expires_at).toLocaleDateString()}</span>
         </div>
-        <div className="flex items-center justify-between mt-auto"><Badge c={roleColor[p.scenario_role]||"purple"}>{(p.scenario_role||"").toUpperCase()}</Badge><div className="flex items-center gap-2"><Badge c={p.status==="active"?"green":"yellow"}>{(p.status||"").toUpperCase()}</Badge><button onClick={()=>removeParticipant(p.id, p.name)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>
-      </GC>))}
+        <div className="flex items-center gap-1">
+          <button onClick={()=>resendInvitation(i.id)} className="fm text-[10px] px-2 py-1 border border-purple-500/30 text-purple-400 hover:bg-purple-500/10 cursor-pointer">RESEND</button>
+          <button onClick={()=>revokeInvitation(i.id)} className="fm text-[10px] px-2 py-1 border border-red-500/30 text-red-400 hover:bg-red-500/10 cursor-pointer">REVOKE</button>
+        </div>
+      </div>))}
+    </div></GC>}
+
+    {/* Active members */}
+    <div>
+      <SL>ACTIVE MEMBERS ({participants.length})</SL>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {participants.length===0 && <Empty>No team members yet — invite the first one above.</Empty>}
+        {participants.map(p=>(<GC key={p.id} className="p-5 flex flex-col" style={{borderTop:`2px solid ${p.scenario_role==="Approver"?"rgba(217,70,239,.5)":p.scenario_role==="Reviewer"?"rgba(59,130,246,.5)":"rgba(168,85,247,.4)"}`}}>
+          <div className="flex items-center gap-3 mb-4"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center font-bold">{p.initials}</div><div><div className="font-bold">{p.name}</div><div className="fm text-xs text-gray-500">{p.institution_fn}</div></div></div>
+          <div className="space-y-2 mb-4 fm text-xs">
+            <div className="flex justify-between"><span className="text-gray-500">EMAIL</span><span className="text-gray-300 truncate ml-2 max-w-[160px]">{p.email||"—"}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">WEIGHT</span><span className="text-gray-300">{p.threshold_weight||1}</span></div>
+          </div>
+          <div className="flex items-center justify-between mt-auto"><Badge c={roleColor[p.scenario_role]||"purple"}>{(p.scenario_role||"").toUpperCase()}</Badge><div className="flex items-center gap-2"><Badge c={p.status==="active"?"green":"yellow"}>{(p.status||"").toUpperCase()}</Badge><button onClick={()=>removeParticipant(p.id, p.name)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>
+        </GC>))}
+      </div>
     </div>
   </div>);
 };

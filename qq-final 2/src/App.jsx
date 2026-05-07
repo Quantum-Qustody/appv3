@@ -1020,7 +1020,7 @@ const AssetBoundary = () => {
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
     <div className="flex items-start justify-between gap-4 flex-wrap">
       <div><h2 className="text-2xl font-bold mb-1">Digital Assets</h2><p className="fm text-sm text-gray-500 flex items-center gap-2">IN-SCOPE ASSETS <Tip text="Quantum Qustody never holds your private keys. Instead, write access is delegated through your governance EOA — the underlying signer remains with your custody provider while policy enforcement runs on every movement."/></p></div>
-      <div className="flex gap-2 flex-wrap"><Btn onClick={()=>setMode("wallet")}><Wallet/> IMPORT_CRYPTO</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div>
+      <div className="flex gap-2 flex-wrap"><Btn onClick={()=>{ setMode("wallet"); if (!w.isConnected && w.hasProvider) w.connect(); }} disabled={w.busy}><Wallet/> {w.busy?"CONNECTING...":w.isConnected?"WALLET CONNECTED":"IMPORT_CRYPTO"}</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div>
     </div>
 
     <GC className="p-5 anim-d1"><div className="flex items-center justify-between flex-wrap gap-3">

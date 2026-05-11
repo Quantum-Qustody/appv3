@@ -339,37 +339,86 @@ function AppProvider({ children }) {
   }, [session?.id]);
 
   // ── AUTH ──
+  // signIn — try sign-in first (existing users); only sign up if user not found
   const signIn = async (email, password, fullName) => {
     setAuthError(null);
     setLoading(true);
     try {
-      // Try sign up first (for new users), fall back to sign in
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName || email.split("@")[0] } },
-      });
-
-      if (signUpError && signUpError.message.includes("already registered")) {
-        // User exists, sign them in
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
+      // 1. Try existing-user sign-in first
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (!signInError && signInData?.user) {
         setUser(signInData.user);
         await loadActiveSession(signInData.user.id);
         return;
       }
 
-      if (signUpError) throw signUpError;
+      // 2. Sign-in failed — interpret why
+      const msg = (signInError?.message || "").toLowerCase();
+      if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
+        setAuthError("Your email isn't confirmed yet. Check your inbox (and spam) for the confirmation link, or contact support.");
+        return;
+      }
 
-      setUser(signUpData.user);
-      // New user → go to setup
-      go("setup");
+      // 3. If user simply doesn't exist, try creating one
+      if (msg.includes("invalid login credentials") || msg.includes("user not found")) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: fullName || email.split("@")[0] } },
+        });
+        if (signUpError) {
+          if (signUpError.message?.toLowerCase().includes("already registered")) {
+            setAuthError("Wrong password for this email. Use 'Forgot password?' below to reset it.");
+          } else {
+            setAuthError(signUpError.message);
+          }
+          return;
+        }
+        // signUp returned without error
+        if (signUpData?.user && !signUpData.session) {
+          // confirmation email required
+          setAuthError("Account created — check your inbox to confirm your email, then sign in.");
+          return;
+        }
+        setUser(signUpData.user);
+        go("setup");
+        return;
+      }
+
+      // 4. Other error — show as-is
+      setAuthError(signInError?.message || "Sign-in failed");
     } catch (err) {
       setAuthError(err.message);
       throw err;
     } finally {
       setLoading(false);
     }
+  };
+
+  // Send password-reset email
+  const sendPasswordReset = async (email) => {
+    if (!email) { setAuthError("Enter your email above first."); return; }
+    setAuthError(null);
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/?reset=1",
+      });
+      if (error) { setAuthError(error.message); return; }
+      setAuthError(`Password reset link sent to ${email}. Check your inbox and spam folder.`);
+    } finally { setLoading(false); }
+  };
+
+  // Resend confirmation email
+  const resendConfirmation = async (email) => {
+    if (!email) { setAuthError("Enter your email above first."); return; }
+    setAuthError(null);
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) { setAuthError(error.message); return; }
+      setAuthError(`Confirmation email re-sent to ${email}. Check your inbox.`);
+    } finally { setLoading(false); }
   };
 
   const signOut = async () => {
@@ -468,7 +517,7 @@ function AppProvider({ children }) {
       user, org, session, participants, assets, scenarios, progress, logs, movements, transactions, evidenceStore,
       activeScenario, phase, activeView, fading, loading, authError,
       go, setActiveView, setActiveScenario, addLog,
-      signIn, signOut, createSession, startScenario, advanceStep, generateEvidence, completeScenario, resetSandbox,
+      signIn, signOut, sendPasswordReset, resendConfirmation, createSession, startScenario, advanceStep, generateEvidence, completeScenario, resetSandbox,
       // items 6-20
       banks, chains, wallets, threshold, invoices, paymentMethods, plans, subscription, settings, theme,
       addBank, removeBank, addWallet, removeWallet, addAsset, removeAsset,
@@ -638,7 +687,7 @@ const AuditLog = () => {
 // AUTH SCREEN (REAL SUPABASE)
 // ═══════════════════════════════════════════════════════════════════
 const AuthScreen = () => {
-  const { signIn, authError, loading } = useApp();
+  const { signIn, sendPasswordReset, resendConfirmation, authError, loading } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -648,6 +697,8 @@ const AuthScreen = () => {
     try { await signIn(email, password, name); } catch {}
   };
 
+  const isInfo = authError && (/sent|confirmed|created/i.test(authError));
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative">
       <div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(168,85,247,.06) 0%,transparent 50%)"}}/>
@@ -656,13 +707,17 @@ const AuthScreen = () => {
         <GC className="p-8">
           <SL>SIGN IN / SIGN UP</SL>
           <div className="space-y-4">
-            <div><label className="fm text-xs text-gray-500 mb-2 block">FULL_NAME (new users)</label><input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/></div>
+            <div><label className="fm text-xs text-gray-500 mb-2 block">FULL_NAME (new users only)</label><input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/></div>
             <div><label className="fm text-xs text-gray-500 mb-2 block">EMAIL</label><input type="email" placeholder="you@institution.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
             <div><label className="fm text-xs text-gray-500 mb-2 block">PASSWORD</label><input type="password" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/></div>
-            {authError && <div className="p-3 bg-red-500/10 border border-red-500/30 fm text-xs text-red-300">{authError}</div>}
+            {authError && <div className={`p-3 fm text-xs ${isInfo?"bg-emerald-500/10 border border-emerald-500/30 text-emerald-300":"bg-red-500/10 border border-red-500/30 text-red-300"}`}>{authError}</div>}
             <Btn full onClick={handleSubmit} disabled={loading || !email || !password}>{loading?"WORKING...":"SIGN_IN_OR_CREATE_ACCOUNT"} <Arr /></Btn>
+            <div className="flex items-center justify-between gap-3 fm text-xs">
+              <button onClick={()=>sendPasswordReset(email)} disabled={loading} className="text-purple-400 hover:text-purple-300 cursor-pointer disabled:opacity-40">Forgot password?</button>
+              <button onClick={()=>resendConfirmation(email)} disabled={loading} className="text-gray-500 hover:text-gray-300 cursor-pointer disabled:opacity-40">Resend confirmation email</button>
+            </div>
           </div>
-          <div className="mt-6 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-500"><span className="text-purple-400">NEW USERS:</span> Fill in all fields to create an account. <span className="text-purple-400">EXISTING USERS:</span> Email and password are enough.</div>
+          <div className="mt-6 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-500"><span className="text-purple-400">NEW USERS:</span> Fill in all fields. <span className="text-purple-400">EXISTING USERS:</span> Email + password.</div>
         </GC>
       </div>
     </div>

@@ -659,6 +659,51 @@ const ComingSoon = ({ children, className = "" }) => (
   </div>
 );
 
+// Phase 5 scaffold (BRANCH ONLY): boundary panel making Root EOA vs Smart
+// Account vs Policy Status vs Funding Status vs Protection Status visible.
+// On-chain ERC-4337 deployment is MOCKED — see docs/governed-wallet-architecture.md
+const BoundaryPanel = ({ w, org }) => {
+  const [policy, setPolicy] = useState(null);
+  useEffect(() => {
+    if (!org?.id) return;
+    supabase.from("policy_versions").select("*").eq("org_id", org.id)
+      .order("drafted_at", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => setPolicy(data));
+  }, [org?.id]);
+
+  // Deterministic mock smart-account address derived from the Root EOA
+  const smartAccount = w.address ? `0xQ2${w.address.slice(4, 38).toLowerCase()}sa` : null;
+  const policyStatus = policy?.status || "Draft";
+  const fundingLocked = policyStatus !== "Active";
+  const protectionStatus = policyStatus === "Active" ? "GOVERNED ACTIVE" : "UNGOVERNED";
+
+  const cell = (label, value, color) => (
+    <div className="p-3 border bg-black/30" style={{borderColor:`${color}55`}}>
+      <div className="fm text-[10px] text-gray-500 mb-1">{label}</div>
+      <div className="fm text-xs font-bold" style={{color}}>{value}</div>
+    </div>
+  );
+
+  return (<GC className="p-5" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+    <div className="flex items-center gap-2 mb-2">
+      <SL>BOUNDARY · GOVERNED SMART ACCOUNT</SL>
+      <span className="fm text-[9px] px-2 py-0.5 bg-yellow-400 text-black font-black tracking-wider">SCAFFOLD · MOCK</span>
+    </div>
+    <p className="fm text-xs text-gray-400 mb-4">Root EOA holds ownership and recovery. The Smart Account holds the institution's assets, governed by the active policy. <a href="/docs/governed-wallet-architecture.md" target="_blank" className="text-purple-300 hover:underline">Design doc</a>.</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {cell("ROOT EOA (RECOVERY)", w.address ? shortAddr(w.address) : "— not connected —", "#a855f7")}
+      {cell("SMART ACCOUNT (VAULT)", smartAccount ? `${smartAccount.slice(0,10)}…${smartAccount.slice(-4)}` : "— pending deploy —", "#d946ef")}
+      {cell("POLICY STATUS", policyStatus.toUpperCase(), policyStatus==="Active"?"#22c55e":policyStatus==="Draft"?"#facc15":"#818cf8")}
+      {cell("FUNDING STATUS", fundingLocked ? "LOCKED · awaiting activation" : "UNLOCKED", fundingLocked?"#ef4444":"#22c55e")}
+      {cell("PROTECTION STATUS", protectionStatus, protectionStatus==="GOVERNED ACTIVE"?"#22c55e":"#ef4444")}
+      {cell("THRESHOLD", policy ? `${policy.required_approvals} of ${policy.total_approvers}` : "— policy missing —", "#818cf8")}
+    </div>
+    {fundingLocked && <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 fm text-xs text-red-300">
+      <b>Funding locked.</b> Sending assets to the Root EOA leaves them outside the smart-account validation rules. Sending assets to the Smart Account is blocked until policy is <em>Active</em> and the approver set is verified. Activate policy first on the Team page.
+    </div>}
+  </GC>);
+};
+
 // Wallet picker — shows when EIP-6963 reports multiple providers (item 5).
 // One provider: just a single Connect button. Zero: install hint.
 const WalletPicker = ({ w, onAfterConnect }) => {
@@ -1286,6 +1331,9 @@ const AssetBoundary = () => {
       <div><h2 className="text-2xl font-bold mb-1">Digital Assets</h2><p className="fm text-sm text-gray-500 flex items-center gap-2">IN-SCOPE ASSETS <Tip text="Quantum Qustody never holds your private keys. Instead, write access is delegated through your governance EOA — the underlying signer remains with your custody provider while policy enforcement runs on every movement."/></p></div>
       <div className="flex gap-2 flex-wrap"><Btn onClick={()=>{ setMode("wallet"); if (!w.isConnected && w.hasProvider) w.connect(); }} disabled={w.busy}><Wallet/> {w.busy?"CONNECTING...":w.isConnected?"WALLET CONNECTED":"IMPORT_CRYPTO"}</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div>
     </div>
+
+    {/* Phase 5 scaffold (BRANCH ONLY) */}
+    <BoundaryPanel w={w} org={org}/>
 
     <GC className="p-5 anim-d1"><div className="flex items-center justify-between flex-wrap gap-3">
       <div><div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL_BALANCE_HIGHLIGHTED <Tip text="Sum of USD-valued in-scope assets across all connected wallets and chains. Live wallet balances are shown separately as Sepolia testnet (no real USD value)."/></div><div className="text-3xl font-black tg">${manualUsd.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>

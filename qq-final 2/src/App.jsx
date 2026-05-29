@@ -881,7 +881,7 @@ const LandingPage = () => {
           <div className="flex items-center gap-3">
             <a href="https://x.com/quantumqustody" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/></svg></a>
             <a href="https://www.instagram.com/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a>
-            <a href="https://www.linkedin.com/in/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
+            <a href="https://www.linkedin.com/company/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
           </div>
           <div>© 2026 QUANTUM QUSTODY</div>
         </div>
@@ -936,6 +936,7 @@ const SideNav = ({ onSelect }) => {
     {id:"team",l:"TEAM",i:sIcons.participants},
     {id:"evidence",l:"EVIDENCE VIEWER",i:sIcons.evidence},
     {id:"how-it-works",l:"HOW IT WORKS",i:sIcons.help},
+    {id:"user-guide",l:"USER GUIDE",i:sIcons.evidence},
     {id:"support",l:"SUPPORT",i:sIcons.mail},
     {id:"billing",l:"BILLING",i:sIcons.card},
     {id:"settings",l:"SETTINGS",i:sIcons.config},
@@ -1636,6 +1637,100 @@ const ImportBank = () => {
 };
 
 // ═══════════════════════════════════════════════════════════════════
+// USER GUIDE — phase 0 feedback item 2
+// ═══════════════════════════════════════════════════════════════════
+const UserGuide = () => (
+  <div className="p-6 space-y-6 overflow-y-auto flex-1">
+    <div>
+      <h2 className="text-2xl font-bold mb-1">User Guide</h2>
+      <p className="fm text-sm text-gray-500">GETTING STARTED · WALLETS · TROUBLESHOOTING · HISTORY</p>
+    </div>
+
+    <GC className="p-6 max-w-3xl space-y-4">
+      <SL>SUPPORTED WALLETS</SL>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        Quantum Qustody connects to any wallet that speaks the EIP-1193 standard — meaning any
+        wallet that exposes the <code className="fm text-purple-300">window.ethereum</code> object
+        in your browser, or that surfaces itself via the EIP-6963 multi-wallet discovery event.
+        That covers the four wallets the team verified during testnet:
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        <b>MetaMask</b> is the default and works out of the box once the browser extension is
+        installed. <b>Coinbase Wallet</b> works the same way — install the extension, sign in,
+        then click <em>Import Crypto</em> in the dashboard. <b>Rabby</b> is supported and is
+        often the cleanest choice for users who manage several accounts. <b>Brave Wallet</b>,
+        built directly into the Brave browser, also works; if you have both Brave Wallet and
+        another extension installed, the EIP-6963 picker lets you choose which one to authorise.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        Hardware wallets — Ledger, Trezor — work indirectly, by being added as accounts inside
+        one of the four wallets above. Mobile-only wallets (Trust, Rainbow, Argent) require
+        WalletConnect, which is on the roadmap but not yet shipped.
+      </p>
+    </GC>
+
+    <GC className="p-6 max-w-3xl space-y-4">
+      <SL>IF SOMETHING STALLS</SL>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        The most common issue is the wallet panel never resolving — you click <em>Connect</em>
+        and the button sits on "Connecting…" indefinitely. This almost always means the
+        wallet's provider injected into the page after our connect logic had already given up.
+        The fix is simple: <b>refresh the page once</b>. The newer build re-detects providers
+        on mount and listens for the EIP-6963 announce event, so a single refresh is enough
+        to recover. If the stall persists, switch wallets and confirm the extension is
+        unlocked.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        If a wallet shows "wrong network", click <em>Switch to Sepolia</em> in the wallet card.
+        If the wallet shows zero balance even though you've funded it, give the public RPC a
+        few seconds and hit <em>Refresh</em>; if balances still don't update, your RPC endpoint
+        may be rate-limited — try a different one from the faucet card.
+      </p>
+    </GC>
+
+    <GC className="p-6 max-w-3xl space-y-4">
+      <SL>HOW HISTORY IS SCOPED</SL>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        Two separate streams of history live in the product, and they are scoped differently
+        on purpose.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        The <b>Evaluation Log</b> on the right of every screen is your <em>platform action log</em>.
+        It records what you do inside Quantum Qustody — invite a teammate, change a threshold,
+        run a scenario, generate an evidence pack. These events are bound to your <em>account</em>:
+        they persist in Supabase, survive refreshes, survive logouts, and follow you across
+        browsers. They have nothing to do with any particular wallet.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        The <b>Transactions</b> tab inside Evidence Viewer is the <em>on-chain transaction history</em>.
+        It is bound to a <em>wallet</em>, not your account: each row corresponds to a transaction
+        the connected wallet signed and broadcast to the chain, read directly from the Sepolia
+        RPC. Connect a different wallet and you'll see a different transaction history. The
+        platform action log will look the same; the on-chain history will change.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        The practical implication: if you send a Sepolia transaction, log out, log back in and
+        connect the same wallet, both streams reappear. If you connect a different wallet,
+        your platform actions are still there but the chain history follows the wallet, not
+        you.
+      </p>
+    </GC>
+
+    <GC className="p-6 max-w-3xl space-y-4">
+      <SL>GETTING TESTNET ETH</SL>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        Every on-chain action on Quantum Qustody runs against the Ethereum Sepolia testnet.
+        Sepolia ETH has no real value, but you do need a small amount to pay gas. The
+        Governed Movement page lists four faucets — Google Cloud, Alchemy, QuickNode, and
+        Infura — and any one of them will fund a connected wallet with roughly 0.05 ETH per
+        day. Paste your wallet address into the faucet, claim the drip, then come back and
+        run a Send to check it landed.
+      </p>
+    </GC>
+  </div>
+);
+
+// ═══════════════════════════════════════════════════════════════════
 // HOW IT WORKS (item 10)
 // ═══════════════════════════════════════════════════════════════════
 const HowItWorks = () => {
@@ -1791,7 +1886,7 @@ function AppShell() {
   const qsScore = computeQSafety({ org, threshold, participants, wallets, settings, scenarios, progress });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
-  const views = { hub:<EvaluationHub/>, "scenario-detail":<ScenarioDetail/>, overview:<EvalOverview/>, assets:<AssetBoundary/>, "import-bank":<ImportBank/>, movement:<GovernedMovement/>, team:<Team/>, evidence:<EvidenceViewer/>, "how-it-works":<HowItWorks/>, support:<Support/>, billing:<Billing/>, settings:<SettingsPage/> };
+  const views = { hub:<EvaluationHub/>, "scenario-detail":<ScenarioDetail/>, overview:<EvalOverview/>, assets:<AssetBoundary/>, "import-bank":<ImportBank/>, movement:<GovernedMovement/>, team:<Team/>, evidence:<EvidenceViewer/>, "how-it-works":<HowItWorks/>, "user-guide":<UserGuide/>, support:<Support/>, billing:<Billing/>, settings:<SettingsPage/> };
 
   return (<div style={{opacity:fading?0:1,transition:"opacity 0.3s ease"}}>
     {phase==="landing"&&<LandingPage/>}

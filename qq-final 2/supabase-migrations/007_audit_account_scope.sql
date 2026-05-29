@@ -25,11 +25,17 @@ update movement_requests mr
   from sandbox_sessions ss
  where mr.session_id = ss.id and mr.user_id is null;
 
--- Backfill wallet_address from step_data if available
-update movement_requests
-   set wallet_address = step_data->>'wallet_address'
- where wallet_address is null
-   and step_data ? 'wallet_address';
+-- Backfill wallet_address from step_data if that JSONB column exists.
+-- Some schemas predate step_data; the conditional keeps this idempotent.
+do $$ begin
+  if exists(select 1 from information_schema.columns
+              where table_name='movement_requests' and column_name='step_data') then
+    update movement_requests
+       set wallet_address = step_data->>'wallet_address'
+     where wallet_address is null
+       and step_data ? 'wallet_address';
+  end if;
+end $$;
 
 create index if not exists audit_logs_user_id_idx       on audit_logs(user_id);
 create index if not exists audit_logs_wallet_addr_idx   on audit_logs(wallet_address);

@@ -491,6 +491,22 @@ function AppProvider({ children }) {
   const createSession = async (orgConfig) => {
     setLoading(true);
     try {
+      // Phase 3, item 9: joining an existing org? skip the scenario-engine
+      // create_session path and start a sandbox session against that org.
+      if (orgConfig?.joinOrgId) {
+        const { data: existing } = await supabase.from("organizations")
+          .select("*").eq("id", orgConfig.joinOrgId).maybeSingle();
+        if (!existing) throw new Error("Org not found");
+        const { data: sess } = await supabase.from("sandbox_sessions")
+          .insert({ user_id: userRef.current?.id, org_id: existing.id, status: "active" })
+          .select().single();
+        setSession(sess);
+        setOrg(existing);
+        await loadSessionData(sess.id, existing.id);
+        addLog({ type: "success", message: `Joined org: ${existing.name}` });
+        go("app");
+        return;
+      }
       const result = await callFunction("scenario-engine", { action: "create_session", org_config: orgConfig });
       setSession(result.session);
       setOrg(result.org);
@@ -989,10 +1005,38 @@ const LandingPage = () => {
 // SANDBOX SETUP
 // ═══════════════════════════════════════════════════════════════════
 const SandboxSetup = () => {
-  const { createSession, addLog, loading } = useApp();
+  const { createSession, addLog, loading, user } = useApp();
   const [step, setStep] = useState(0);
-  const [f, setF] = useState({orgName:"",instType:"",jurisdiction:"",evalObjective:"",controlModel:"threshold",trustEnv:"current"});
+  const [f, setF] = useState({orgName:"",instType:"",jurisdiction:"",evalObjective:"",controlModel:"threshold",trustEnv:"current",inviteCode:"",joinOrgId:""});
+  const [suggestions, setSuggestions] = useState([]);
+  const [joinError, setJoinError] = useState(null);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
+
+  // Phase 3, item 9: suggest existing orgs to join (debounced)
+  useEffect(() => {
+    if (step !== 0) return;
+    const e = user?.email || "";
+    const q = f.orgName || "";
+    if (!e && q.length < 2) { setSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.rpc("suggest_orgs_for", { p_email: e, p_query: q });
+        setSuggestions(data || []);
+      } catch { setSuggestions([]); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [f.orgName, user?.email, step]);
+
+  // Phase 3, item 9: resolve invite code to org id
+  const resolveInviteCode = async (code) => {
+    setJoinError(null);
+    if (!code || code.length < 4) return;
+    const { data, error } = await supabase
+      .from("organizations").select("id,name").eq("invite_code", code.trim().toUpperCase()).maybeSingle();
+    if (error || !data) { setJoinError("No org with that code."); return; }
+    setF(prev => ({ ...prev, joinOrgId: data.id, orgName: data.name }));
+  };
+
   const next = async () => {
     if(step<3){
       addLog({type:"info",message:["Organization context configured","Roles & access configured","Control posture configured"][step]});
@@ -1007,7 +1051,35 @@ const SandboxSetup = () => {
       <div className="w-full max-w-2xl anim"><div className="text-center mb-10"><div className="flex items-center justify-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-9 h-9" style={{filter:"drop-shadow(0 0 10px rgba(168,85,247,.4))"}}/><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span></div><h1 className="text-3xl font-bold mb-2 mt-4">Sandbox Setup</h1><p className="fm text-sm text-gray-500">CONFIGURE EVALUATION ENVIRONMENT</p></div>
         <div className="flex items-center justify-center gap-1 mb-10">{steps.map((s,i)=><div key={i} className="flex items-center"><div className={`flex items-center gap-2 px-3 py-1.5 fm text-xs transition-all ${i===step?"text-purple-400 bg-purple-500/10 border border-purple-500/30":i<step?"text-emerald-400":"text-gray-600"}`}><span>{i<step?"✓":s.n}</span><span className="hidden sm:inline">{s.l}</span></div>{i<3&&<div className={`w-8 h-px mx-1 ${i<step?"bg-emerald-500/50":"bg-gray-800"}`}/>}</div>)}</div>
         <GC className="p-8">
-          {step===0&&<div className="space-y-5 anim" key="s0"><SL>ORGANIZATION CONTEXT</SL><div><label className="fm text-xs text-gray-500 mb-2 block">ORGANIZATION *</label><input placeholder="Institution name" value={f.orgName} onChange={e=>u("orgName",e.target.value)}/></div><div className="grid grid-cols-2 gap-4"><div><label className="fm text-xs text-gray-500 mb-2 block">INSTITUTION_TYPE</label><select value={f.instType} onChange={e=>u("instType",e.target.value)}><option value="">Select...</option><option>Asset Manager</option><option>Bank / Custodian</option><option>Fund</option><option>Corporate Treasury</option></select></div><div><label className="fm text-xs text-gray-500 mb-2 block">JURISDICTION</label><select value={f.jurisdiction} onChange={e=>u("jurisdiction",e.target.value)}><option value="">Select...</option><option>United States</option><option>European Union</option><option>United Kingdom</option><option>Singapore</option></select></div></div><div><label className="fm text-xs text-gray-500 mb-2 block">EVALUATION_OBJECTIVE</label><input placeholder="e.g., Assess governed treasury controls" value={f.evalObjective} onChange={e=>u("evalObjective",e.target.value)}/></div></div>}
+          {step===0&&<div className="space-y-5 anim" key="s0">
+            <SL>ORGANIZATION CONTEXT</SL>
+
+            {/* Phase 3, item 9 — join existing org */}
+            <div className="p-3 bg-purple-500/5 border border-purple-500/20">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="fm text-xs text-purple-300">HAVE AN INVITE CODE?</div>
+                <div className="flex gap-2"><input placeholder="ABC123" maxLength={8} value={f.inviteCode} onChange={e=>u("inviteCode",e.target.value.toUpperCase())} style={{width:120}}/><Btn v="secondary" onClick={()=>resolveInviteCode(f.inviteCode)}>JOIN</Btn></div>
+              </div>
+              {f.joinOrgId && <div className="fm text-xs text-emerald-400 mt-2">✓ Joining <b>{f.orgName}</b>. Continue to confirm.</div>}
+              {joinError && <div className="fm text-xs text-red-300 mt-2">{joinError}</div>}
+            </div>
+
+            <div><label className="fm text-xs text-gray-500 mb-2 block">ORGANIZATION *</label><input placeholder="Institution name" value={f.orgName} onChange={e=>{ u("orgName",e.target.value); u("joinOrgId",""); }}/></div>
+
+            {/* Suggested orgs based on email domain / name match */}
+            {!f.joinOrgId && suggestions.length>0 && <div className="p-3 bg-emerald-500/5 border border-emerald-500/20">
+              <div className="fm text-xs text-emerald-300 mb-2">DID YOU MEAN ONE OF THESE? <span className="text-gray-500">— matches existing orgs by name or email domain</span></div>
+              <div className="space-y-1">{suggestions.map(s => (
+                <button key={s.id} onClick={()=>setF(prev=>({...prev, joinOrgId: s.id, orgName: s.name, inviteCode: s.invite_code || ""}))} className="w-full flex items-center justify-between gap-3 p-2 hover:bg-emerald-500/10 cursor-pointer text-left">
+                  <span className="fm text-xs text-gray-200">{s.name}</span>
+                  <span className="fm text-[10px] text-emerald-400">{s.match_reason === "domain" ? "DOMAIN MATCH" : "NAME MATCH"}</span>
+                </button>
+              ))}</div>
+            </div>}
+
+            <div className="grid grid-cols-2 gap-4"><div><label className="fm text-xs text-gray-500 mb-2 block">INSTITUTION_TYPE</label><select value={f.instType} onChange={e=>u("instType",e.target.value)}><option value="">Select...</option><option>Asset Manager</option><option>Bank / Custodian</option><option>Fund</option><option>Corporate Treasury</option></select></div><div><label className="fm text-xs text-gray-500 mb-2 block">JURISDICTION</label><select value={f.jurisdiction} onChange={e=>u("jurisdiction",e.target.value)}><option value="">Select...</option><option>United States</option><option>European Union</option><option>United Kingdom</option><option>Singapore</option></select></div></div>
+            <div><label className="fm text-xs text-gray-500 mb-2 block">EVALUATION_OBJECTIVE</label><input placeholder="e.g., Assess governed treasury controls" value={f.evalObjective} onChange={e=>u("evalObjective",e.target.value)}/></div>
+          </div>}
           {step===1&&<div className="space-y-5 anim" key="s1"><SL>ROLES & ACCESS</SL><p className="fm text-xs text-gray-400 mb-4">After launch, add real team members on the Team page. Each governance function maps to a role:</p><div className="space-y-2">{["Requester — initiates movement requests","Approver — approves under threshold policy","Reviewer — reviews policy application","Oversight — risk, audit, compliance","Observer — finance, reporting"].map((r)=><div key={r} className="flex items-center gap-3 p-3 bg-black/30 border border-gray-800/50 fm text-xs text-gray-300"><span className="text-purple-400">▹</span>{r}</div>)}</div></div>}
           {step===2&&<div className="space-y-5 anim" key="s2"><SL>CONTROL POSTURE</SL><div><label className="fm text-xs text-gray-500 mb-3 block">CONTROL_MODEL</label><div className="grid grid-cols-3 gap-3">{[{id:"single",l:"Single",d:"One approver"},{id:"threshold",l:"Threshold",d:"Multi-approval"},{id:"committee",l:"Committee",d:"Full governance"}].map(o=><div key={o.id} onClick={()=>u("controlModel",o.id)} className={`p-4 cursor-pointer border transition-all ${f.controlModel===o.id?"border-purple-500 bg-purple-500/10 text-white":"border-gray-800 bg-gray-900/30 text-gray-500 hover:border-gray-700"}`}><div className="fm text-sm font-bold mb-1">{o.l}</div><div className="text-xs">{o.d}</div></div>)}</div></div><div><label className="fm text-xs text-gray-500 mb-3 block">TRUST_ENVIRONMENT</label><div className="grid grid-cols-2 gap-3">{[{id:"current",l:"Current Trust",d:"Standard crypto"},{id:"pqc",l:"PQC Target",d:"Post-quantum view"}].map(o=><div key={o.id} onClick={()=>u("trustEnv",o.id)} className={`p-4 cursor-pointer border transition-all ${f.trustEnv===o.id?"border-fuchsia-500 bg-fuchsia-500/10 text-white":"border-gray-800 bg-gray-900/30 text-gray-500 hover:border-gray-700"}`}><div className="fm text-sm font-bold mb-1">{o.l}</div><div className="text-xs">{o.d}</div></div>)}</div></div></div>}
           {step===3&&<div className="space-y-5 anim" key="s3"><SL>LAUNCH SANDBOX</SL><div className="text-center py-4"><div className="inline-block p-4 rounded-full bg-purple-500/10 border border-purple-500/30 mb-4"><Shld/></div><h3 className="text-xl font-bold mb-2">Ready to Launch</h3><p className="fm text-sm text-gray-500">Session will be persisted to Supabase.</p></div><div className="space-y-2 p-4 bg-black/40 border border-gray-800 fm text-xs"><div className="flex justify-between"><span className="text-gray-500">ORG:</span><span>{f.orgName||"—"}</span></div><div className="flex justify-between"><span className="text-gray-500">CONTROL:</span><span className="text-purple-400">{f.controlModel.toUpperCase()}</span></div><div className="flex justify-between"><span className="text-gray-500">TRUST:</span><span className="text-fuchsia-400">{f.trustEnv==="pqc"?"PQC TARGET":"CURRENT"}</span></div><div className="flex justify-between"><span className="text-gray-500">BACKEND:</span><span className="text-emerald-400">SUPABASE LIVE</span></div></div></div>}
@@ -1269,7 +1341,10 @@ const AssetBoundary = () => {
     </GC>}
 
     {/* Saved (imported) wallets list */}
-    {wallets.length>0 && <GC className="p-4"><SL>IMPORTED WALLETS ({wallets.length})</SL><div className="space-y-2">{wallets.map(wl=>(<div key={wl.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50 flex-wrap gap-2"><div className="flex items-center gap-3 min-w-0 flex-1"><Wallet/><div className="fm text-xs min-w-0"><div className="text-gray-300 font-bold truncate">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><a href={wl.chain?.explorer_url ? `${wl.chain.explorer_url}/address/${wl.address}` : "#"} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-400 truncate block">{wl.address}</a></div></div><div className="flex items-center gap-2"><Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>))}</div></GC>}
+    {wallets.length>0 && <GC className="p-4"><SL>IMPORTED WALLETS ({wallets.length})</SL>
+      <div className="fm text-[10px] text-gray-500 mb-3">Phase 3, item 8 — multiple wallets are tracked per account. Only one wallet can be the <span className="text-emerald-400">ACTIVE</span> signer at a time (the one currently exposed by your browser wallet). Transactions are attributed to whichever wallet was active at the moment of signing.</div>
+      <div className="space-y-2">{wallets.map(wl=>{ const isActive = w.address?.toLowerCase() === wl.address?.toLowerCase(); return (<div key={wl.id} className={`flex items-center justify-between p-3 ${isActive?"bg-emerald-500/10 border border-emerald-500/30":"bg-black/30 border border-gray-800/50"} flex-wrap gap-2`}><div className="flex items-center gap-3 min-w-0 flex-1"><Wallet/><div className="fm text-xs min-w-0"><div className="text-gray-300 font-bold truncate">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><a href={wl.chain?.explorer_url ? `${wl.chain.explorer_url}/address/${wl.address}` : "#"} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-400 truncate block">{wl.address}</a></div></div><div className="flex items-center gap-2">{isActive && <Badge c="green">ACTIVE</Badge>}<Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>); })}</div>
+    </GC>}
 
     <div className="space-y-3">
       {assets.length===0 && !w.isConnected && <Empty>No assets yet. Click IMPORT_CRYPTO to connect a wallet, or ADD_MANUALLY to track a non-EVM asset.</Empty>}
@@ -1701,7 +1776,7 @@ const SettingsPage = () => {
       </Field>
     </div></GC>}
 
-    {tab==="context"&&<GC className="p-6 anim"><SL>ORGANIZATION</SL><div className="space-y-3"><InfoRow label="ORGANIZATION" value={org?.name||"—"}/><InfoRow label="TYPE" value={org?.institution_type||"—"}/><InfoRow label="JURISDICTION" value={org?.jurisdiction||"—"}/><InfoRow label="OBJECTIVE" value={org?.eval_objective||"—"}/></div></GC>}
+    {tab==="context"&&<GC className="p-6 anim"><SL>ORGANIZATION</SL><div className="space-y-3"><InfoRow label="ORGANIZATION" value={org?.name||"—"}/><InfoRow label="TYPE" value={org?.institution_type||"—"}/><InfoRow label="JURISDICTION" value={org?.jurisdiction||"—"}/><InfoRow label="OBJECTIVE" value={org?.eval_objective||"—"}/><InfoRow label="INVITE_CODE" value={org?.invite_code||"—"}/></div><div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">Share your <b className="text-purple-300">INVITE_CODE</b> with teammates. They can paste it on the Sandbox Setup screen to join this org instead of creating a duplicate.</div></GC>}
     {tab==="control"&&<GC className="p-6 anim"><SL>CONTROL POSTURE</SL><div className="space-y-3"><InfoRow label="CONTROL_MODEL" value={(org?.control_model||"threshold")+" Governance"}/><InfoRow label="TRUST" value={org?.trust_environment||"current"}/></div></GC>}
     {tab==="evidence"&&<GC className="p-6 anim"><SL>EVIDENCE & ASSURANCE</SL><div className="space-y-3"><InfoRow label="EVIDENCE_VIEWS" badge={{t:"AVAILABLE",c:"green"}}/><InfoRow label="SELECTIVE_VERIFICATION" badge={{t:"VIEW AVAILABLE",c:"fuchsia"}}/><InfoRow label="PQC_CRYPTO_AGILITY" badge={{t:"VIEW AVAILABLE",c:"purple"}}/></div></GC>}
     <GC className="p-5"><SL>SANDBOX STATE</SL><div className="flex items-center justify-between"><div><div className="text-sm font-bold text-yellow-400">Reset Sandbox State</div><div className="fm text-xs text-gray-500">Clear all progress and evidence</div></div><Btn v="danger" onClick={resetSandbox}>RESET_SANDBOX</Btn></div></GC>

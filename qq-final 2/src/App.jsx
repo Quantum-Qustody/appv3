@@ -643,6 +643,32 @@ const ComingSoon = ({ children, className = "" }) => (
   </div>
 );
 
+// Wallet picker — shows when EIP-6963 reports multiple providers (item 5).
+// One provider: just a single Connect button. Zero: install hint.
+const WalletPicker = ({ w, onAfterConnect }) => {
+  const handle = async (detail) => {
+    const addr = await w.connect(detail);
+    if (addr && onAfterConnect) onAfterConnect();
+  };
+  if (!w.hasProvider) {
+    return (<div className="fm text-xs text-yellow-300">
+      No EIP-1193 wallet detected. Install <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">MetaMask</a>,
+      Coinbase Wallet, Rabby or Brave Wallet, then refresh this page.
+    </div>);
+  }
+  if (w.providers.length <= 1) {
+    return (<Btn onClick={()=>handle(w.providers[0])} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>);
+  }
+  return (<div className="flex flex-wrap gap-2">
+    {w.providers.map(p => (
+      <button key={p.info.uuid} onClick={()=>handle(p)} disabled={w.busy} className="fm text-xs px-3 py-2 border border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20 transition-all cursor-pointer disabled:opacity-40 flex items-center gap-2">
+        {p.info.icon ? <img src={p.info.icon} alt="" className="w-4 h-4"/> : <Wallet/>}
+        {p.info.name || "Wallet"}
+      </button>
+    ))}
+  </div>);
+};
+
 // Send / Swap / Bridge action bar
 const ActionBar = ({ active, onPick }) => (<div className="flex flex-wrap gap-2">
   {[{id:"send",l:"SEND",I:Send},{id:"swap",l:"SWAP",I:Swap},{id:"bridge",l:"BRIDGE",I:Bridge}].map(a=>(
@@ -1018,6 +1044,9 @@ const SideNav = ({ onSelect }) => {
 // ═══════════════════════════════════════════════════════════════════
 const EvaluationHub = () => {
   const { org, threshold, participants, wallets, assets, banks, logs, settings, scenarios, progress, setActiveView, addLog } = useApp();
+  const w = useWallet();
+  // Item 7: counters track live wallet/chain state, not just stale DB rows
+  const liveWalletCount = Math.max(wallets.length, w.isConnected ? 1 : 0);
   const usdNum = (s) => Number(String(s||"").replace(/[^0-9.-]/g,"")) || 0;
   const cryptoUsd = assets.reduce((s,a) => s + usdNum(a.balance_usd), 0);
   const banksUsd = banks.reduce((s,b) => s + Number(b.balance||0), 0);
@@ -1097,7 +1126,7 @@ const EvaluationHub = () => {
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {[
         { l:"BANKS", v:banks.length, c:"text-blue-400" },
-        { l:"WALLETS", v:wallets.length, c:"text-fuchsia-400" },
+        { l:"WALLETS", v:liveWalletCount, c:"text-fuchsia-400" },
         { l:"TEAM", v:participants.length, c:"text-indigo-400" },
         { l:"THRESHOLD", v:`${threshold?.required_approvals||0}/${participants.length||0}`, c:"text-yellow-400" },
         { l:"TRUST", v:org?.trust_environment==="pqc"?"PQC":"CURRENT", c:"text-emerald-400" },
@@ -1188,7 +1217,7 @@ const AssetBoundary = () => {
 
     <GC className="p-5 anim-d1"><div className="flex items-center justify-between flex-wrap gap-3">
       <div><div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL_BALANCE_HIGHLIGHTED <Tip text="Sum of USD-valued in-scope assets across all connected wallets and chains. Live wallet balances are shown separately as Sepolia testnet (no real USD value)."/></div><div className="text-3xl font-black tg">${manualUsd.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>
-      <div className="fm text-xs text-gray-500 text-right"><div>{assets.filter(a=>a.scope==="in-scope").length} IN-SCOPE</div><div className="text-emerald-400">{wallets.length} WALLETS · {chains.length} CHAINS</div></div>
+      <div className="fm text-xs text-gray-500 text-right"><div>{assets.filter(a=>a.scope==="in-scope").length} IN-SCOPE</div><div className="text-emerald-400">{Math.max(wallets.length, w.isConnected?1:0)} WALLETS · {w.isSepolia?1:0} CHAIN{w.isSepolia?"":"S"}</div></div>
     </div></GC>
 
     {/* IMPORT_CRYPTO: connect wallet flow (same as Governed Movement) */}
@@ -1204,7 +1233,7 @@ const AssetBoundary = () => {
           </div>)}
         </div>
         <div className="flex gap-2 flex-wrap">
-          {!w.isConnected && w.hasProvider && <Btn onClick={w.connect} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>}
+          {!w.isConnected && <WalletPicker w={w}/>}
           {w.isConnected && !w.isSepolia && <Btn v="secondary" onClick={w.ensureSepolia}>SWITCH TO SEPOLIA</Btn>}
           {w.isConnected && <Btn v="ghost" onClick={()=>setMode(null)}>DONE</Btn>}
         </div>
@@ -1356,7 +1385,7 @@ const GovernedMovement = () => {
     { l: "TOTAL VALUE", v: `$${totalUsd.toLocaleString()}`, c: "emerald" },
     { l: "BANK BALANCE", v: `$${banksUsd.toLocaleString()}`, c: "blue" },
     { l: "CRYPTO VALUE", v: `$${cryptoUsd.toLocaleString()}`, c: "purple" },
-    { l: "WALLETS", v: wallets.length, c: "fuchsia" },
+    { l: "WALLETS", v: Math.max(wallets.length, w.isConnected?1:0), c: "fuchsia" },
     { l: "TEAM", v: teamCount, c: "indigo" },
     { l: "THRESHOLD", v: `${threshold?.required_approvals || 0}/${teamCount || 0}`, c: "yellow" },
   ];
@@ -1382,8 +1411,9 @@ const GovernedMovement = () => {
           </div>)}
         </div>
         <div className="flex gap-2 flex-wrap">
-          {!w.isConnected && w.hasProvider && <Btn onClick={w.connect} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>}
+          {!w.isConnected && <WalletPicker w={w}/>}
           {w.isConnected && !w.isSepolia && <Btn v="secondary" onClick={w.ensureSepolia}>SWITCH TO SEPOLIA</Btn>}
+          {w.isConnected && <Btn v="ghost" onClick={w.reconnect} disabled={w.busy}>SWITCH ACCOUNT</Btn>}
           {w.isConnected && <Btn v="ghost" onClick={w.disconnect}>DISCONNECT</Btn>}
         </div>
       </div>
@@ -1629,6 +1659,8 @@ const EvidenceViewer = () => {
 // ═══════════════════════════════════════════════════════════════════
 const EvalOverview = () => {
   const { activeScenario, progress, scenarios, participants, assets, banks, wallets, transactions, setActiveView, org } = useApp();
+  const w = useWallet();
+  const liveWalletCount = Math.max(wallets.length, w.isConnected?1:0);
   const completed = Object.values(progress).filter(p=>p.status==="completed").length;
   const total = scenarios.length || 0;
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1"><div><h2 className="text-2xl font-bold mb-1 anim">Overview</h2><p className="fm text-sm text-gray-500 anim-d1">{org?.name||"—"} · LIVE EVALUATION</p></div>
@@ -1638,7 +1670,7 @@ const EvalOverview = () => {
       <GC className="p-5 anim-d2"><div className="fm text-xs text-gray-500 mb-2">[ TRANSACTIONS ]</div><div className="text-2xl font-bold mb-1 text-emerald-400">{transactions.length}</div><div className="fm text-xs text-gray-500">on platform</div></GC>
       <GC className="p-5 anim-d3"><div className="fm text-xs text-gray-500 mb-2">[ TEAM ]</div><div className="text-2xl font-bold mb-1 text-purple-400">{participants.length}</div><div className="fm text-xs text-gray-500">members</div></GC>
       <GC className="p-5 anim-d1"><div className="fm text-xs text-gray-500 mb-2">[ ASSETS ]</div><div className="text-2xl font-bold mb-1">{assets.length}</div><div className="fm text-xs text-gray-500">in scope</div></GC>
-      <GC className="p-5 anim-d2"><div className="fm text-xs text-gray-500 mb-2">[ WALLETS ]</div><div className="text-2xl font-bold mb-1 text-fuchsia-400">{wallets.length}</div><div className="fm text-xs text-gray-500">connected</div></GC>
+      <GC className="p-5 anim-d2"><div className="fm text-xs text-gray-500 mb-2">[ WALLETS ]</div><div className="text-2xl font-bold mb-1 text-fuchsia-400">{liveWalletCount}</div><div className="fm text-xs text-gray-500">connected</div></GC>
       <GC className="p-5 anim-d3"><div className="fm text-xs text-gray-500 mb-2">[ BANKS ]</div><div className="text-2xl font-bold mb-1 text-blue-400">{banks.length}</div><div className="fm text-xs text-gray-500">imported</div></GC>
       <GC className="p-5 anim-d3"><div className="fm text-xs text-gray-500 mb-2">[ TRUST ]</div><div className="text-lg font-bold mb-1 text-fuchsia-400">{org?.trust_environment==="pqc"?"PQC":"Current"}</div><div className="fm text-xs text-gray-500">posture</div></GC>
     </div>

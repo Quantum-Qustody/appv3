@@ -1,6 +1,20 @@
-import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useWallet, FAUCETS, SEPOLIA_CHAIN_ID, explorerTx, explorerAddr, shortAddr, readBalance } from "./sepolia.js";
+
+// ─── localStorage account picker (Phase 1, item 1) ─────────────────
+const KNOWN_EMAILS_KEY = "qq:known_emails";
+const readKnownEmails = () => { try { return JSON.parse(localStorage.getItem(KNOWN_EMAILS_KEY) || "[]"); } catch { return []; } };
+const rememberEmail = (email) => {
+  if (!email) return;
+  const list = readKnownEmails().filter(e => e !== email);
+  list.unshift(email);
+  localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list.slice(0, 5)));
+};
+const forgetEmail = (email) => {
+  const list = readKnownEmails().filter(e => e !== email);
+  localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list));
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT
@@ -100,10 +114,32 @@ function AppProvider({ children }) {
 
   const timeStr = (iso) => new Date(iso || Date.now()).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
+  // Refs so addLog can persist with the right account/session/wallet keys
+  const userRef = useRef(null);
+  const sessionRef = useRef(null);
+  const walletAddressRef = useRef(null);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
   const addLog = useCallback((entry) => {
-    // Local optimistic log entry (also persisted via edge function when session exists)
+    // Local optimistic log entry (renders immediately on the right sidebar)
     const log = { id: `tmp-${Math.random()}`, ...entry, type: entry.type || "info", created_at: new Date().toISOString(), time: timeStr() };
     setLogs(prev => [log, ...prev]);
+
+    // Phase 1 item 2: persist to Supabase keyed by user_id (account-scoped)
+    const uid = userRef.current?.id;
+    if (uid) {
+      supabase.from("audit_logs").insert({
+        user_id: uid,
+        session_id: sessionRef.current?.id || null,
+        wallet_address: walletAddressRef.current || null,
+        log_type: entry.type || "info",
+        message: entry.message || null,
+        actor: entry.actor || null,
+        detail: entry.detail || null,
+        scenario_id: entry.scenario_id || null,
+      }).then(() => {}).catch(() => {});
+    }
     return log;
   }, []);
 
@@ -177,14 +213,26 @@ function AppProvider({ children }) {
   };
 
   const loadSessionData = async (sessionId, orgId) => {
+    // Resolve the auth user — used for account-scoped queries (Phase 1, item 2)
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const uid = authSession?.user?.id;
+
     const [partsRes, astRes, progRes, logsRes, moveRes, evRes,
       banksRes, chainsRes, walletsRes, threshRes,
       invRes, pmRes, plansRes, subRes, settingsRes] = await Promise.all([
       supabase.from("participants").select("*").eq("org_id", orgId),
       supabase.from("assets").select("*").eq("org_id", orgId),
       supabase.from("scenario_progress").select("*").eq("session_id", sessionId),
-      supabase.from("audit_logs").select("*").eq("session_id", sessionId).order("created_at", { ascending: false }).limit(500),
-      supabase.from("movement_requests").select("*").eq("session_id", sessionId),
+      // Account-scoped platform action log: all rows for this user, across every past session.
+      // Falls back to session-scope if user_id is unavailable (e.g. before backfill).
+      uid
+        ? supabase.from("audit_logs").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(500)
+        : supabase.from("audit_logs").select("*").eq("session_id", sessionId).order("created_at", { ascending: false }).limit(500),
+      // On-chain transaction history — kept account-scoped too so refresh restores prior sends.
+      // The Transactions tab still filters per connected wallet at render time (wallet-scoped view).
+      uid
+        ? supabase.from("movement_requests").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(500)
+        : supabase.from("movement_requests").select("*").eq("session_id", sessionId),
       supabase.from("evidence_outputs").select("*, evidence_sections(*)").eq("session_id", sessionId),
       supabase.from("banks").select("*").eq("org_id", orgId).order("created_at"),
       supabase.from("chains").select("*").order("sort_order"),
@@ -292,14 +340,16 @@ function AppProvider({ children }) {
   useEffect(() => {
     if (!session?.id) return;
 
+    // Real-time platform action log — now account-scoped (Phase 1, item 2)
+    const uid = userRef.current?.id;
+    const auditFilter = uid ? `user_id=eq.${uid}` : `session_id=eq.${session.id}`;
     const auditChannel = supabase
-      .channel(`audit-${session.id}`)
+      .channel(`audit-${uid || session.id}`)
       .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "audit_logs", filter: `session_id=eq.${session.id}` },
+        { event: "INSERT", schema: "public", table: "audit_logs", filter: auditFilter },
         (payload) => {
           const newLog = { ...payload.new, time: timeStr(payload.new.created_at) };
           setLogs(prev => {
-            // Dedupe: remove temp entries with same message
             const filtered = prev.filter(l => !(l.id?.startsWith("tmp-") && l.message === newLog.message));
             if (filtered.find(l => l.id === newLog.id)) return filtered;
             return [newLog, ...filtered];
@@ -348,6 +398,7 @@ function AppProvider({ children }) {
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (!signInError && signInData?.user) {
         setUser(signInData.user);
+        rememberEmail(email);  // Phase 1, item 1: remember for the picker
         await loadActiveSession(signInData.user.id);
         return;
       }
@@ -381,6 +432,7 @@ function AppProvider({ children }) {
           return;
         }
         setUser(signUpData.user);
+        rememberEmail(email);  // Phase 1, item 1
         go("setup");
         return;
       }
@@ -439,6 +491,22 @@ function AppProvider({ children }) {
   const createSession = async (orgConfig) => {
     setLoading(true);
     try {
+      // Phase 3, item 9: joining an existing org? skip the scenario-engine
+      // create_session path and start a sandbox session against that org.
+      if (orgConfig?.joinOrgId) {
+        const { data: existing } = await supabase.from("organizations")
+          .select("*").eq("id", orgConfig.joinOrgId).maybeSingle();
+        if (!existing) throw new Error("Org not found");
+        const { data: sess } = await supabase.from("sandbox_sessions")
+          .insert({ user_id: userRef.current?.id, org_id: existing.id, status: "active" })
+          .select().single();
+        setSession(sess);
+        setOrg(existing);
+        await loadSessionData(sess.id, existing.id);
+        addLog({ type: "success", message: `Joined org: ${existing.name}` });
+        go("app");
+        return;
+      }
       const result = await callFunction("scenario-engine", { action: "create_session", org_config: orgConfig });
       setSession(result.session);
       setOrg(result.org);
@@ -591,6 +659,32 @@ const ComingSoon = ({ children, className = "" }) => (
   </div>
 );
 
+// Wallet picker — shows when EIP-6963 reports multiple providers (item 5).
+// One provider: just a single Connect button. Zero: install hint.
+const WalletPicker = ({ w, onAfterConnect }) => {
+  const handle = async (detail) => {
+    const addr = await w.connect(detail);
+    if (addr && onAfterConnect) onAfterConnect();
+  };
+  if (!w.hasProvider) {
+    return (<div className="fm text-xs text-yellow-300">
+      No EIP-1193 wallet detected. Install <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">MetaMask</a>,
+      Coinbase Wallet, Rabby or Brave Wallet, then refresh this page.
+    </div>);
+  }
+  if (w.providers.length <= 1) {
+    return (<Btn onClick={()=>handle(w.providers[0])} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>);
+  }
+  return (<div className="flex flex-wrap gap-2">
+    {w.providers.map(p => (
+      <button key={p.info.uuid} onClick={()=>handle(p)} disabled={w.busy} className="fm text-xs px-3 py-2 border border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20 transition-all cursor-pointer disabled:opacity-40 flex items-center gap-2">
+        {p.info.icon ? <img src={p.info.icon} alt="" className="w-4 h-4"/> : <Wallet/>}
+        {p.info.name || "Wallet"}
+      </button>
+    ))}
+  </div>);
+};
+
 // Send / Swap / Bridge action bar
 const ActionBar = ({ active, onPick }) => (<div className="flex flex-wrap gap-2">
   {[{id:"send",l:"SEND",I:Send},{id:"swap",l:"SWAP",I:Swap},{id:"bridge",l:"BRIDGE",I:Bridge}].map(a=>(
@@ -691,6 +785,9 @@ const AuthScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  // Phase 1, item 1: known-account picker
+  const [knownEmails, setKnownEmails] = useState(() => readKnownEmails());
+  const dropEmail = (e) => { forgetEmail(e); setKnownEmails(readKnownEmails()); if (email === e) setEmail(""); };
 
   const handleSubmit = async () => {
     if (!email || !password) return;
@@ -706,6 +803,20 @@ const AuthScreen = () => {
         <div className="text-center mb-8"><div className="flex items-center justify-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-9 h-9" style={{filter:"drop-shadow(0 0 10px rgba(168,85,247,.4))"}}/><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span></div></div>
         <GC className="p-8">
           <SL>SIGN IN / SIGN UP</SL>
+          {knownEmails.length > 0 && (
+            <div className="mb-5">
+              <div className="fm text-xs text-gray-500 mb-2">CONTINUE AS</div>
+              <div className="flex flex-wrap gap-2">
+                {knownEmails.map(e => (
+                  <div key={e} className={`flex items-center gap-1 px-3 py-1.5 fm text-xs border cursor-pointer transition-all ${email===e?"border-purple-500 bg-purple-500/15 text-purple-200":"border-purple-500/30 bg-purple-500/5 text-gray-300 hover:bg-purple-500/10"}`}>
+                    <button onClick={()=>setEmail(e)} className="cursor-pointer">{e}</button>
+                    <button onClick={()=>dropEmail(e)} className="text-gray-500 hover:text-red-400 ml-1" aria-label={`Forget ${e}`}>×</button>
+                  </div>
+                ))}
+              </div>
+              <div className="fm text-[10px] text-gray-600 mt-2">Pick an email to pre-fill, then type your password. ✕ to forget.</div>
+            </div>
+          )}
           <div className="space-y-4">
             <div><label className="fm text-xs text-gray-500 mb-2 block">FULL_NAME (new users only)</label><input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/></div>
             <div><label className="fm text-xs text-gray-500 mb-2 block">EMAIL</label><input type="email" placeholder="you@institution.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
@@ -881,7 +992,7 @@ const LandingPage = () => {
           <div className="flex items-center gap-3">
             <a href="https://x.com/quantumqustody" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/></svg></a>
             <a href="https://www.instagram.com/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a>
-            <a href="https://www.linkedin.com/in/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
+            <a href="https://www.linkedin.com/company/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
           </div>
           <div>© 2026 QUANTUM QUSTODY</div>
         </div>
@@ -894,10 +1005,38 @@ const LandingPage = () => {
 // SANDBOX SETUP
 // ═══════════════════════════════════════════════════════════════════
 const SandboxSetup = () => {
-  const { createSession, addLog, loading } = useApp();
+  const { createSession, addLog, loading, user } = useApp();
   const [step, setStep] = useState(0);
-  const [f, setF] = useState({orgName:"",instType:"",jurisdiction:"",evalObjective:"",controlModel:"threshold",trustEnv:"current"});
+  const [f, setF] = useState({orgName:"",instType:"",jurisdiction:"",evalObjective:"",controlModel:"threshold",trustEnv:"current",inviteCode:"",joinOrgId:""});
+  const [suggestions, setSuggestions] = useState([]);
+  const [joinError, setJoinError] = useState(null);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
+
+  // Phase 3, item 9: suggest existing orgs to join (debounced)
+  useEffect(() => {
+    if (step !== 0) return;
+    const e = user?.email || "";
+    const q = f.orgName || "";
+    if (!e && q.length < 2) { setSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.rpc("suggest_orgs_for", { p_email: e, p_query: q });
+        setSuggestions(data || []);
+      } catch { setSuggestions([]); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [f.orgName, user?.email, step]);
+
+  // Phase 3, item 9: resolve invite code to org id
+  const resolveInviteCode = async (code) => {
+    setJoinError(null);
+    if (!code || code.length < 4) return;
+    const { data, error } = await supabase
+      .from("organizations").select("id,name").eq("invite_code", code.trim().toUpperCase()).maybeSingle();
+    if (error || !data) { setJoinError("No org with that code."); return; }
+    setF(prev => ({ ...prev, joinOrgId: data.id, orgName: data.name }));
+  };
+
   const next = async () => {
     if(step<3){
       addLog({type:"info",message:["Organization context configured","Roles & access configured","Control posture configured"][step]});
@@ -912,7 +1051,35 @@ const SandboxSetup = () => {
       <div className="w-full max-w-2xl anim"><div className="text-center mb-10"><div className="flex items-center justify-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-9 h-9" style={{filter:"drop-shadow(0 0 10px rgba(168,85,247,.4))"}}/><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span></div><h1 className="text-3xl font-bold mb-2 mt-4">Sandbox Setup</h1><p className="fm text-sm text-gray-500">CONFIGURE EVALUATION ENVIRONMENT</p></div>
         <div className="flex items-center justify-center gap-1 mb-10">{steps.map((s,i)=><div key={i} className="flex items-center"><div className={`flex items-center gap-2 px-3 py-1.5 fm text-xs transition-all ${i===step?"text-purple-400 bg-purple-500/10 border border-purple-500/30":i<step?"text-emerald-400":"text-gray-600"}`}><span>{i<step?"✓":s.n}</span><span className="hidden sm:inline">{s.l}</span></div>{i<3&&<div className={`w-8 h-px mx-1 ${i<step?"bg-emerald-500/50":"bg-gray-800"}`}/>}</div>)}</div>
         <GC className="p-8">
-          {step===0&&<div className="space-y-5 anim" key="s0"><SL>ORGANIZATION CONTEXT</SL><div><label className="fm text-xs text-gray-500 mb-2 block">ORGANIZATION *</label><input placeholder="Institution name" value={f.orgName} onChange={e=>u("orgName",e.target.value)}/></div><div className="grid grid-cols-2 gap-4"><div><label className="fm text-xs text-gray-500 mb-2 block">INSTITUTION_TYPE</label><select value={f.instType} onChange={e=>u("instType",e.target.value)}><option value="">Select...</option><option>Asset Manager</option><option>Bank / Custodian</option><option>Fund</option><option>Corporate Treasury</option></select></div><div><label className="fm text-xs text-gray-500 mb-2 block">JURISDICTION</label><select value={f.jurisdiction} onChange={e=>u("jurisdiction",e.target.value)}><option value="">Select...</option><option>United States</option><option>European Union</option><option>United Kingdom</option><option>Singapore</option></select></div></div><div><label className="fm text-xs text-gray-500 mb-2 block">EVALUATION_OBJECTIVE</label><input placeholder="e.g., Assess governed treasury controls" value={f.evalObjective} onChange={e=>u("evalObjective",e.target.value)}/></div></div>}
+          {step===0&&<div className="space-y-5 anim" key="s0">
+            <SL>ORGANIZATION CONTEXT</SL>
+
+            {/* Phase 3, item 9 — join existing org */}
+            <div className="p-3 bg-purple-500/5 border border-purple-500/20">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="fm text-xs text-purple-300">HAVE AN INVITE CODE?</div>
+                <div className="flex gap-2"><input placeholder="ABC123" maxLength={8} value={f.inviteCode} onChange={e=>u("inviteCode",e.target.value.toUpperCase())} style={{width:120}}/><Btn v="secondary" onClick={()=>resolveInviteCode(f.inviteCode)}>JOIN</Btn></div>
+              </div>
+              {f.joinOrgId && <div className="fm text-xs text-emerald-400 mt-2">✓ Joining <b>{f.orgName}</b>. Continue to confirm.</div>}
+              {joinError && <div className="fm text-xs text-red-300 mt-2">{joinError}</div>}
+            </div>
+
+            <div><label className="fm text-xs text-gray-500 mb-2 block">ORGANIZATION *</label><input placeholder="Institution name" value={f.orgName} onChange={e=>{ u("orgName",e.target.value); u("joinOrgId",""); }}/></div>
+
+            {/* Suggested orgs based on email domain / name match */}
+            {!f.joinOrgId && suggestions.length>0 && <div className="p-3 bg-emerald-500/5 border border-emerald-500/20">
+              <div className="fm text-xs text-emerald-300 mb-2">DID YOU MEAN ONE OF THESE? <span className="text-gray-500">— matches existing orgs by name or email domain</span></div>
+              <div className="space-y-1">{suggestions.map(s => (
+                <button key={s.id} onClick={()=>setF(prev=>({...prev, joinOrgId: s.id, orgName: s.name, inviteCode: s.invite_code || ""}))} className="w-full flex items-center justify-between gap-3 p-2 hover:bg-emerald-500/10 cursor-pointer text-left">
+                  <span className="fm text-xs text-gray-200">{s.name}</span>
+                  <span className="fm text-[10px] text-emerald-400">{s.match_reason === "domain" ? "DOMAIN MATCH" : "NAME MATCH"}</span>
+                </button>
+              ))}</div>
+            </div>}
+
+            <div className="grid grid-cols-2 gap-4"><div><label className="fm text-xs text-gray-500 mb-2 block">INSTITUTION_TYPE</label><select value={f.instType} onChange={e=>u("instType",e.target.value)}><option value="">Select...</option><option>Asset Manager</option><option>Bank / Custodian</option><option>Fund</option><option>Corporate Treasury</option></select></div><div><label className="fm text-xs text-gray-500 mb-2 block">JURISDICTION</label><select value={f.jurisdiction} onChange={e=>u("jurisdiction",e.target.value)}><option value="">Select...</option><option>United States</option><option>European Union</option><option>United Kingdom</option><option>Singapore</option></select></div></div>
+            <div><label className="fm text-xs text-gray-500 mb-2 block">EVALUATION_OBJECTIVE</label><input placeholder="e.g., Assess governed treasury controls" value={f.evalObjective} onChange={e=>u("evalObjective",e.target.value)}/></div>
+          </div>}
           {step===1&&<div className="space-y-5 anim" key="s1"><SL>ROLES & ACCESS</SL><p className="fm text-xs text-gray-400 mb-4">After launch, add real team members on the Team page. Each governance function maps to a role:</p><div className="space-y-2">{["Requester — initiates movement requests","Approver — approves under threshold policy","Reviewer — reviews policy application","Oversight — risk, audit, compliance","Observer — finance, reporting"].map((r)=><div key={r} className="flex items-center gap-3 p-3 bg-black/30 border border-gray-800/50 fm text-xs text-gray-300"><span className="text-purple-400">▹</span>{r}</div>)}</div></div>}
           {step===2&&<div className="space-y-5 anim" key="s2"><SL>CONTROL POSTURE</SL><div><label className="fm text-xs text-gray-500 mb-3 block">CONTROL_MODEL</label><div className="grid grid-cols-3 gap-3">{[{id:"single",l:"Single",d:"One approver"},{id:"threshold",l:"Threshold",d:"Multi-approval"},{id:"committee",l:"Committee",d:"Full governance"}].map(o=><div key={o.id} onClick={()=>u("controlModel",o.id)} className={`p-4 cursor-pointer border transition-all ${f.controlModel===o.id?"border-purple-500 bg-purple-500/10 text-white":"border-gray-800 bg-gray-900/30 text-gray-500 hover:border-gray-700"}`}><div className="fm text-sm font-bold mb-1">{o.l}</div><div className="text-xs">{o.d}</div></div>)}</div></div><div><label className="fm text-xs text-gray-500 mb-3 block">TRUST_ENVIRONMENT</label><div className="grid grid-cols-2 gap-3">{[{id:"current",l:"Current Trust",d:"Standard crypto"},{id:"pqc",l:"PQC Target",d:"Post-quantum view"}].map(o=><div key={o.id} onClick={()=>u("trustEnv",o.id)} className={`p-4 cursor-pointer border transition-all ${f.trustEnv===o.id?"border-fuchsia-500 bg-fuchsia-500/10 text-white":"border-gray-800 bg-gray-900/30 text-gray-500 hover:border-gray-700"}`}><div className="fm text-sm font-bold mb-1">{o.l}</div><div className="text-xs">{o.d}</div></div>)}</div></div></div>}
           {step===3&&<div className="space-y-5 anim" key="s3"><SL>LAUNCH SANDBOX</SL><div className="text-center py-4"><div className="inline-block p-4 rounded-full bg-purple-500/10 border border-purple-500/30 mb-4"><Shld/></div><h3 className="text-xl font-bold mb-2">Ready to Launch</h3><p className="fm text-sm text-gray-500">Session will be persisted to Supabase.</p></div><div className="space-y-2 p-4 bg-black/40 border border-gray-800 fm text-xs"><div className="flex justify-between"><span className="text-gray-500">ORG:</span><span>{f.orgName||"—"}</span></div><div className="flex justify-between"><span className="text-gray-500">CONTROL:</span><span className="text-purple-400">{f.controlModel.toUpperCase()}</span></div><div className="flex justify-between"><span className="text-gray-500">TRUST:</span><span className="text-fuchsia-400">{f.trustEnv==="pqc"?"PQC TARGET":"CURRENT"}</span></div><div className="flex justify-between"><span className="text-gray-500">BACKEND:</span><span className="text-emerald-400">SUPABASE LIVE</span></div></div></div>}
@@ -936,11 +1103,12 @@ const SideNav = ({ onSelect }) => {
     {id:"team",l:"TEAM",i:sIcons.participants},
     {id:"evidence",l:"EVIDENCE VIEWER",i:sIcons.evidence},
     {id:"how-it-works",l:"HOW IT WORKS",i:sIcons.help},
+    {id:"user-guide",l:"USER GUIDE",i:sIcons.evidence},
     {id:"support",l:"SUPPORT",i:sIcons.mail},
     {id:"billing",l:"BILLING",i:sIcons.card},
     {id:"settings",l:"SETTINGS",i:sIcons.config},
   ];
-  return (<div className="w-56 flex-shrink-0 border-r border-purple-500/20 flex flex-col h-full" style={{background:"rgba(5,2,15,.95)"}}><div className="p-4 space-y-1 flex-1 overflow-y-auto">{nav.map(n=><button key={n.id} onClick={()=>pick(n.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 fm text-xs transition-all cursor-pointer ${activeView===n.id?"text-purple-400 bg-purple-500/10 border-l-2 border-purple-500":"text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"}`}>{n.i}<span className="flex-1 text-left">{n.l}</span>{n.soon&&<span className="fm text-[8px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 border border-yellow-400/40">SOON</span>}</button>)}</div><div className="p-4 border-t border-purple-500/10 space-y-2"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{(user?.email||"U")[0].toUpperCase()}</div><div className="fm text-xs text-gray-400 truncate">{user?.email}</div></div><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-red-400 transition-colors cursor-pointer text-left px-1 py-1">← EXIT_SANDBOX</button></div></div>);
+  return (<div className="w-56 flex-shrink-0 border-r border-purple-500/20 flex flex-col h-full" style={{background:"rgba(5,2,15,.95)"}}><div className="p-4 space-y-1 flex-1 overflow-y-auto">{nav.map(n=><button key={n.id} onClick={()=>pick(n.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 fm text-xs transition-all cursor-pointer ${activeView===n.id?"text-purple-400 bg-purple-500/10 border-l-2 border-purple-500":"text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"}`}>{n.i}<span className="flex-1 text-left">{n.l}</span>{n.soon&&<span className="fm text-[8px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 border border-yellow-400/40">SOON</span>}</button>)}</div><div className="p-4 border-t border-purple-500/10 space-y-2"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{(user?.email||"U")[0].toUpperCase()}</div><div className="fm text-xs text-gray-400 truncate">{user?.email}</div></div><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-purple-400 transition-colors cursor-pointer text-left px-1 py-1">⇄ SWITCH_ACCOUNT</button><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-red-400 transition-colors cursor-pointer text-left px-1 py-1">← EXIT_SANDBOX</button></div></div>);
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -948,6 +1116,9 @@ const SideNav = ({ onSelect }) => {
 // ═══════════════════════════════════════════════════════════════════
 const EvaluationHub = () => {
   const { org, threshold, participants, wallets, assets, banks, logs, settings, scenarios, progress, setActiveView, addLog } = useApp();
+  const w = useWallet();
+  // Item 7: counters track live wallet/chain state, not just stale DB rows
+  const liveWalletCount = Math.max(wallets.length, w.isConnected ? 1 : 0);
   const usdNum = (s) => Number(String(s||"").replace(/[^0-9.-]/g,"")) || 0;
   const cryptoUsd = assets.reduce((s,a) => s + usdNum(a.balance_usd), 0);
   const banksUsd = banks.reduce((s,b) => s + Number(b.balance||0), 0);
@@ -1027,7 +1198,7 @@ const EvaluationHub = () => {
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {[
         { l:"BANKS", v:banks.length, c:"text-blue-400" },
-        { l:"WALLETS", v:wallets.length, c:"text-fuchsia-400" },
+        { l:"WALLETS", v:liveWalletCount, c:"text-fuchsia-400" },
         { l:"TEAM", v:participants.length, c:"text-indigo-400" },
         { l:"THRESHOLD", v:`${threshold?.required_approvals||0}/${participants.length||0}`, c:"text-yellow-400" },
         { l:"TRUST", v:org?.trust_environment==="pqc"?"PQC":"CURRENT", c:"text-emerald-400" },
@@ -1118,7 +1289,7 @@ const AssetBoundary = () => {
 
     <GC className="p-5 anim-d1"><div className="flex items-center justify-between flex-wrap gap-3">
       <div><div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL_BALANCE_HIGHLIGHTED <Tip text="Sum of USD-valued in-scope assets across all connected wallets and chains. Live wallet balances are shown separately as Sepolia testnet (no real USD value)."/></div><div className="text-3xl font-black tg">${manualUsd.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>
-      <div className="fm text-xs text-gray-500 text-right"><div>{assets.filter(a=>a.scope==="in-scope").length} IN-SCOPE</div><div className="text-emerald-400">{wallets.length} WALLETS · {chains.length} CHAINS</div></div>
+      <div className="fm text-xs text-gray-500 text-right"><div>{assets.filter(a=>a.scope==="in-scope").length} IN-SCOPE</div><div className="text-emerald-400">{Math.max(wallets.length, w.isConnected?1:0)} WALLETS · {w.isSepolia?1:0} CHAIN{w.isSepolia?"":"S"}</div></div>
     </div></GC>
 
     {/* IMPORT_CRYPTO: connect wallet flow (same as Governed Movement) */}
@@ -1134,7 +1305,7 @@ const AssetBoundary = () => {
           </div>)}
         </div>
         <div className="flex gap-2 flex-wrap">
-          {!w.isConnected && w.hasProvider && <Btn onClick={w.connect} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>}
+          {!w.isConnected && <WalletPicker w={w}/>}
           {w.isConnected && !w.isSepolia && <Btn v="secondary" onClick={w.ensureSepolia}>SWITCH TO SEPOLIA</Btn>}
           {w.isConnected && <Btn v="ghost" onClick={()=>setMode(null)}>DONE</Btn>}
         </div>
@@ -1170,7 +1341,10 @@ const AssetBoundary = () => {
     </GC>}
 
     {/* Saved (imported) wallets list */}
-    {wallets.length>0 && <GC className="p-4"><SL>IMPORTED WALLETS ({wallets.length})</SL><div className="space-y-2">{wallets.map(wl=>(<div key={wl.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50 flex-wrap gap-2"><div className="flex items-center gap-3 min-w-0 flex-1"><Wallet/><div className="fm text-xs min-w-0"><div className="text-gray-300 font-bold truncate">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><a href={wl.chain?.explorer_url ? `${wl.chain.explorer_url}/address/${wl.address}` : "#"} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-400 truncate block">{wl.address}</a></div></div><div className="flex items-center gap-2"><Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>))}</div></GC>}
+    {wallets.length>0 && <GC className="p-4"><SL>IMPORTED WALLETS ({wallets.length})</SL>
+      <div className="fm text-[10px] text-gray-500 mb-3">Phase 3, item 8 — multiple wallets are tracked per account. Only one wallet can be the <span className="text-emerald-400">ACTIVE</span> signer at a time (the one currently exposed by your browser wallet). Transactions are attributed to whichever wallet was active at the moment of signing.</div>
+      <div className="space-y-2">{wallets.map(wl=>{ const isActive = w.address?.toLowerCase() === wl.address?.toLowerCase(); return (<div key={wl.id} className={`flex items-center justify-between p-3 ${isActive?"bg-emerald-500/10 border border-emerald-500/30":"bg-black/30 border border-gray-800/50"} flex-wrap gap-2`}><div className="flex items-center gap-3 min-w-0 flex-1"><Wallet/><div className="fm text-xs min-w-0"><div className="text-gray-300 font-bold truncate">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><a href={wl.chain?.explorer_url ? `${wl.chain.explorer_url}/address/${wl.address}` : "#"} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-400 truncate block">{wl.address}</a></div></div><div className="flex items-center gap-2">{isActive && <Badge c="green">ACTIVE</Badge>}<Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>); })}</div>
+    </GC>}
 
     <div className="space-y-3">
       {assets.length===0 && !w.isConnected && <Empty>No assets yet. Click IMPORT_CRYPTO to connect a wallet, or ADD_MANUALLY to track a non-EVM asset.</Empty>}
@@ -1286,7 +1460,7 @@ const GovernedMovement = () => {
     { l: "TOTAL VALUE", v: `$${totalUsd.toLocaleString()}`, c: "emerald" },
     { l: "BANK BALANCE", v: `$${banksUsd.toLocaleString()}`, c: "blue" },
     { l: "CRYPTO VALUE", v: `$${cryptoUsd.toLocaleString()}`, c: "purple" },
-    { l: "WALLETS", v: wallets.length, c: "fuchsia" },
+    { l: "WALLETS", v: Math.max(wallets.length, w.isConnected?1:0), c: "fuchsia" },
     { l: "TEAM", v: teamCount, c: "indigo" },
     { l: "THRESHOLD", v: `${threshold?.required_approvals || 0}/${teamCount || 0}`, c: "yellow" },
   ];
@@ -1312,8 +1486,9 @@ const GovernedMovement = () => {
           </div>)}
         </div>
         <div className="flex gap-2 flex-wrap">
-          {!w.isConnected && w.hasProvider && <Btn onClick={w.connect} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>}
+          {!w.isConnected && <WalletPicker w={w}/>}
           {w.isConnected && !w.isSepolia && <Btn v="secondary" onClick={w.ensureSepolia}>SWITCH TO SEPOLIA</Btn>}
+          {w.isConnected && <Btn v="ghost" onClick={w.reconnect} disabled={w.busy}>SWITCH ACCOUNT</Btn>}
           {w.isConnected && <Btn v="ghost" onClick={w.disconnect}>DISCONNECT</Btn>}
         </div>
       </div>
@@ -1559,6 +1734,8 @@ const EvidenceViewer = () => {
 // ═══════════════════════════════════════════════════════════════════
 const EvalOverview = () => {
   const { activeScenario, progress, scenarios, participants, assets, banks, wallets, transactions, setActiveView, org } = useApp();
+  const w = useWallet();
+  const liveWalletCount = Math.max(wallets.length, w.isConnected?1:0);
   const completed = Object.values(progress).filter(p=>p.status==="completed").length;
   const total = scenarios.length || 0;
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1"><div><h2 className="text-2xl font-bold mb-1 anim">Overview</h2><p className="fm text-sm text-gray-500 anim-d1">{org?.name||"—"} · LIVE EVALUATION</p></div>
@@ -1568,7 +1745,7 @@ const EvalOverview = () => {
       <GC className="p-5 anim-d2"><div className="fm text-xs text-gray-500 mb-2">[ TRANSACTIONS ]</div><div className="text-2xl font-bold mb-1 text-emerald-400">{transactions.length}</div><div className="fm text-xs text-gray-500">on platform</div></GC>
       <GC className="p-5 anim-d3"><div className="fm text-xs text-gray-500 mb-2">[ TEAM ]</div><div className="text-2xl font-bold mb-1 text-purple-400">{participants.length}</div><div className="fm text-xs text-gray-500">members</div></GC>
       <GC className="p-5 anim-d1"><div className="fm text-xs text-gray-500 mb-2">[ ASSETS ]</div><div className="text-2xl font-bold mb-1">{assets.length}</div><div className="fm text-xs text-gray-500">in scope</div></GC>
-      <GC className="p-5 anim-d2"><div className="fm text-xs text-gray-500 mb-2">[ WALLETS ]</div><div className="text-2xl font-bold mb-1 text-fuchsia-400">{wallets.length}</div><div className="fm text-xs text-gray-500">connected</div></GC>
+      <GC className="p-5 anim-d2"><div className="fm text-xs text-gray-500 mb-2">[ WALLETS ]</div><div className="text-2xl font-bold mb-1 text-fuchsia-400">{liveWalletCount}</div><div className="fm text-xs text-gray-500">connected</div></GC>
       <GC className="p-5 anim-d3"><div className="fm text-xs text-gray-500 mb-2">[ BANKS ]</div><div className="text-2xl font-bold mb-1 text-blue-400">{banks.length}</div><div className="fm text-xs text-gray-500">imported</div></GC>
       <GC className="p-5 anim-d3"><div className="fm text-xs text-gray-500 mb-2">[ TRUST ]</div><div className="text-lg font-bold mb-1 text-fuchsia-400">{org?.trust_environment==="pqc"?"PQC":"Current"}</div><div className="fm text-xs text-gray-500">posture</div></GC>
     </div>
@@ -1599,7 +1776,7 @@ const SettingsPage = () => {
       </Field>
     </div></GC>}
 
-    {tab==="context"&&<GC className="p-6 anim"><SL>ORGANIZATION</SL><div className="space-y-3"><InfoRow label="ORGANIZATION" value={org?.name||"—"}/><InfoRow label="TYPE" value={org?.institution_type||"—"}/><InfoRow label="JURISDICTION" value={org?.jurisdiction||"—"}/><InfoRow label="OBJECTIVE" value={org?.eval_objective||"—"}/></div></GC>}
+    {tab==="context"&&<GC className="p-6 anim"><SL>ORGANIZATION</SL><div className="space-y-3"><InfoRow label="ORGANIZATION" value={org?.name||"—"}/><InfoRow label="TYPE" value={org?.institution_type||"—"}/><InfoRow label="JURISDICTION" value={org?.jurisdiction||"—"}/><InfoRow label="OBJECTIVE" value={org?.eval_objective||"—"}/><InfoRow label="INVITE_CODE" value={org?.invite_code||"—"}/></div><div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">Share your <b className="text-purple-300">INVITE_CODE</b> with teammates. They can paste it on the Sandbox Setup screen to join this org instead of creating a duplicate.</div></GC>}
     {tab==="control"&&<GC className="p-6 anim"><SL>CONTROL POSTURE</SL><div className="space-y-3"><InfoRow label="CONTROL_MODEL" value={(org?.control_model||"threshold")+" Governance"}/><InfoRow label="TRUST" value={org?.trust_environment||"current"}/></div></GC>}
     {tab==="evidence"&&<GC className="p-6 anim"><SL>EVIDENCE & ASSURANCE</SL><div className="space-y-3"><InfoRow label="EVIDENCE_VIEWS" badge={{t:"AVAILABLE",c:"green"}}/><InfoRow label="SELECTIVE_VERIFICATION" badge={{t:"VIEW AVAILABLE",c:"fuchsia"}}/><InfoRow label="PQC_CRYPTO_AGILITY" badge={{t:"VIEW AVAILABLE",c:"purple"}}/></div></GC>}
     <GC className="p-5"><SL>SANDBOX STATE</SL><div className="flex items-center justify-between"><div><div className="text-sm font-bold text-yellow-400">Reset Sandbox State</div><div className="fm text-xs text-gray-500">Clear all progress and evidence</div></div><Btn v="danger" onClick={resetSandbox}>RESET_SANDBOX</Btn></div></GC>
@@ -1634,6 +1811,100 @@ const ImportBank = () => {
     </div>
   </div>);
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// USER GUIDE — phase 0 feedback item 2
+// ═══════════════════════════════════════════════════════════════════
+const UserGuide = () => (
+  <div className="p-6 space-y-6 overflow-y-auto flex-1">
+    <div>
+      <h2 className="text-2xl font-bold mb-1">User Guide</h2>
+      <p className="fm text-sm text-gray-500">GETTING STARTED · WALLETS · TROUBLESHOOTING · HISTORY</p>
+    </div>
+
+    <GC className="p-6 max-w-3xl space-y-4">
+      <SL>SUPPORTED WALLETS</SL>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        Quantum Qustody connects to any wallet that speaks the EIP-1193 standard — meaning any
+        wallet that exposes the <code className="fm text-purple-300">window.ethereum</code> object
+        in your browser, or that surfaces itself via the EIP-6963 multi-wallet discovery event.
+        That covers the four wallets the team verified during testnet:
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        <b>MetaMask</b> is the default and works out of the box once the browser extension is
+        installed. <b>Coinbase Wallet</b> works the same way — install the extension, sign in,
+        then click <em>Import Crypto</em> in the dashboard. <b>Rabby</b> is supported and is
+        often the cleanest choice for users who manage several accounts. <b>Brave Wallet</b>,
+        built directly into the Brave browser, also works; if you have both Brave Wallet and
+        another extension installed, the EIP-6963 picker lets you choose which one to authorise.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        Hardware wallets — Ledger, Trezor — work indirectly, by being added as accounts inside
+        one of the four wallets above. Mobile-only wallets (Trust, Rainbow, Argent) require
+        WalletConnect, which is on the roadmap but not yet shipped.
+      </p>
+    </GC>
+
+    <GC className="p-6 max-w-3xl space-y-4">
+      <SL>IF SOMETHING STALLS</SL>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        The most common issue is the wallet panel never resolving — you click <em>Connect</em>
+        and the button sits on "Connecting…" indefinitely. This almost always means the
+        wallet's provider injected into the page after our connect logic had already given up.
+        The fix is simple: <b>refresh the page once</b>. The newer build re-detects providers
+        on mount and listens for the EIP-6963 announce event, so a single refresh is enough
+        to recover. If the stall persists, switch wallets and confirm the extension is
+        unlocked.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        If a wallet shows "wrong network", click <em>Switch to Sepolia</em> in the wallet card.
+        If the wallet shows zero balance even though you've funded it, give the public RPC a
+        few seconds and hit <em>Refresh</em>; if balances still don't update, your RPC endpoint
+        may be rate-limited — try a different one from the faucet card.
+      </p>
+    </GC>
+
+    <GC className="p-6 max-w-3xl space-y-4">
+      <SL>HOW HISTORY IS SCOPED</SL>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        Two separate streams of history live in the product, and they are scoped differently
+        on purpose.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        The <b>Evaluation Log</b> on the right of every screen is your <em>platform action log</em>.
+        It records what you do inside Quantum Qustody — invite a teammate, change a threshold,
+        run a scenario, generate an evidence pack. These events are bound to your <em>account</em>:
+        they persist in Supabase, survive refreshes, survive logouts, and follow you across
+        browsers. They have nothing to do with any particular wallet.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        The <b>Transactions</b> tab inside Evidence Viewer is the <em>on-chain transaction history</em>.
+        It is bound to a <em>wallet</em>, not your account: each row corresponds to a transaction
+        the connected wallet signed and broadcast to the chain, read directly from the Sepolia
+        RPC. Connect a different wallet and you'll see a different transaction history. The
+        platform action log will look the same; the on-chain history will change.
+      </p>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        The practical implication: if you send a Sepolia transaction, log out, log back in and
+        connect the same wallet, both streams reappear. If you connect a different wallet,
+        your platform actions are still there but the chain history follows the wallet, not
+        you.
+      </p>
+    </GC>
+
+    <GC className="p-6 max-w-3xl space-y-4">
+      <SL>GETTING TESTNET ETH</SL>
+      <p className="text-sm text-gray-300 leading-relaxed">
+        Every on-chain action on Quantum Qustody runs against the Ethereum Sepolia testnet.
+        Sepolia ETH has no real value, but you do need a small amount to pay gas. The
+        Governed Movement page lists four faucets — Google Cloud, Alchemy, QuickNode, and
+        Infura — and any one of them will fund a connected wallet with roughly 0.05 ETH per
+        day. Paste your wallet address into the faucet, claim the drip, then come back and
+        run a Send to check it landed.
+      </p>
+    </GC>
+  </div>
+);
 
 // ═══════════════════════════════════════════════════════════════════
 // HOW IT WORKS (item 10)
@@ -1791,7 +2062,7 @@ function AppShell() {
   const qsScore = computeQSafety({ org, threshold, participants, wallets, settings, scenarios, progress });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
-  const views = { hub:<EvaluationHub/>, "scenario-detail":<ScenarioDetail/>, overview:<EvalOverview/>, assets:<AssetBoundary/>, "import-bank":<ImportBank/>, movement:<GovernedMovement/>, team:<Team/>, evidence:<EvidenceViewer/>, "how-it-works":<HowItWorks/>, support:<Support/>, billing:<Billing/>, settings:<SettingsPage/> };
+  const views = { hub:<EvaluationHub/>, "scenario-detail":<ScenarioDetail/>, overview:<EvalOverview/>, assets:<AssetBoundary/>, "import-bank":<ImportBank/>, movement:<GovernedMovement/>, team:<Team/>, evidence:<EvidenceViewer/>, "how-it-works":<HowItWorks/>, "user-guide":<UserGuide/>, support:<Support/>, billing:<Billing/>, settings:<SettingsPage/> };
 
   return (<div style={{opacity:fading?0:1,transition:"opacity 0.3s ease"}}>
     {phase==="landing"&&<LandingPage/>}

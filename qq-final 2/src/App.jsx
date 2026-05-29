@@ -307,6 +307,74 @@ function AppProvider({ children }) {
   const switchPlan = async (planId, planName) => { if (!org?.id) return; const renews = new Date(Date.now() + 30*86400000).toISOString().slice(0,10); const { error } = await supabase.from("org_subscriptions").upsert({ org_id: org.id, plan_id: planId, renews_at: renews }); if (!error) { addLog({type:"success",message:`Plan changed to ${planName||planId}`}); reloadSubscription(); } };
   const submitTicket = async (t) => { if (!org?.id) return { error: new Error("No org") }; const { error } = await supabase.from("support_tickets").insert({ ...t, user_id: user?.id, org_id: org.id }); if (error) addLog({type:"error",message:`Ticket failed: ${error.message}`}); else addLog({type:"success",message:`Support ticket submitted: ${t.subject||t.category}`}); return { error }; };
 
+  // ─── Phase 4/5 governance backend wrappers ──────────────────────
+  const reloadOrg = async () => { if (!org?.id) return; const { data } = await supabase.from("organizations").select("*").eq("id", org.id).maybeSingle(); if (data) setOrg(data); };
+
+  const setRootEoa = async (eoa) => {
+    if (!org?.id || !eoa) return;
+    const { data, error } = await supabase.rpc("set_root_eoa", { p_org: org.id, p_eoa: eoa });
+    if (error) addLog({ type:"error", message:`Root EOA set failed: ${error.message}` });
+    else if (data?.ok) { addLog({ type:"info", message:`Root EOA bound; smart account derived: ${shortAddr(data.smart_account_address || "")}` }); reloadOrg(); }
+    return data;
+  };
+
+  const submitPolicyForActivation = async (policyId) => {
+    const { data, error } = await supabase.rpc("submit_policy_for_activation", { p_policy: policyId });
+    if (error || data?.error) addLog({ type:"error", message:`Activation submit failed: ${error?.message || data?.error}` });
+    else addLog({ type:"info", message:"Policy submitted for activation — awaiting approver votes." });
+    return data;
+  };
+
+  const voteOnPolicy = async (policyId, vote) => {
+    // Caller is the current user — find their participant row
+    const { data: p } = await supabase.from("participants").select("id").eq("org_id", org.id).eq("email", user?.email).maybeSingle();
+    if (!p?.id) { addLog({ type:"error", message:"You are not a participant of this org." }); return; }
+    const { data, error } = await supabase.rpc("vote_on_policy", { p_policy: policyId, p_approver: p.id, p_vote: vote });
+    if (error || data?.error) addLog({ type:"error", message:`Vote failed: ${error?.message || data?.error}` });
+    else { addLog({ type:"success", message:`Vote cast: ${vote.toUpperCase()} (${data?.approve_count}/${data?.reject_count})` }); reloadOrg(); }
+    return data;
+  };
+
+  const proposePolicyChange = async (changeType, payload) => {
+    if (!org?.id) return;
+    const { data: p } = await supabase.from("participants").select("id").eq("org_id", org.id).eq("email", user?.email).maybeSingle();
+    if (!p?.id) { addLog({ type:"error", message:"You are not a participant of this org." }); return; }
+    const { data, error } = await supabase.rpc("propose_policy_change", { p_org: org.id, p_proposer: p.id, p_change_type: changeType, p_payload: payload || {} });
+    if (error || data?.error) addLog({ type:"error", message:`Proposal failed: ${error?.message || data?.error}` });
+    else addLog({ type:"info", message:`Policy change proposed: ${changeType} — ${data?.required} approvals required` });
+    return data;
+  };
+
+  const voteOnPolicyChange = async (proposalId, vote) => {
+    const { data: p } = await supabase.from("participants").select("id").eq("org_id", org.id).eq("email", user?.email).maybeSingle();
+    if (!p?.id) { addLog({ type:"error", message:"You are not a participant of this org." }); return; }
+    const { data, error } = await supabase.rpc("vote_on_policy_change", { p_proposal: proposalId, p_approver: p.id, p_vote: vote });
+    if (error || data?.error) addLog({ type:"error", message:`Vote failed: ${error?.message || data?.error}` });
+    else addLog({ type:"info", message:`Proposal vote: ${vote.toUpperCase()} (${data?.approve_count}/${data?.reject_count})` });
+    return data;
+  };
+
+  const validateMovement = async ({ amount, destination, token, action }) => {
+    if (!org?.id) return { valid: false, reasons: ["No org loaded"] };
+    const { data, error } = await supabase.rpc("validate_movement", {
+      p_org: org.id, p_amount: Number(amount||0), p_destination: destination || "", p_token: token || "", p_action: action || "send",
+    });
+    if (error) return { valid: false, reasons: [error.message] };
+    return data;
+  };
+
+  const setUserState = async (participantId, newState) => {
+    const { data, error } = await supabase.rpc("set_user_state", { p_participant: participantId, p_new: newState });
+    if (error || data?.error) addLog({ type:"error", message:`State change failed: ${error?.message || data?.error}` });
+    else { addLog({ type:"success", message:`Member state: ${data.from} → ${data.to}` }); reloadParticipants(); }
+    return data;
+  };
+
+  const bootstrapDraftPolicy = async (orgId, requiredApprovals, totalApprovers) => {
+    const { data } = await supabase.rpc("bootstrap_draft_policy", { p_org: orgId, p_required: requiredApprovals || 2, p_total: totalApprovers || 3 });
+    return data;
+  };
+
   // Team email invitations — uses team-invite edge function
   const reloadInvitations = async () => {
     if (!org?.id) return;
@@ -510,6 +578,10 @@ function AppProvider({ children }) {
       const result = await callFunction("scenario-engine", { action: "create_session", org_config: orgConfig });
       setSession(result.session);
       setOrg(result.org);
+      // Phase 4 — auto-bootstrap a draft policy reflecting the chosen control model
+      const required = orgConfig?.controlModel === "committee" ? 3 : orgConfig?.controlModel === "single" ? 1 : 2;
+      const total = orgConfig?.controlModel === "committee" ? 5 : orgConfig?.controlModel === "single" ? 1 : 3;
+      try { await supabase.rpc("bootstrap_draft_policy", { p_org: result.org.id, p_required: required, p_total: total }); } catch (e) {}
       await loadSessionData(result.session.id, result.org.id);
       addLog({ type: "success", message: "Sandbox launched", detail: "EVALUATION_READY" });
       go("app");
@@ -592,6 +664,10 @@ function AppProvider({ children }) {
       addParticipant, removeParticipant, updateThreshold,
       addPaymentMethod, removePaymentMethod, switchPlan, submitTicket, updateSettings, setTheme,
       invitations, sendInvitation, resendInvitation, revokeInvitation, reloadInvitations, reloadParticipants,
+      // Phase 4/5 governance
+      setRootEoa, submitPolicyForActivation, voteOnPolicy,
+      proposePolicyChange, voteOnPolicyChange, validateMovement,
+      setUserState, bootstrapDraftPolicy, reloadOrg,
     }}>
       {children}
     </AppContext.Provider>
@@ -658,6 +734,51 @@ const ComingSoon = ({ children, className = "" }) => (
     <div className="opacity-60 pointer-events-none select-none">{children}</div>
   </div>
 );
+
+// Phase 5 scaffold (BRANCH ONLY): boundary panel making Root EOA vs Smart
+// Account vs Policy Status vs Funding Status vs Protection Status visible.
+// On-chain ERC-4337 deployment is MOCKED — see docs/governed-wallet-architecture.md
+const BoundaryPanel = ({ w, org }) => {
+  const [policy, setPolicy] = useState(null);
+  useEffect(() => {
+    if (!org?.id) return;
+    supabase.from("policy_versions").select("*").eq("org_id", org.id)
+      .order("drafted_at", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => setPolicy(data));
+  }, [org?.id]);
+
+  // Deterministic mock smart-account address derived from the Root EOA
+  const smartAccount = w.address ? `0xQ2${w.address.slice(4, 38).toLowerCase()}sa` : null;
+  const policyStatus = policy?.status || "Draft";
+  const fundingLocked = policyStatus !== "Active";
+  const protectionStatus = policyStatus === "Active" ? "GOVERNED ACTIVE" : "UNGOVERNED";
+
+  const cell = (label, value, color) => (
+    <div className="p-3 border bg-black/30" style={{borderColor:`${color}55`}}>
+      <div className="fm text-[10px] text-gray-500 mb-1">{label}</div>
+      <div className="fm text-xs font-bold" style={{color}}>{value}</div>
+    </div>
+  );
+
+  return (<GC className="p-5" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+    <div className="flex items-center gap-2 mb-2">
+      <SL>BOUNDARY · GOVERNED SMART ACCOUNT</SL>
+      <span className="fm text-[9px] px-2 py-0.5 bg-yellow-400 text-black font-black tracking-wider">SCAFFOLD · MOCK</span>
+    </div>
+    <p className="fm text-xs text-gray-400 mb-4">Root EOA holds ownership and recovery. The Smart Account holds the institution's assets, governed by the active policy. <a href="/docs/governed-wallet-architecture.md" target="_blank" className="text-purple-300 hover:underline">Design doc</a>.</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {cell("ROOT EOA (RECOVERY)", w.address ? shortAddr(w.address) : "— not connected —", "#a855f7")}
+      {cell("SMART ACCOUNT (VAULT)", smartAccount ? `${smartAccount.slice(0,10)}…${smartAccount.slice(-4)}` : "— pending deploy —", "#d946ef")}
+      {cell("POLICY STATUS", policyStatus.toUpperCase(), policyStatus==="Active"?"#22c55e":policyStatus==="Draft"?"#facc15":"#818cf8")}
+      {cell("FUNDING STATUS", fundingLocked ? "LOCKED · awaiting activation" : "UNLOCKED", fundingLocked?"#ef4444":"#22c55e")}
+      {cell("PROTECTION STATUS", protectionStatus, protectionStatus==="GOVERNED ACTIVE"?"#22c55e":"#ef4444")}
+      {cell("THRESHOLD", policy ? `${policy.required_approvals} of ${policy.total_approvers}` : "— policy missing —", "#818cf8")}
+    </div>
+    {fundingLocked && <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 fm text-xs text-red-300">
+      <b>Funding locked.</b> Sending assets to the Root EOA leaves them outside the smart-account validation rules. Sending assets to the Smart Account is blocked until policy is <em>Active</em> and the approver set is verified. Activate policy first on the Team page.
+    </div>}
+  </GC>);
+};
 
 // Wallet picker — shows when EIP-6963 reports multiple providers (item 5).
 // One provider: just a single Connect button. Zero: install hint.
@@ -1261,13 +1382,17 @@ const AssetBoundary = () => {
   const w = useWallet();
 
   // Auto-persist a connected MetaMask wallet to the wallets table the first time we see it.
+  // Also calls set_root_eoa so the org gets a smart-account address derived from the EOA (spec §3, §4).
+  const { setRootEoa } = useApp();
   useEffect(() => {
     if (!w.address || !org?.id) return;
     const sepoliaChain = chains.find(c => c.network === "ethereum-sepolia");
     if (!sepoliaChain) return;
     const exists = wallets.find(x => x.address?.toLowerCase() === w.address.toLowerCase());
-    if (exists) return;
-    addWallet({ chain_id: sepoliaChain.id, label: "MetaMask Sepolia", address: w.address, type: "EOA" });
+    if (!exists) addWallet({ chain_id: sepoliaChain.id, label: "MetaMask Sepolia", address: w.address, type: "EOA" });
+    if (!org.root_eoa_address || org.root_eoa_address.toLowerCase() !== w.address.toLowerCase()) {
+      setRootEoa(w.address);
+    }
   }, [w.address, org?.id, chains.length]);
 
   const manualUsd = assets.reduce((s,a) => s + (Number(String(a.balance_usd||"").replace(/[^0-9.-]/g,""))||0), 0);
@@ -1286,6 +1411,9 @@ const AssetBoundary = () => {
       <div><h2 className="text-2xl font-bold mb-1">Digital Assets</h2><p className="fm text-sm text-gray-500 flex items-center gap-2">IN-SCOPE ASSETS <Tip text="Quantum Qustody never holds your private keys. Instead, write access is delegated through your governance EOA — the underlying signer remains with your custody provider while policy enforcement runs on every movement."/></p></div>
       <div className="flex gap-2 flex-wrap"><Btn onClick={()=>{ setMode("wallet"); if (!w.isConnected && w.hasProvider) w.connect(); }} disabled={w.busy}><Wallet/> {w.busy?"CONNECTING...":w.isConnected?"WALLET CONNECTED":"IMPORT_CRYPTO"}</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div>
     </div>
+
+    {/* Phase 5 scaffold (BRANCH ONLY) */}
+    <BoundaryPanel w={w} org={org}/>
 
     <GC className="p-5 anim-d1"><div className="flex items-center justify-between flex-wrap gap-3">
       <div><div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL_BALANCE_HIGHLIGHTED <Tip text="Sum of USD-valued in-scope assets across all connected wallets and chains. Live wallet balances are shown separately as Sepolia testnet (no real USD value)."/></div><div className="text-3xl font-black tg">${manualUsd.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>
@@ -1370,7 +1498,7 @@ const AssetBoundary = () => {
 // ═══════════════════════════════════════════════════════════════════
 const GovernedMovement = () => {
   const { activeScenario, progress, assets, participants, advanceStep, generateEvidence, setActiveView, addLog,
-          banks, chains, wallets, threshold, addWallet, removeWallet, session, org } = useApp();
+          banks, chains, wallets, threshold, addWallet, removeWallet, session, org, validateMovement } = useApp();
   const scId = activeScenario?.id;
   const pg = scId ? progress[scId] : null;
   const step = pg?.current_step || "request";
@@ -1418,6 +1546,14 @@ const GovernedMovement = () => {
     if (!w.isConnected) { setWalletWarning("Connect MetaMask first."); return; }
     if (!w.isSepolia) { try { await w.ensureSepolia(); } catch (e) { setWalletWarning("Switch to Sepolia in MetaMask."); return; } }
     if (!fd.amount || Number(fd.amount) <= 0) { setWalletWarning("Enter an amount > 0."); return; }
+
+    // Spec §5 + §11 — validate against active policy server-side before signing
+    const v = await validateMovement({ amount: Number(fd.amount), destination: action==="send"?fd.destination:(action==="swap"?"WETH":w.address), token: fd.asset, action });
+    if (v && v.valid === false) {
+      setWalletWarning((v.reasons || ["Policy validation failed"]).join(" "));
+      addLog({ type: "error", message: `Movement blocked by policy: ${(v.reasons||[]).join(" ")}` });
+      return;
+    }
     setPendingTx({ status: "signing" });
     try {
       let tx;
@@ -1467,6 +1603,19 @@ const GovernedMovement = () => {
 
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
     <div className="flex items-start justify-between flex-wrap gap-3"><div><h2 className="text-2xl font-bold mb-1">Governed Movement</h2><p className="fm text-sm text-gray-500">REAL ON-CHAIN TRANSACTIONS · ETHEREUM SEPOLIA TESTNET</p></div></div>
+
+    {/* Spec §5 — Funding lock banner. Reflects org.smart_account_status. */}
+    {org && org.smart_account_status !== "GovernedActive" && (
+      <GC className="p-4" style={{borderLeft:"3px solid #ef4444"}}>
+        <div className="flex items-center gap-3 flex-wrap fm text-xs">
+          <Badge c="red">FUNDING LOCKED</Badge>
+          <span className="text-red-300 font-bold">Smart Account is not Governed-Active.</span>
+          <span className="text-gray-400">Status: <span className="text-purple-300">{org.smart_account_status || "NotDeployed"}</span></span>
+        </div>
+        <p className="fm text-xs text-gray-400 mt-2">Any send / swap / bridge will be rejected by the active policy validator until <em>(a)</em> the initial policy is activated on the Team page and <em>(b)</em> the approver set is verified. Sending to the Root EOA is allowed but those assets are <b>not</b> protected by smart-account rules — recovery only.</p>
+        <div className="mt-2"><Btn v="secondary" onClick={()=>setActiveView("team")}>OPEN_TEAM_TO_ACTIVATE <Arr/></Btn></div>
+      </GC>
+    )}
 
     {/* 6 dashboard cards */}
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1559,7 +1708,8 @@ const GovernedMovement = () => {
 // ═══════════════════════════════════════════════════════════════════
 const Team = () => {
   const { participants, threshold, addParticipant, removeParticipant, updateThreshold,
-          invitations, sendInvitation, resendInvitation, revokeInvitation, reloadInvitations, reloadParticipants } = useApp();
+          invitations, sendInvitation, resendInvitation, revokeInvitation, reloadInvitations, reloadParticipants,
+          setUserState } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const refresh = async () => { setRefreshing(true); try { await Promise.all([reloadParticipants(), reloadInvitations()]); } finally { setRefreshing(false); } };
   const [mode, setMode] = useState(null); // null | "invite" | "manual"
@@ -1630,21 +1780,158 @@ const Team = () => {
       </div>))}
     </div></GC>}
 
-    {/* Active members */}
+    {/* Phase 4 — Team as security-control surface */}
     <div>
-      <SL>ACTIVE MEMBERS ({participants.length})</SL>
+      <SL>ALL MEMBERS ({participants.length})</SL>
+      <div className="fm text-[10px] text-gray-500 mb-3">Approval authority is computed: a member only counts toward threshold when their state is <span className="text-emerald-400">ACTIVE</span> <i>and</i> their role is <span className="text-fuchsia-300">APPROVER</span> in the current policy version.</div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {participants.length===0 && <Empty>No team members yet — invite the first one above.</Empty>}
-        {participants.map(p=>(<GC key={p.id} className="p-5 flex flex-col" style={{borderTop:`2px solid ${p.scenario_role==="Approver"?"rgba(217,70,239,.5)":p.scenario_role==="Reviewer"?"rgba(59,130,246,.5)":"rgba(168,85,247,.4)"}`}}>
-          <div className="flex items-center gap-3 mb-4"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center font-bold">{p.initials}</div><div><div className="font-bold">{p.name}</div><div className="fm text-xs text-gray-500">{p.institution_fn}</div></div></div>
-          <div className="space-y-2 mb-4 fm text-xs">
-            <div className="flex justify-between"><span className="text-gray-500">EMAIL</span><span className="text-gray-300 truncate ml-2 max-w-[160px]">{p.email||"—"}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">WEIGHT</span><span className="text-gray-300">{p.threshold_weight||1}</span></div>
-          </div>
-          <div className="flex items-center justify-between mt-auto"><Badge c={roleColor[p.scenario_role]||"purple"}>{(p.scenario_role||"").toUpperCase()}</Badge><div className="flex items-center gap-2"><Badge c={p.status==="active"?"green":"yellow"}>{(p.status||"").toUpperCase()}</Badge><button onClick={()=>removeParticipant(p.id, p.name)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>
-        </GC>))}
+        {participants.map(p=>{
+          const role = p.governance_role || (p.scenario_role==="Approver"?"Approver":p.scenario_role==="Observer"||p.scenario_role==="Oversight"||p.scenario_role==="Reviewer"?"Observer":"Requester");
+          const state = p.user_state || (p.status==="active"?"Active":"Pending");
+          const counts = role === "Approver" && state === "Active";
+          const stateColor = {Active:"green", Pending:"yellow", Disabled:"gray", Expired:"yellow", Revoked:"red"}[state] || "gray";
+          return (<GC key={p.id} className="p-5 flex flex-col" style={{borderTop:`2px solid ${role==="Approver"?"rgba(217,70,239,.5)":role==="Admin"?"rgba(168,85,247,.5)":"rgba(99,102,241,.4)"}`}}>
+            <div className="flex items-center gap-3 mb-4"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center font-bold">{p.initials}</div><div className="min-w-0"><div className="font-bold truncate">{p.name}</div><div className="fm text-xs text-gray-500 truncate">{p.institution_fn||"—"}</div></div></div>
+            <div className="space-y-1.5 mb-4 fm text-xs">
+              <div className="flex justify-between"><span className="text-gray-500">EMAIL</span><span className="text-gray-300 truncate ml-2 max-w-[160px]">{p.email||"—"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">WEIGHT</span><span className="text-gray-300">{p.threshold_weight||1}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">ADDED</span><span className="text-gray-300">{p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">LAST ACTIVITY</span><span className="text-gray-300">{p.last_activity_at ? new Date(p.last_activity_at).toLocaleDateString() : "—"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">AUTHORITY</span><span className={counts?"text-emerald-400":"text-gray-600"}>{counts?"COUNTS":"NONE"}</span></div>
+            </div>
+            <div className="flex items-center justify-between mt-auto"><Badge c={role==="Approver"?"fuchsia":role==="Admin"?"purple":role==="Observer"?"gray":"indigo"}>{role.toUpperCase()}</Badge><div className="flex items-center gap-2"><Badge c={stateColor}>{state.toUpperCase()}</Badge><button onClick={()=>removeParticipant(p.id, p.name)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>
+            {/* Spec §8 — controlled user state transitions */}
+            <div className="mt-3 pt-3 border-t border-gray-800/50 flex flex-wrap gap-1">
+              {state === "Pending" && <button onClick={()=>setUserState(p.id, "Active")} className="fm text-[10px] px-2 py-1 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10">VERIFY → ACTIVE</button>}
+              {state === "Active"  && <button onClick={()=>setUserState(p.id, "Disabled")} className="fm text-[10px] px-2 py-1 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10">DISABLE</button>}
+              {state === "Disabled" && <button onClick={()=>setUserState(p.id, "Active")} className="fm text-[10px] px-2 py-1 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10">RE-ENABLE</button>}
+              {state !== "Revoked" && <button onClick={()=>setUserState(p.id, "Revoked")} className="fm text-[10px] px-2 py-1 border border-red-500/30 text-red-400 hover:bg-red-500/10">REVOKE</button>}
+            </div>
+          </GC>);
+        })}
       </div>
     </div>
+
+    {/* Phase 4 — Policy activation panel */}
+    <PolicyPanel />
+  </div>);
+};
+
+// ─── Policy Activation panel (Phase 4) ─────────────────────────────
+const PolicyPanel = () => {
+  const { org, participants, addLog, submitPolicyForActivation, voteOnPolicy, proposePolicyChange, voteOnPolicyChange } = useApp();
+  const [policy, setPolicy] = useState(null);
+  const [approvals, setApprovals] = useState([]);
+  const [proposals, setProposals] = useState([]);
+  const [propType, setPropType] = useState("IncreaseLimit");
+  const [propAmount, setPropAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const reload = async () => {
+    if (!org?.id) return;
+    const { data: pv } = await supabase.from("policy_versions")
+      .select("*").eq("org_id", org.id).order("drafted_at", { ascending: false }).limit(1).maybeSingle();
+    setPolicy(pv);
+    if (pv) {
+      const { data: aps } = await supabase.from("policy_approvals")
+        .select("*").eq("policy_version_id", pv.id);
+      setApprovals(aps || []);
+    }
+    const { data: pp } = await supabase.from("policy_change_proposals")
+      .select("*").eq("org_id", org.id).order("created_at", { ascending: false }).limit(20);
+    setProposals(pp || []);
+  };
+  useEffect(() => { reload(); }, [org?.id]);
+
+  if (!policy) return null;
+
+  // Spec §6 + §8 — only Approver role + Active state count
+  const activeApprovers = participants.filter(p =>
+    (p.governance_role || p.scenario_role) === "Approver" &&
+    (p.user_state || (p.status === "active" ? "Active" : "Pending")) === "Active"
+  );
+  const approveCount = approvals.filter(a => a.vote === "approve").length;
+  const ready = approveCount >= (policy.required_approvals || 2);
+  const policyColor = { Draft:"yellow", PendingApproval:"fuchsia", Active:"green", Rejected:"red", Superseded:"gray" }[policy.status] || "purple";
+
+  const submit = async () => { setBusy(true); try { await submitPolicyForActivation(policy.id); await reload(); } finally { setBusy(false); } };
+  const vote = async (v) => { setBusy(true); try { await voteOnPolicy(policy.id, v); await reload(); } finally { setBusy(false); } };
+  const proposeChange = async () => {
+    const payload = propType === "IncreaseLimit" ? { new_ceiling_usd: Number(propAmount||0) }
+                  : propType === "ReduceThreshold" ? { new_required_approvals: Math.max(1, (policy.required_approvals||2) - 1) }
+                  : {};
+    setBusy(true);
+    try { await proposePolicyChange(propType, payload); await reload(); setPropAmount(""); } finally { setBusy(false); }
+  };
+  const voteChange = async (id, v) => { setBusy(true); try { await voteOnPolicyChange(id, v); await reload(); } finally { setBusy(false); } };
+
+  return (<div className="space-y-4">
+    {/* Policy state card */}
+    <GC className="p-5" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}>
+      <SL>POLICY · {policy.version.toUpperCase()}</SL>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 fm text-xs">
+        <div><div className="text-gray-500 mb-1">STATUS</div><Badge c={policyColor}>{policy.status.toUpperCase()}</Badge></div>
+        <div><div className="text-gray-500 mb-1">THRESHOLD</div><div className="text-gray-200 font-bold">{policy.required_approvals} of {policy.total_approvers}</div></div>
+        <div><div className="text-gray-500 mb-1">APPROVALS</div><div className={`font-bold ${ready?"text-emerald-400":"text-gray-300"}`}>{approveCount} / {policy.required_approvals}</div></div>
+        <div><div className="text-gray-500 mb-1">ACTIVE APPROVERS</div><div className="text-gray-200 font-bold">{activeApprovers.length}</div></div>
+      </div>
+
+      {/* Activation flow steps (spec §9) */}
+      <div className="mt-4 flex flex-col md:flex-row gap-2 fm text-[10px]">
+        {[
+          { id:"draft",  l:"DRAFT",            done: true,                                  cur: policy.status==="Draft" },
+          { id:"invite", l:"APPROVERS INVITED", done: participants.length>0,                cur: policy.status==="Draft" && activeApprovers.length===0 },
+          { id:"verify", l:"APPROVERS ACTIVE", done: activeApprovers.length >= policy.required_approvals, cur: policy.status==="Draft" && activeApprovers.length>0 && activeApprovers.length < policy.required_approvals },
+          { id:"submit", l:"SUBMITTED",         done: ["PendingApproval","Active"].includes(policy.status), cur: policy.status === "Draft" && activeApprovers.length >= policy.required_approvals },
+          { id:"vote",   l:"APPROVERS VOTE",   done: policy.status==="Active",              cur: policy.status==="PendingApproval" },
+          { id:"active", l:"GOVERNED ACTIVE",  done: policy.status==="Active",              cur: false },
+        ].map((s,i) => (<div key={s.id} className={`flex-1 p-2 border ${s.done?"border-emerald-500/40 text-emerald-400 bg-emerald-500/5":s.cur?"border-purple-500/50 text-purple-300 bg-purple-500/10":"border-gray-800 text-gray-600"}`}>{i+1}. {s.l}{s.done && " ✓"}</div>))}
+      </div>
+
+      <div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">
+        Only <span className="text-fuchsia-300">Approver</span>-role members in state <span className="text-emerald-300">Active</span> count toward threshold. <b>The proposer of a policy change cannot be its sole approver</b> (DB-enforced). Pending invitees cannot approve. Once the M-of-N is met the smart account transitions to <span className="text-emerald-300">Governed Active</span>.
+      </div>
+
+      {policy.status === "Draft" && activeApprovers.length >= policy.required_approvals && <div className="mt-4"><Btn onClick={submit} disabled={busy}>{busy?"...":"SUBMIT_FOR_ACTIVATION"} <Arr/></Btn></div>}
+      {policy.status === "PendingApproval" && <div className="mt-4 flex gap-2 flex-wrap"><Btn v="secondary" onClick={()=>vote("approve")} disabled={busy}>APPROVE</Btn><Btn v="ghost" onClick={()=>vote("reject")} disabled={busy}>REJECT</Btn></div>}
+    </GC>
+
+    {/* Policy-change proposals (spec §10) */}
+    {policy.status === "Active" && <GC className="p-5" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+      <SL>POLICY CHANGES · ANY MODIFICATION IS A GOVERNED ACTION</SL>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <Field label="CHANGE TYPE"><select value={propType} onChange={e=>setPropType(e.target.value)}>
+          <option value="IncreaseLimit">Increase amount limit</option>
+          <option value="AddDestination">Add destination address</option>
+          <option value="ReduceThreshold">Reduce threshold (timelocked)</option>
+          <option value="RaiseThreshold">Raise threshold</option>
+          <option value="AddApprover">Add approver</option>
+          <option value="RemoveApprover">Remove approver</option>
+          <option value="InstallModule">Install module</option>
+          <option value="UpgradeLogic">Upgrade smart-account logic</option>
+          <option value="ChangeRecovery">Change recovery authority</option>
+        </select></Field>
+        {(propType === "IncreaseLimit" || propType === "AddDestination") && <Field label="VALUE"><input placeholder={propType==="IncreaseLimit"?"$50,000":"0x..."} value={propAmount} onChange={e=>setPropAmount(e.target.value)}/></Field>}
+        <div className="flex items-end"><Btn v="secondary" onClick={proposeChange} disabled={busy}>PROPOSE_CHANGE</Btn></div>
+      </div>
+
+      {proposals.length === 0 ? <Empty>No proposals yet.</Empty> : <div className="space-y-2">
+        {proposals.map(p => (<div key={p.id} className="p-3 bg-black/30 border border-gray-800/50 flex items-center justify-between flex-wrap gap-2 fm text-xs">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Badge c={p.status==="Pending"?"yellow":p.status==="Approved"?"green":"red"}>{p.status.toUpperCase()}</Badge>
+            <span className="text-purple-300 font-bold">{p.change_type}</span>
+            <span className="text-gray-500 truncate">{JSON.stringify(p.payload || {})}</span>
+            <span className="text-gray-600">M={p.required_approvals}</span>
+            {p.timelock_until && new Date(p.timelock_until) > new Date() && <span className="text-yellow-400">⏱ timelock</span>}
+          </div>
+          {p.status === "Pending" && <div className="flex items-center gap-1">
+            <button onClick={()=>voteChange(p.id, "approve")} className="fm text-[10px] px-2 py-1 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10">APPROVE</button>
+            <button onClick={()=>voteChange(p.id, "reject")} className="fm text-[10px] px-2 py-1 border border-red-500/30 text-red-400 hover:bg-red-500/10">REJECT</button>
+          </div>}
+        </div>))}
+      </div>}
+    </GC>}
   </div>);
 };
 

@@ -1,6 +1,20 @@
-import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useWallet, FAUCETS, SEPOLIA_CHAIN_ID, explorerTx, explorerAddr, shortAddr, readBalance } from "./sepolia.js";
+
+// ─── localStorage account picker (Phase 1, item 1) ─────────────────
+const KNOWN_EMAILS_KEY = "qq:known_emails";
+const readKnownEmails = () => { try { return JSON.parse(localStorage.getItem(KNOWN_EMAILS_KEY) || "[]"); } catch { return []; } };
+const rememberEmail = (email) => {
+  if (!email) return;
+  const list = readKnownEmails().filter(e => e !== email);
+  list.unshift(email);
+  localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list.slice(0, 5)));
+};
+const forgetEmail = (email) => {
+  const list = readKnownEmails().filter(e => e !== email);
+  localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list));
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT
@@ -100,10 +114,32 @@ function AppProvider({ children }) {
 
   const timeStr = (iso) => new Date(iso || Date.now()).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
+  // Refs so addLog can persist with the right account/session/wallet keys
+  const userRef = useRef(null);
+  const sessionRef = useRef(null);
+  const walletAddressRef = useRef(null);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
   const addLog = useCallback((entry) => {
-    // Local optimistic log entry (also persisted via edge function when session exists)
+    // Local optimistic log entry (renders immediately on the right sidebar)
     const log = { id: `tmp-${Math.random()}`, ...entry, type: entry.type || "info", created_at: new Date().toISOString(), time: timeStr() };
     setLogs(prev => [log, ...prev]);
+
+    // Phase 1 item 2: persist to Supabase keyed by user_id (account-scoped)
+    const uid = userRef.current?.id;
+    if (uid) {
+      supabase.from("audit_logs").insert({
+        user_id: uid,
+        session_id: sessionRef.current?.id || null,
+        wallet_address: walletAddressRef.current || null,
+        log_type: entry.type || "info",
+        message: entry.message || null,
+        actor: entry.actor || null,
+        detail: entry.detail || null,
+        scenario_id: entry.scenario_id || null,
+      }).then(() => {}).catch(() => {});
+    }
     return log;
   }, []);
 
@@ -177,14 +213,26 @@ function AppProvider({ children }) {
   };
 
   const loadSessionData = async (sessionId, orgId) => {
+    // Resolve the auth user — used for account-scoped queries (Phase 1, item 2)
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const uid = authSession?.user?.id;
+
     const [partsRes, astRes, progRes, logsRes, moveRes, evRes,
       banksRes, chainsRes, walletsRes, threshRes,
       invRes, pmRes, plansRes, subRes, settingsRes] = await Promise.all([
       supabase.from("participants").select("*").eq("org_id", orgId),
       supabase.from("assets").select("*").eq("org_id", orgId),
       supabase.from("scenario_progress").select("*").eq("session_id", sessionId),
-      supabase.from("audit_logs").select("*").eq("session_id", sessionId).order("created_at", { ascending: false }).limit(500),
-      supabase.from("movement_requests").select("*").eq("session_id", sessionId),
+      // Account-scoped platform action log: all rows for this user, across every past session.
+      // Falls back to session-scope if user_id is unavailable (e.g. before backfill).
+      uid
+        ? supabase.from("audit_logs").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(500)
+        : supabase.from("audit_logs").select("*").eq("session_id", sessionId).order("created_at", { ascending: false }).limit(500),
+      // On-chain transaction history — kept account-scoped too so refresh restores prior sends.
+      // The Transactions tab still filters per connected wallet at render time (wallet-scoped view).
+      uid
+        ? supabase.from("movement_requests").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(500)
+        : supabase.from("movement_requests").select("*").eq("session_id", sessionId),
       supabase.from("evidence_outputs").select("*, evidence_sections(*)").eq("session_id", sessionId),
       supabase.from("banks").select("*").eq("org_id", orgId).order("created_at"),
       supabase.from("chains").select("*").order("sort_order"),
@@ -292,14 +340,16 @@ function AppProvider({ children }) {
   useEffect(() => {
     if (!session?.id) return;
 
+    // Real-time platform action log — now account-scoped (Phase 1, item 2)
+    const uid = userRef.current?.id;
+    const auditFilter = uid ? `user_id=eq.${uid}` : `session_id=eq.${session.id}`;
     const auditChannel = supabase
-      .channel(`audit-${session.id}`)
+      .channel(`audit-${uid || session.id}`)
       .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "audit_logs", filter: `session_id=eq.${session.id}` },
+        { event: "INSERT", schema: "public", table: "audit_logs", filter: auditFilter },
         (payload) => {
           const newLog = { ...payload.new, time: timeStr(payload.new.created_at) };
           setLogs(prev => {
-            // Dedupe: remove temp entries with same message
             const filtered = prev.filter(l => !(l.id?.startsWith("tmp-") && l.message === newLog.message));
             if (filtered.find(l => l.id === newLog.id)) return filtered;
             return [newLog, ...filtered];
@@ -348,6 +398,7 @@ function AppProvider({ children }) {
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (!signInError && signInData?.user) {
         setUser(signInData.user);
+        rememberEmail(email);  // Phase 1, item 1: remember for the picker
         await loadActiveSession(signInData.user.id);
         return;
       }
@@ -381,6 +432,7 @@ function AppProvider({ children }) {
           return;
         }
         setUser(signUpData.user);
+        rememberEmail(email);  // Phase 1, item 1
         go("setup");
         return;
       }
@@ -691,6 +743,9 @@ const AuthScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  // Phase 1, item 1: known-account picker
+  const [knownEmails, setKnownEmails] = useState(() => readKnownEmails());
+  const dropEmail = (e) => { forgetEmail(e); setKnownEmails(readKnownEmails()); if (email === e) setEmail(""); };
 
   const handleSubmit = async () => {
     if (!email || !password) return;
@@ -706,6 +761,20 @@ const AuthScreen = () => {
         <div className="text-center mb-8"><div className="flex items-center justify-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-9 h-9" style={{filter:"drop-shadow(0 0 10px rgba(168,85,247,.4))"}}/><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span></div></div>
         <GC className="p-8">
           <SL>SIGN IN / SIGN UP</SL>
+          {knownEmails.length > 0 && (
+            <div className="mb-5">
+              <div className="fm text-xs text-gray-500 mb-2">CONTINUE AS</div>
+              <div className="flex flex-wrap gap-2">
+                {knownEmails.map(e => (
+                  <div key={e} className={`flex items-center gap-1 px-3 py-1.5 fm text-xs border cursor-pointer transition-all ${email===e?"border-purple-500 bg-purple-500/15 text-purple-200":"border-purple-500/30 bg-purple-500/5 text-gray-300 hover:bg-purple-500/10"}`}>
+                    <button onClick={()=>setEmail(e)} className="cursor-pointer">{e}</button>
+                    <button onClick={()=>dropEmail(e)} className="text-gray-500 hover:text-red-400 ml-1" aria-label={`Forget ${e}`}>×</button>
+                  </div>
+                ))}
+              </div>
+              <div className="fm text-[10px] text-gray-600 mt-2">Pick an email to pre-fill, then type your password. ✕ to forget.</div>
+            </div>
+          )}
           <div className="space-y-4">
             <div><label className="fm text-xs text-gray-500 mb-2 block">FULL_NAME (new users only)</label><input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/></div>
             <div><label className="fm text-xs text-gray-500 mb-2 block">EMAIL</label><input type="email" placeholder="you@institution.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
@@ -941,7 +1010,7 @@ const SideNav = ({ onSelect }) => {
     {id:"billing",l:"BILLING",i:sIcons.card},
     {id:"settings",l:"SETTINGS",i:sIcons.config},
   ];
-  return (<div className="w-56 flex-shrink-0 border-r border-purple-500/20 flex flex-col h-full" style={{background:"rgba(5,2,15,.95)"}}><div className="p-4 space-y-1 flex-1 overflow-y-auto">{nav.map(n=><button key={n.id} onClick={()=>pick(n.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 fm text-xs transition-all cursor-pointer ${activeView===n.id?"text-purple-400 bg-purple-500/10 border-l-2 border-purple-500":"text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"}`}>{n.i}<span className="flex-1 text-left">{n.l}</span>{n.soon&&<span className="fm text-[8px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 border border-yellow-400/40">SOON</span>}</button>)}</div><div className="p-4 border-t border-purple-500/10 space-y-2"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{(user?.email||"U")[0].toUpperCase()}</div><div className="fm text-xs text-gray-400 truncate">{user?.email}</div></div><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-red-400 transition-colors cursor-pointer text-left px-1 py-1">← EXIT_SANDBOX</button></div></div>);
+  return (<div className="w-56 flex-shrink-0 border-r border-purple-500/20 flex flex-col h-full" style={{background:"rgba(5,2,15,.95)"}}><div className="p-4 space-y-1 flex-1 overflow-y-auto">{nav.map(n=><button key={n.id} onClick={()=>pick(n.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 fm text-xs transition-all cursor-pointer ${activeView===n.id?"text-purple-400 bg-purple-500/10 border-l-2 border-purple-500":"text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"}`}>{n.i}<span className="flex-1 text-left">{n.l}</span>{n.soon&&<span className="fm text-[8px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 border border-yellow-400/40">SOON</span>}</button>)}</div><div className="p-4 border-t border-purple-500/10 space-y-2"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{(user?.email||"U")[0].toUpperCase()}</div><div className="fm text-xs text-gray-400 truncate">{user?.email}</div></div><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-purple-400 transition-colors cursor-pointer text-left px-1 py-1">⇄ SWITCH_ACCOUNT</button><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-red-400 transition-colors cursor-pointer text-left px-1 py-1">← EXIT_SANDBOX</button></div></div>);
 };
 
 // ═══════════════════════════════════════════════════════════════════

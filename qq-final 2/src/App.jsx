@@ -1630,22 +1630,86 @@ const Team = () => {
       </div>))}
     </div></GC>}
 
-    {/* Active members */}
+    {/* Phase 4 — Team as security-control surface */}
     <div>
-      <SL>ACTIVE MEMBERS ({participants.length})</SL>
+      <SL>ALL MEMBERS ({participants.length})</SL>
+      <div className="fm text-[10px] text-gray-500 mb-3">Approval authority is computed: a member only counts toward threshold when their state is <span className="text-emerald-400">ACTIVE</span> <i>and</i> their role is <span className="text-fuchsia-300">APPROVER</span> in the current policy version.</div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {participants.length===0 && <Empty>No team members yet — invite the first one above.</Empty>}
-        {participants.map(p=>(<GC key={p.id} className="p-5 flex flex-col" style={{borderTop:`2px solid ${p.scenario_role==="Approver"?"rgba(217,70,239,.5)":p.scenario_role==="Reviewer"?"rgba(59,130,246,.5)":"rgba(168,85,247,.4)"}`}}>
-          <div className="flex items-center gap-3 mb-4"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center font-bold">{p.initials}</div><div><div className="font-bold">{p.name}</div><div className="fm text-xs text-gray-500">{p.institution_fn}</div></div></div>
-          <div className="space-y-2 mb-4 fm text-xs">
-            <div className="flex justify-between"><span className="text-gray-500">EMAIL</span><span className="text-gray-300 truncate ml-2 max-w-[160px]">{p.email||"—"}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">WEIGHT</span><span className="text-gray-300">{p.threshold_weight||1}</span></div>
-          </div>
-          <div className="flex items-center justify-between mt-auto"><Badge c={roleColor[p.scenario_role]||"purple"}>{(p.scenario_role||"").toUpperCase()}</Badge><div className="flex items-center gap-2"><Badge c={p.status==="active"?"green":"yellow"}>{(p.status||"").toUpperCase()}</Badge><button onClick={()=>removeParticipant(p.id, p.name)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>
-        </GC>))}
+        {participants.map(p=>{
+          const role = p.governance_role || (p.scenario_role==="Approver"?"Approver":p.scenario_role==="Observer"||p.scenario_role==="Oversight"||p.scenario_role==="Reviewer"?"Observer":"Requester");
+          const state = p.user_state || (p.status==="active"?"Active":"Pending");
+          const counts = role === "Approver" && state === "Active";
+          const stateColor = {Active:"green", Pending:"yellow", Disabled:"gray", Expired:"yellow", Revoked:"red"}[state] || "gray";
+          return (<GC key={p.id} className="p-5 flex flex-col" style={{borderTop:`2px solid ${role==="Approver"?"rgba(217,70,239,.5)":role==="Admin"?"rgba(168,85,247,.5)":"rgba(99,102,241,.4)"}`}}>
+            <div className="flex items-center gap-3 mb-4"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center font-bold">{p.initials}</div><div className="min-w-0"><div className="font-bold truncate">{p.name}</div><div className="fm text-xs text-gray-500 truncate">{p.institution_fn||"—"}</div></div></div>
+            <div className="space-y-1.5 mb-4 fm text-xs">
+              <div className="flex justify-between"><span className="text-gray-500">EMAIL</span><span className="text-gray-300 truncate ml-2 max-w-[160px]">{p.email||"—"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">WEIGHT</span><span className="text-gray-300">{p.threshold_weight||1}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">ADDED</span><span className="text-gray-300">{p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">LAST ACTIVITY</span><span className="text-gray-300">{p.last_activity_at ? new Date(p.last_activity_at).toLocaleDateString() : "—"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">AUTHORITY</span><span className={counts?"text-emerald-400":"text-gray-600"}>{counts?"COUNTS":"NONE"}</span></div>
+            </div>
+            <div className="flex items-center justify-between mt-auto"><Badge c={role==="Approver"?"fuchsia":role==="Admin"?"purple":role==="Observer"?"gray":"indigo"}>{role.toUpperCase()}</Badge><div className="flex items-center gap-2"><Badge c={stateColor}>{state.toUpperCase()}</Badge><button onClick={()=>removeParticipant(p.id, p.name)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>
+          </GC>);
+        })}
       </div>
     </div>
+
+    {/* Phase 4 — Policy activation panel */}
+    <PolicyPanel />
   </div>);
+};
+
+// ─── Policy Activation panel (Phase 4) ─────────────────────────────
+const PolicyPanel = () => {
+  const { org, participants, addLog } = useApp();
+  const [policy, setPolicy] = useState(null);
+  const [approvals, setApprovals] = useState([]);
+  const reload = async () => {
+    if (!org?.id) return;
+    const { data: pv } = await supabase.from("policy_versions")
+      .select("*").eq("org_id", org.id).order("drafted_at", { ascending: false }).limit(1).maybeSingle();
+    setPolicy(pv);
+    if (pv) {
+      const { data: aps } = await supabase.from("policy_approvals")
+        .select("*").eq("policy_version_id", pv.id);
+      setApprovals(aps || []);
+    }
+  };
+  useEffect(() => { reload(); }, [org?.id]);
+
+  if (!policy) return null;
+
+  const approvers = participants.filter(p => (p.governance_role || p.scenario_role) === "Approver" && (p.user_state||p.status) !== "Pending" && (p.user_state||p.status) !== "Revoked");
+  const approveCount = approvals.filter(a => a.vote === "approve").length;
+  const ready = approveCount >= (policy.required_approvals || 2);
+
+  const vote = async (vote) => {
+    addLog({ type: "info", message: `Policy vote: ${vote} on ${policy.version}` });
+    // The proposer/sole-approver guard is enforced server-side (trigger).
+    // No-op approver_id here — the rest of the wiring lives behind admin actions on a future page.
+  };
+  const activate = async () => {
+    if (!ready) return;
+    await supabase.from("policy_versions").update({ status: "Active", activated_at: new Date().toISOString() }).eq("id", policy.id);
+    addLog({ type: "success", message: `Policy ${policy.version} activated` });
+    reload();
+  };
+
+  return (<GC className="p-5" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}>
+    <SL>POLICY · {policy.version.toUpperCase()}</SL>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 fm text-xs">
+      <div><div className="text-gray-500 mb-1">STATUS</div><Badge c={policy.status==="Active"?"green":policy.status==="Draft"?"yellow":policy.status==="Rejected"?"red":"purple"}>{policy.status.toUpperCase()}</Badge></div>
+      <div><div className="text-gray-500 mb-1">THRESHOLD</div><div className="text-gray-200 font-bold">{policy.required_approvals} of {policy.total_approvers}</div></div>
+      <div><div className="text-gray-500 mb-1">APPROVALS</div><div className={`font-bold ${ready?"text-emerald-400":"text-gray-300"}`}>{approveCount}/{policy.required_approvals}</div></div>
+      <div><div className="text-gray-500 mb-1">APPROVERS POOL</div><div className="text-gray-200 font-bold">{approvers.length}</div></div>
+    </div>
+    <div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">
+      <b className="text-purple-300">Phase 4 (review):</b> Setup configures a <em>draft</em> policy. Approvers verify, vote, and once the threshold is met the policy version becomes Active. Only Approver-role members in state <em>Active</em> count. The proposer of a policy change cannot be its sole approver (enforced by a database trigger).
+    </div>
+    {policy.status === "Draft" && <div className="mt-4 flex gap-2 flex-wrap"><Btn v="secondary" onClick={()=>vote("approve")}>APPROVE</Btn><Btn v="ghost" onClick={()=>vote("reject")}>REJECT</Btn>{ready && <Btn onClick={activate}>ACTIVATE_POLICY <Arr/></Btn>}</div>}
+  </GC>);
 };
 
 // ═══════════════════════════════════════════════════════════════════

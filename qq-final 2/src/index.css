@@ -1,15 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap');
+/* Inter is loaded as the practical, openly-licensed stand-in for Google Sans
+   (Google Sans itself is proprietary and not served by Google Fonts). The
+   font-family stack prefers a locally-installed 'Google Sans' / 'Product Sans'
+   when present, then Inter, then the platform's native UI sans. JetBrains Mono
+   stays available via the .mono utility for hashes/addresses. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}
+:root{--qq-sans:'Google Sans','Google Sans Text','Product Sans','Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;--qq-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace}
 :root{--bg:#03040b;--text:#f8fafc;--muted:#9ca3af;--panel:rgba(15,10,30,.6);--panel-2:rgba(10,5,25,.8);--border:rgba(168,85,247,.2);--grid:rgba(255,255,255,.03);--shadow:rgba(168,85,247,.05)}
 html[data-theme="light"]{--bg:#f6f4fb;--text:#1a1430;--muted:#5b5170;--panel:rgba(255,255,255,.7);--panel-2:rgba(255,255,255,.85);--border:rgba(99,57,168,.25);--grid:rgba(99,57,168,.05);--shadow:rgba(99,57,168,.04)}
-body,#root{background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:32px 32px;color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;overflow-x:hidden}
-.fm{font-family:'JetBrains Mono',monospace!important}
+body,#root{background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:32px 32px;color:var(--text);font-family:var(--qq-sans);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;min-height:100vh;overflow-x:hidden}
+/* .fm was the monospace "terminal" class used across the app. It now renders
+   in the normal sans for a cleaner, more professional feel site-wide. Slight
+   letter-spacing keeps the all-caps labels legible. */
+.fm{font-family:var(--qq-sans)!important;letter-spacing:.01em}
+.mono{font-family:var(--qq-mono)!important}
 .tg{background:linear-gradient(to right,#a855f7,#e879f9,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .glass{background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);box-shadow:inset 0 0 20px var(--shadow)}
 html[data-theme="light"] .glass{box-shadow:0 1px 2px rgba(80,40,160,.05),inset 0 0 20px var(--shadow)}
 .glass-h:hover{border-color:rgba(168,85,247,.4);box-shadow:inset 0 0 30px rgba(168,85,247,.08),0 0 20px rgba(168,85,247,.1)}
 .glow{box-shadow:0 0 20px rgba(168,85,247,.4)}
-input,select,textarea{font-family:'JetBrains Mono',monospace;background:var(--panel-2);border:1px solid rgba(168,85,247,.2);color:var(--text);padding:10px 14px;font-size:13px;outline:none;width:100%;transition:border-color .2s}
+input,select,textarea{font-family:var(--qq-sans);background:var(--panel-2);border:1px solid rgba(168,85,247,.2);color:var(--text);padding:10px 14px;font-size:13px;outline:none;width:100%;transition:border-color .2s}
 input:focus,select:focus,textarea:focus{border-color:rgba(168,85,247,.5);box-shadow:0 0 12px rgba(168,85,247,.15)}input::placeholder{color:#6b7280}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(168,85,247,.3);border-radius:3px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
@@ -24,6 +34,6 @@ input:focus,select:focus,textarea:focus{border-color:rgba(168,85,247,.5);box-sha
 .qs-ring-2{animation:qsspin 9s linear infinite reverse;transform-origin:center}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 .tip-wrap{position:relative;display:inline-flex;align-items:center}
-.tip-wrap .tip-body{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#03040b;border:1px solid rgba(168,85,247,.4);padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#d1d5db;border-radius:2px;white-space:normal;width:260px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;box-shadow:0 4px 14px rgba(168,85,247,.15);line-height:1.5}
+.tip-wrap .tip-body{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#03040b;border:1px solid rgba(168,85,247,.4);padding:8px 12px;font-family:var(--qq-sans);font-size:11px;color:#d1d5db;border-radius:2px;white-space:normal;width:260px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;box-shadow:0 4px 14px rgba(168,85,247,.15);line-height:1.5}
 .tip-wrap:hover .tip-body{opacity:1}
 html[data-theme="light"] .tip-wrap .tip-body{background:#fff;color:#1a1430;border-color:rgba(99,57,168,.4)}

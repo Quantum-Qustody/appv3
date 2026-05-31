@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { useWallet, FAUCETS, SEPOLIA_CHAIN_ID, explorerTx, explorerAddr, shortAddr, readBalance } from "./sepolia.js";
+import { useWallet, FAUCETS, SEPOLIA_CHAIN_ID, explorerTx, explorerAddr, shortAddr, readBalance, fetchWalletTxHistory } from "./sepolia.js";
 
 // ─── localStorage account picker (Phase 1, item 1) ─────────────────
 const KNOWN_EMAILS_KEY = "qq:known_emails";
@@ -1943,6 +1943,18 @@ const EvidenceViewer = () => {
   const scId = activeScenario?.id;
   const ev = scId ? evidenceStore[scId] : null;
   const [tab, setTab] = useState("__transactions__");
+  // Item 2 — wallet-scoped on-chain history, read live from the Sepolia chain
+  const w = useWallet();
+  const [chainTxs, setChainTxs] = useState([]);
+  const [chainLoading, setChainLoading] = useState(false);
+  const loadChainTxs = async (addr) => {
+    if (!addr) { setChainTxs([]); return; }
+    setChainLoading(true);
+    const rows = await fetchWalletTxHistory(addr, 50);
+    setChainTxs(rows);
+    setChainLoading(false);
+  };
+  useEffect(()=>{ if (w.address) loadChainTxs(w.address); else setChainTxs([]); }, [w.address]);
 
   useEffect(()=>{ setTab(scId ? 0 : "__transactions__"); },[scId]);
   useEffect(()=>{ if(scId && !ev) generateEvidence(scId); },[scId]);
@@ -1997,10 +2009,40 @@ const EvidenceViewer = () => {
       <button onClick={()=>setTab(ACCOUNTING)} className={`px-4 py-2 fm text-xs cursor-pointer transition-all ${onAccounting?"text-purple-400 bg-purple-500/10 border border-purple-500/40":"text-gray-500 hover:text-gray-300 border border-transparent"}`}>Accounting</button>
     </div>
 
-    {onTx && <GC className="p-6 anim-d2"><div className="flex items-center justify-between flex-wrap gap-3 mb-4"><SL>TRANSACTION HISTORY</SL><div className="flex gap-2"><Btn v="secondary" onClick={()=>{exportCSV(txRows,`transactions-${today}.csv`);addLog({type:"evidence",message:`Exported ${txRows.length} transactions (CSV)`});}}><Dl/> EXPORT_CSV</Btn><Btn v="secondary" onClick={()=>{exportJSON(txRows,`transactions-${today}.json`);addLog({type:"evidence",message:`Exported ${txRows.length} transactions (JSON)`});}}><Dl/> EXPORT_JSON</Btn></div></div>
-      <div className="p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400 mb-4">All <span className="text-purple-400 font-bold">{txRows.length}</span> transactions executed on the platform — Send, Swap, Bridge — with policy outcome and approval state. Backed by <span className="text-purple-400">movement_requests</span> in Supabase.</div>
+    {onTx && <>
+      {/* Stream A — wallet-scoped on-chain history, read LIVE from the Sepolia chain (spec item 2) */}
+      <GC className="p-6 anim-d2" style={{borderTop:"2px solid rgba(34,197,94,.4)"}}>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <SL>ON-CHAIN HISTORY · WALLET-SCOPED</SL>
+          <div className="flex gap-2 items-center">
+            {w.address && <button onClick={()=>loadChainTxs(w.address)} className="fm text-[10px] text-purple-400 hover:text-purple-300 cursor-pointer">{chainLoading?"LOADING...":"[ REFRESH ]"}</button>}
+            <Btn v="secondary" onClick={()=>{exportCSV(chainTxs,`onchain-${today}.csv`);addLog({type:"evidence",message:`Exported ${chainTxs.length} on-chain txs (CSV)`});}}><Dl/> EXPORT_CSV</Btn>
+          </div>
+        </div>
+        <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 fm text-xs text-gray-400 mb-4">
+          {w.isConnected
+            ? <>Live transaction history for <a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="text-emerald-300 hover:underline">{shortAddr(w.address)}</a>, read directly from the Sepolia chain (Blockscout). Bound to the <b>wallet</b>, not your account — connect a different wallet to see a different history.</>
+            : <>Connect a wallet on Governed Movement or Digital Assets to load its on-chain history here.</>}
+        </div>
+        {w.isConnected && <div className="overflow-x-auto"><div className="max-h-[320px] overflow-y-auto fm text-xs"><table className="w-full"><thead className="sticky top-0 bg-black/80 backdrop-blur"><tr className="text-gray-500 border-b border-gray-800"><th className="text-left py-2 px-2">TIMESTAMP</th><th className="text-left">DIR</th><th className="text-right">VALUE (ETH)</th><th className="text-left">COUNTERPARTY</th><th className="text-left">METHOD</th><th className="text-right">STATUS</th><th></th></tr></thead><tbody>
+          {chainTxs.length===0 && <tr><td colSpan="7"><Empty>{chainLoading?"Loading on-chain history…":"No on-chain transactions for this wallet yet."}</Empty></td></tr>}
+          {chainTxs.map(t=>(<tr key={t.hash} className="border-b border-gray-800/40">
+            <td className="py-1.5 px-2 text-gray-600 whitespace-nowrap">{(t.timestamp||"").slice(0,19).replace("T"," ")}</td>
+            <td className={t.direction==="out"?"text-red-400":"text-emerald-400"}>{t.direction.toUpperCase()}</td>
+            <td className="text-right text-gray-300 font-bold">{Number(t.value_eth).toFixed(6)}</td>
+            <td className="text-gray-400 truncate max-w-[160px]">{shortAddr(t.direction==="out"?t.to:t.from)}</td>
+            <td className="text-gray-500">{t.method}</td>
+            <td className="text-right"><Badge c={t.status==="success"?"green":t.status==="failed"?"red":"yellow"}>{t.status.toUpperCase()}</Badge></td>
+            <td className="text-right"><a href={explorerTx(t.hash)} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">↗</a></td>
+          </tr>))}
+        </tbody></table></div></div>}
+      </GC>
+
+      {/* Stream B — account-scoped platform-recorded movements (from movement_requests) */}
+      <GC className="p-6 anim-d2"><div className="flex items-center justify-between flex-wrap gap-3 mb-4"><SL>PLATFORM-RECORDED MOVEMENTS · ACCOUNT-SCOPED</SL><div className="flex gap-2"><Btn v="secondary" onClick={()=>{exportCSV(txRows,`transactions-${today}.csv`);addLog({type:"evidence",message:`Exported ${txRows.length} transactions (CSV)`});}}><Dl/> EXPORT_CSV</Btn><Btn v="secondary" onClick={()=>{exportJSON(txRows,`transactions-${today}.json`);addLog({type:"evidence",message:`Exported ${txRows.length} transactions (JSON)`});}}><Dl/> EXPORT_JSON</Btn></div></div>
+      <div className="p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400 mb-4"><span className="text-purple-400 font-bold">{txRows.length}</span> movements initiated <em>through</em> Quantum Qustody — Send, Swap, Bridge — with policy outcome and approval state. Backed by <span className="text-purple-400">movement_requests</span> in Supabase; survives refresh and follows your account.</div>
       <div className="overflow-x-auto"><div className="max-h-[480px] overflow-y-auto fm text-xs"><table className="w-full"><thead className="sticky top-0 bg-black/80 backdrop-blur"><tr className="text-gray-500 border-b border-gray-800"><th className="text-left py-2 px-2">TIMESTAMP</th><th className="text-left">TYPE</th><th className="text-right">AMOUNT</th><th className="text-left">ASSET</th><th className="text-left">DESTINATION</th><th className="text-left">SCENARIO</th><th className="text-right">STATUS</th></tr></thead><tbody>{txRows.length===0&&<tr><td colSpan="7"><Empty>No transactions yet — submit a Send / Swap / Bridge from the Dashboard.</Empty></td></tr>}{txRows.map(r=>(<tr key={r.id} className="border-b border-gray-800/40"><td className="py-1.5 px-2 text-gray-600 whitespace-nowrap">{(r.timestamp||"").slice(0,19).replace("T"," ")}</td><td className="text-purple-400 uppercase">{r.type}</td><td className="text-right text-gray-300 font-bold">{r.amount||"—"}</td><td className="text-gray-400">{r.asset||"—"}</td><td className="text-gray-400 truncate max-w-[200px]">{r.destination||"—"}</td><td className="text-gray-600">{r.scenario||"—"}</td><td className="text-right"><Badge c={r.status==="completed"?"green":r.status==="blocked"?"red":r.status==="execution"?"fuchsia":"yellow"}>{(r.status||"").toUpperCase()}</Badge></td></tr>))}</tbody></table></div></div>
-    </GC>}
+    </GC></>}
     {onAccounting && <GC className="p-6 anim-d2"><SL>ACCOUNTING · AUDIT LOG EXPORT</SL>
       <div className="p-4 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400 mb-4">Export <span className="text-purple-400 font-bold">{exportRows.length}</span> persisted audit log rows for accounting reconciliation. CSV for spreadsheet import; JSON for downstream pipelines.</div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
@@ -2165,11 +2207,13 @@ const UserGuide = () => (
         browsers. They have nothing to do with any particular wallet.
       </p>
       <p className="text-sm text-gray-300 leading-relaxed">
-        The <b>Transactions</b> tab inside Evidence Viewer is the <em>on-chain transaction history</em>.
-        It is bound to a <em>wallet</em>, not your account: each row corresponds to a transaction
-        the connected wallet signed and broadcast to the chain, read directly from the Sepolia
-        RPC. Connect a different wallet and you'll see a different transaction history. The
-        platform action log will look the same; the on-chain history will change.
+        The <b>Transactions</b> tab inside Evidence Viewer holds two streams. The top one,
+        <em>On-Chain History</em>, is bound to a <em>wallet</em>: it is read live from the Sepolia
+        chain for whatever wallet you have connected, so it shows every transaction that wallet
+        signed — including ones made outside Quantum Qustody. Connect a different wallet and this
+        list changes entirely. Below it, <em>Platform-Recorded Movements</em> is bound to your
+        <em>account</em>: it lists only the Send / Swap / Bridge actions you initiated through
+        Quantum Qustody, with their policy outcome, and it survives refresh and logout.
       </p>
       <p className="text-sm text-gray-300 leading-relaxed">
         The practical implication: if you send a Sepolia transaction, log out, log back in and

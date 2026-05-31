@@ -332,3 +332,32 @@ export function useWallet() {
 export const explorerTx = (hash) => `${SEPOLIA_EXPLORER}/tx/${hash}`;
 export const explorerAddr = (addr) => `${SEPOLIA_EXPLORER}/address/${addr}`;
 export const shortAddr = (addr) => addr ? `${addr.slice(0,6)}…${addr.slice(-4)}` : "";
+
+// ─── Wallet-scoped on-chain TX history (spec item 2) ───────────────
+// Reads the connected wallet's full transaction list from the Sepolia
+// chain via Blockscout's free public API (no key required). This is the
+// wallet-scoped stream, distinct from the account-scoped platform log.
+const BLOCKSCOUT_SEPOLIA = "https://eth-sepolia.blockscout.com/api";
+export async function fetchWalletTxHistory(address, max = 50) {
+  if (!isAddress(address)) return [];
+  try {
+    const url = `${BLOCKSCOUT_SEPOLIA}?module=account&action=txlist&address=${address}&sort=desc&page=1&offset=${max}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (json.status !== "1" || !Array.isArray(json.result)) return [];
+    return json.result.map(t => ({
+      hash: t.hash,
+      timestamp: t.timeStamp ? new Date(Number(t.timeStamp) * 1000).toISOString() : "",
+      from: t.from,
+      to: t.to,
+      direction: t.from?.toLowerCase() === address.toLowerCase() ? "out" : "in",
+      value_eth: t.value ? formatEther(t.value) : "0",
+      method: t.functionName ? t.functionName.split("(")[0] : (t.input && t.input !== "0x" ? "contract" : "transfer"),
+      status: t.txreceipt_status === "1" ? "success" : t.isError === "1" ? "failed" : "pending",
+      block: t.blockNumber,
+    }));
+  } catch (e) {
+    return [];
+  }
+}

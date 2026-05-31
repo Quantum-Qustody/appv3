@@ -753,10 +753,10 @@ const BoundaryPanel = ({ w, org }) => {
   const fundingLocked = policyStatus !== "Active";
   const protectionStatus = policyStatus === "Active" ? "GOVERNED ACTIVE" : "UNGOVERNED";
 
-  const cell = (label, value, color) => (
+  const cell = (label, value, color, mono) => (
     <div className="p-3 border bg-black/30" style={{borderColor:`${color}55`}}>
       <div className="fm text-[10px] text-gray-500 mb-1">{label}</div>
-      <div className="fm text-xs font-bold" style={{color}}>{value}</div>
+      <div className={`${mono?"mono":"fm"} text-xs font-bold`} style={{color}}>{value}</div>
     </div>
   );
 
@@ -767,8 +767,8 @@ const BoundaryPanel = ({ w, org }) => {
     </div>
     <p className="fm text-xs text-gray-400 mb-4">Root EOA holds ownership and recovery. The Smart Account holds the institution's assets, governed by the active policy. <a href="/docs/governed-wallet-architecture.md" target="_blank" className="text-purple-300 hover:underline">Design doc</a>.</p>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {cell("ROOT EOA (RECOVERY)", w.address ? shortAddr(w.address) : "— not connected —", "#a855f7")}
-      {cell("SMART ACCOUNT (VAULT)", smartAccount ? `${smartAccount.slice(0,10)}…${smartAccount.slice(-4)}` : "— pending deploy —", "#d946ef")}
+      {cell("ROOT EOA (RECOVERY)", w.address ? shortAddr(w.address) : "— not connected —", "#a855f7", !!w.address)}
+      {cell("SMART ACCOUNT (VAULT)", smartAccount ? `${smartAccount.slice(0,10)}…${smartAccount.slice(-4)}` : "— pending deploy —", "#d946ef", !!smartAccount)}
       {cell("POLICY STATUS", policyStatus.toUpperCase(), policyStatus==="Active"?"#22c55e":policyStatus==="Draft"?"#facc15":"#818cf8")}
       {cell("FUNDING STATUS", fundingLocked ? "LOCKED · awaiting activation" : "UNLOCKED", fundingLocked?"#ef4444":"#22c55e")}
       {cell("PROTECTION STATUS", protectionStatus, protectionStatus==="GOVERNED ACTIVE"?"#22c55e":"#ef4444")}
@@ -1428,7 +1428,7 @@ const AssetBoundary = () => {
           {!w.hasProvider && <div className="fm text-xs text-yellow-300">No EIP-1193 wallet detected. Install <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">MetaMask</a>, Coinbase Wallet, Rabby, or Brave to import.</div>}
           {w.hasProvider && !w.isConnected && <div className="fm text-xs text-gray-400 mb-3">Click CONNECT WALLET — MetaMask will ask permission and we'll auto-switch to Sepolia. Your private key never leaves your wallet; the address is delegated for policy enforcement only.</div>}
           {w.isConnected && (<div className="space-y-2 fm text-xs">
-            <div className="flex items-center gap-2 flex-wrap"><span className="text-gray-500">ADDRESS:</span><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="text-purple-300 hover:text-purple-200 hover:underline">{shortAddr(w.address)}</a><Badge c={w.isSepolia?"green":"red"}>{w.isSepolia?"SEPOLIA":`WRONG NETWORK (${w.chainId||"?"})`}</Badge></div>
+            <div className="flex items-center gap-2 flex-wrap"><span className="text-gray-500">ADDRESS:</span><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="mono text-purple-300 hover:text-purple-200 hover:underline">{shortAddr(w.address)}</a><Badge c={w.isSepolia?"green":"red"}>{w.isSepolia?"SEPOLIA":`WRONG NETWORK (${w.chainId||"?"})`}</Badge></div>
             <div className="flex items-center gap-4 flex-wrap"><span className="text-gray-500">ETH:</span><span className="text-emerald-400 font-bold">{liveEth.toFixed(6)} SEP</span><span className="text-gray-500">WETH:</span><span className="text-fuchsia-400 font-bold">{liveWeth.toFixed(6)}</span><button onClick={()=>w.refreshBalance()} className="fm text-[10px] text-purple-400 hover:text-purple-300 cursor-pointer">[ REFRESH ]</button></div>
           </div>)}
         </div>
@@ -1443,7 +1443,7 @@ const AssetBoundary = () => {
 
     {/* Live wallet balance card — shown whenever a wallet is connected */}
     {w.isConnected && mode!=="wallet" && <GC className="p-5" style={{borderLeft:"3px solid #22c55e"}}>
-      <div className="flex items-center justify-between flex-wrap gap-3"><SL>LIVE WALLET</SL><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="fm text-xs text-purple-300 hover:underline">{shortAddr(w.address)} ↗</a></div>
+      <div className="flex items-center justify-between flex-wrap gap-3"><SL>LIVE WALLET</SL><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="mono text-xs text-purple-300 hover:underline">{shortAddr(w.address)} ↗</a></div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
         <div className="p-3 border border-gray-800 bg-black/20"><div className="fm text-[10px] text-gray-500 mb-1">SEPOLIA ETH</div><div className="text-xl font-bold text-emerald-400">{liveEth.toFixed(6)}</div></div>
         <div className="p-3 border border-gray-800 bg-black/20"><div className="fm text-[10px] text-gray-500 mb-1">WETH</div><div className="text-xl font-bold text-fuchsia-400">{liveWeth.toFixed(6)}</div></div>
@@ -1471,7 +1471,7 @@ const AssetBoundary = () => {
     {/* Saved (imported) wallets list */}
     {wallets.length>0 && <GC className="p-4"><SL>IMPORTED WALLETS ({wallets.length})</SL>
       <div className="fm text-[10px] text-gray-500 mb-3">Phase 3, item 8 — multiple wallets are tracked per account. Only one wallet can be the <span className="text-emerald-400">ACTIVE</span> signer at a time (the one currently exposed by your browser wallet). Transactions are attributed to whichever wallet was active at the moment of signing.</div>
-      <div className="space-y-2">{wallets.map(wl=>{ const isActive = w.address?.toLowerCase() === wl.address?.toLowerCase(); return (<div key={wl.id} className={`flex items-center justify-between p-3 ${isActive?"bg-emerald-500/10 border border-emerald-500/30":"bg-black/30 border border-gray-800/50"} flex-wrap gap-2`}><div className="flex items-center gap-3 min-w-0 flex-1"><Wallet/><div className="fm text-xs min-w-0"><div className="text-gray-300 font-bold truncate">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><a href={wl.chain?.explorer_url ? `${wl.chain.explorer_url}/address/${wl.address}` : "#"} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-400 truncate block">{wl.address}</a></div></div><div className="flex items-center gap-2">{isActive && <Badge c="green">ACTIVE</Badge>}<Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>); })}</div>
+      <div className="space-y-2">{wallets.map(wl=>{ const isActive = w.address?.toLowerCase() === wl.address?.toLowerCase(); return (<div key={wl.id} className={`flex items-center justify-between p-3 ${isActive?"bg-emerald-500/10 border border-emerald-500/30":"bg-black/30 border border-gray-800/50"} flex-wrap gap-2`}><div className="flex items-center gap-3 min-w-0 flex-1"><Wallet/><div className="fm text-xs min-w-0"><div className="text-gray-300 font-bold truncate">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><a href={wl.chain?.explorer_url ? `${wl.chain.explorer_url}/address/${wl.address}` : "#"} target="_blank" rel="noopener noreferrer" className="mono text-gray-600 hover:text-purple-400 truncate block">{wl.address}</a></div></div><div className="flex items-center gap-2">{isActive && <Badge c="green">ACTIVE</Badge>}<Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>); })}</div>
     </GC>}
 
     <div className="space-y-3">
@@ -1630,7 +1630,7 @@ const GovernedMovement = () => {
           {!w.hasProvider && <div className="fm text-xs text-yellow-300">No EIP-1193 wallet detected. Install <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">MetaMask</a> to test on-chain transactions.</div>}
           {w.hasProvider && !w.isConnected && <div className="fm text-xs text-gray-400 mb-3">Connect MetaMask to send / swap real ETH on Sepolia. We never store your private key — your wallet signs every transaction locally.</div>}
           {w.isConnected && (<div className="space-y-2 fm text-xs">
-            <div className="flex items-center gap-2"><span className="text-gray-500">ADDRESS:</span><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="text-purple-300 hover:text-purple-200 hover:underline">{shortAddr(w.address)}</a><Badge c={w.isSepolia?"green":"red"}>{w.isSepolia?"SEPOLIA":`WRONG NETWORK (${w.chainId||"?"})`}</Badge></div>
+            <div className="flex items-center gap-2"><span className="text-gray-500">ADDRESS:</span><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="mono text-purple-300 hover:text-purple-200 hover:underline">{shortAddr(w.address)}</a><Badge c={w.isSepolia?"green":"red"}>{w.isSepolia?"SEPOLIA":`WRONG NETWORK (${w.chainId||"?"})`}</Badge></div>
             <div className="flex items-center gap-4 flex-wrap"><span className="text-gray-500">ETH:</span><span className="text-emerald-400 font-bold">{Number(w.balance).toFixed(6)} SEP</span><span className="text-gray-500">WETH:</span><span className="text-fuchsia-400 font-bold">{Number(w.wethBalance).toFixed(6)}</span><button onClick={()=>w.refreshBalance()} className="fm text-[10px] text-purple-400 hover:text-purple-300 cursor-pointer">[ REFRESH ]</button></div>
           </div>)}
         </div>
@@ -1673,7 +1673,7 @@ const GovernedMovement = () => {
         {walletWarning && <div className="p-3 bg-red-500/10 border border-red-500/30 fm text-xs text-red-300">{walletWarning}</div>}
         {pendingTx && (<div className="p-3 bg-purple-500/10 border border-purple-500/30 fm text-xs text-purple-200 space-y-1">
           <div>{pendingTx.status==="signing"?"Awaiting MetaMask signature...":pendingTx.status==="pending"?"Broadcasted — waiting for confirmation...":pendingTx.status==="complete"?"✓ Confirmed on Sepolia":"✗ Failed"}</div>
-          {pendingTx.hash && <a href={explorerTx(pendingTx.hash)} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline break-all">{pendingTx.hash} ↗</a>}
+          {pendingTx.hash && <a href={explorerTx(pendingTx.hash)} target="_blank" rel="noopener noreferrer" className="mono text-purple-400 hover:underline break-all">{pendingTx.hash} ↗</a>}
         </div>)}
         <Btn full onClick={onChainSubmit} disabled={!w.isConnected || pendingTx?.status==="signing" || pendingTx?.status==="pending"}>{pendingTx?.status==="signing"?"AWAITING SIGNATURE...":pendingTx?.status==="pending"?"CONFIRMING...":`SUBMIT_${action.toUpperCase()}_ON_SEPOLIA`} <Arr/></Btn>
         {!w.isConnected && <div className="fm text-xs text-gray-500 text-center">Connect MetaMask above to enable submission.</div>}
@@ -1685,7 +1685,7 @@ const GovernedMovement = () => {
       <span className="text-purple-400 uppercase w-16">{t.action}</span>
       <span className="text-gray-300 font-bold w-24">{t.amount} ETH</span>
       <Badge c={t.status==="complete"?"green":t.status==="failed"?"red":"yellow"}>{t.status.toUpperCase()}</Badge>
-      <a href={explorerTx(t.hash)} target="_blank" rel="noopener noreferrer" className="text-purple-300 hover:underline truncate flex-1">{t.hash}</a>
+      <a href={explorerTx(t.hash)} target="_blank" rel="noopener noreferrer" className="mono text-purple-300 hover:underline truncate flex-1">{t.hash}</a>
     </div>))}</div></GC>}
 
     {/* Scenario flow — only when an evaluation scenario is active */}
@@ -1699,7 +1699,7 @@ const GovernedMovement = () => {
     </>)}
 
     {/* Connected wallets list */}
-    {wallets.length>0 && <GC className="p-4"><SL>SAVED WALLETS</SL><div className="space-y-2">{wallets.map(wl=>(<div key={wl.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50"><div className="flex items-center gap-3"><Wallet/><div className="fm text-xs"><div className="text-gray-300 font-bold">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><div className="text-gray-600 truncate max-w-md">{wl.address}</div></div></div><div className="flex items-center gap-2"><Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>))}</div></GC>}
+    {wallets.length>0 && <GC className="p-4"><SL>SAVED WALLETS</SL><div className="space-y-2">{wallets.map(wl=>(<div key={wl.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50"><div className="flex items-center gap-3"><Wallet/><div className="fm text-xs"><div className="text-gray-300 font-bold">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><div className="mono text-gray-600 truncate max-w-md">{wl.address}</div></div></div><div className="flex items-center gap-2"><Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>))}</div></GC>}
   </div>);
 };
 
@@ -2021,7 +2021,7 @@ const EvidenceViewer = () => {
         </div>
         <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 fm text-xs text-gray-400 mb-4">
           {w.isConnected
-            ? <>Live transaction history for <a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="text-emerald-300 hover:underline">{shortAddr(w.address)}</a>, read directly from the Sepolia chain (Blockscout). Bound to the <b>wallet</b>, not your account — connect a different wallet to see a different history.</>
+            ? <>Live transaction history for <a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="mono text-emerald-300 hover:underline">{shortAddr(w.address)}</a>, read directly from the Sepolia chain (Blockscout). Bound to the <b>wallet</b>, not your account — connect a different wallet to see a different history.</>
             : <>Connect a wallet on Governed Movement or Digital Assets to load its on-chain history here.</>}
         </div>
         {w.isConnected && <div className="overflow-x-auto"><div className="max-h-[320px] overflow-y-auto fm text-xs"><table className="w-full"><thead className="sticky top-0 bg-black/80 backdrop-blur"><tr className="text-gray-500 border-b border-gray-800"><th className="text-left py-2 px-2">TIMESTAMP</th><th className="text-left">DIR</th><th className="text-right">VALUE (ETH)</th><th className="text-left">COUNTERPARTY</th><th className="text-left">METHOD</th><th className="text-right">STATUS</th><th></th></tr></thead><tbody>
@@ -2030,7 +2030,7 @@ const EvidenceViewer = () => {
             <td className="py-1.5 px-2 text-gray-600 whitespace-nowrap">{(t.timestamp||"").slice(0,19).replace("T"," ")}</td>
             <td className={t.direction==="out"?"text-red-400":"text-emerald-400"}>{t.direction.toUpperCase()}</td>
             <td className="text-right text-gray-300 font-bold">{Number(t.value_eth).toFixed(6)}</td>
-            <td className="text-gray-400 truncate max-w-[160px]">{shortAddr(t.direction==="out"?t.to:t.from)}</td>
+            <td className="mono text-gray-400 truncate max-w-[160px]">{shortAddr(t.direction==="out"?t.to:t.from)}</td>
             <td className="text-gray-500">{t.method}</td>
             <td className="text-right"><Badge c={t.status==="success"?"green":t.status==="failed"?"red":"yellow"}>{t.status.toUpperCase()}</Badge></td>
             <td className="text-right"><a href={explorerTx(t.hash)} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">↗</a></td>
@@ -2105,7 +2105,7 @@ const SettingsPage = () => {
       </Field>
     </div></GC>}
 
-    {tab==="context"&&<GC className="p-6 anim"><SL>ORGANIZATION</SL><div className="space-y-3"><InfoRow label="ORGANIZATION" value={org?.name||"—"}/><InfoRow label="TYPE" value={org?.institution_type||"—"}/><InfoRow label="JURISDICTION" value={org?.jurisdiction||"—"}/><InfoRow label="OBJECTIVE" value={org?.eval_objective||"—"}/><InfoRow label="INVITE_CODE" value={org?.invite_code||"—"}/></div><div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">Share your <b className="text-purple-300">INVITE_CODE</b> with teammates. They can paste it on the Sandbox Setup screen to join this org instead of creating a duplicate.</div></GC>}
+    {tab==="context"&&<GC className="p-6 anim"><SL>ORGANIZATION</SL><div className="space-y-3"><InfoRow label="ORGANIZATION" value={org?.name||"—"}/><InfoRow label="TYPE" value={org?.institution_type||"—"}/><InfoRow label="JURISDICTION" value={org?.jurisdiction||"—"}/><InfoRow label="OBJECTIVE" value={org?.eval_objective||"—"}/><InfoRow label="INVITE_CODE" value={<span className="mono tracking-widest">{org?.invite_code||"—"}</span>}/></div><div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">Share your <b className="text-purple-300">INVITE_CODE</b> with teammates. They can paste it on the Sandbox Setup screen to join this org instead of creating a duplicate.</div></GC>}
     {tab==="control"&&<GC className="p-6 anim"><SL>CONTROL POSTURE</SL><div className="space-y-3"><InfoRow label="CONTROL_MODEL" value={(org?.control_model||"threshold")+" Governance"}/><InfoRow label="TRUST" value={org?.trust_environment||"current"}/></div></GC>}
     {tab==="evidence"&&<GC className="p-6 anim"><SL>EVIDENCE & ASSURANCE</SL><div className="space-y-3"><InfoRow label="EVIDENCE_VIEWS" badge={{t:"AVAILABLE",c:"green"}}/><InfoRow label="SELECTIVE_VERIFICATION" badge={{t:"VIEW AVAILABLE",c:"fuchsia"}}/><InfoRow label="PQC_CRYPTO_AGILITY" badge={{t:"VIEW AVAILABLE",c:"purple"}}/></div></GC>}
     <GC className="p-5"><SL>SANDBOX STATE</SL><div className="flex items-center justify-between"><div><div className="text-sm font-bold text-yellow-400">Reset Sandbox State</div><div className="fm text-xs text-gray-500">Clear all progress and evidence</div></div><Btn v="danger" onClick={resetSandbox}>RESET_SANDBOX</Btn></div></GC>

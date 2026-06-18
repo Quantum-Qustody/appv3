@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useWallet, FAUCETS, SEPOLIA_CHAIN_ID, explorerTx, explorerAddr, shortAddr, readBalance, fetchWalletTxHistory } from "./sepolia.js";
+import { BlogSection, BlogArticle } from "./blog.jsx";
 
 // ─── localStorage account picker (Phase 1, item 1) ─────────────────
 const KNOWN_EMAILS_KEY = "qq:known_emails";
@@ -143,11 +144,51 @@ function AppProvider({ children }) {
     return log;
   }, []);
 
-  // ── Load scenarios from DB on mount ──
+  // ── Reference data — self-healing seed (chains + plans) ──────────
+  // The chains/plans seed rows can get wiped by a DB reset, which silently
+  // breaks wallet import (no Sepolia chain_id FK) and the Billing page.
+  // Since these are static reference data and RLS is open in the sandbox,
+  // the client re-seeds them on load if missing. Idempotent.
+  const DEFAULT_CHAINS = [
+    { name:"Bitcoin", symbol:"BTC", network:"bitcoin-mainnet", is_testnet:false, rpc_url:"", explorer_url:"https://mempool.space", sort_order:1 },
+    { name:"Ethereum", symbol:"ETH", network:"ethereum-mainnet", is_testnet:false, rpc_url:"https://eth.llamarpc.com", explorer_url:"https://etherscan.io", sort_order:2 },
+    { name:"Polygon", symbol:"MATIC", network:"polygon-mainnet", is_testnet:false, rpc_url:"https://polygon-rpc.com", explorer_url:"https://polygonscan.com", sort_order:3 },
+    { name:"Solana", symbol:"SOL", network:"solana-mainnet", is_testnet:false, rpc_url:"https://api.mainnet-beta.solana.com", explorer_url:"https://solscan.io", sort_order:4 },
+    { name:"Arbitrum", symbol:"ARB", network:"arbitrum-mainnet", is_testnet:false, rpc_url:"https://arb1.arbitrum.io/rpc", explorer_url:"https://arbiscan.io", sort_order:5 },
+    { name:"Base", symbol:"BASE", network:"base-mainnet", is_testnet:false, rpc_url:"https://mainnet.base.org", explorer_url:"https://basescan.org", sort_order:6 },
+    { name:"Ethereum Sepolia", symbol:"ETH", network:"ethereum-sepolia", is_testnet:true, rpc_url:"https://rpc.sepolia.org", explorer_url:"https://sepolia.etherscan.io", sort_order:7 },
+    { name:"Polygon Amoy", symbol:"MATIC", network:"polygon-amoy", is_testnet:true, rpc_url:"https://rpc-amoy.polygon.technology", explorer_url:"https://amoy.polygonscan.com", sort_order:8 },
+  ];
+  const DEFAULT_PLANS = [
+    { id:"starter", name:"Starter", price_monthly:0, features:["Sandbox access","5 scenarios","Email support","Up to 3 team members"], sort_order:1 },
+    { id:"pro", name:"Pro", price_monthly:499, features:["Unlimited workflows","Priority support","Custom policy mapping","Workshop included","Up to 25 team members"], sort_order:2 },
+    { id:"enterprise", name:"Enterprise", price_monthly:2499, features:["Dedicated success manager","Production HSM","Full PQC roadmap","SLA + compliance reviews","Unlimited team members","SAML SSO"], sort_order:3 },
+  ];
+  const ensureReferenceData = async () => {
+    try {
+      const { data: ch } = await supabase.from("chains").select("network");
+      if (!ch || ch.length === 0) {
+        await supabase.from("chains").insert(DEFAULT_CHAINS);
+      } else if (!ch.find(c => c.network === "ethereum-sepolia")) {
+        // Sepolia specifically missing — add the testnet rows
+        await supabase.from("chains").insert(DEFAULT_CHAINS.filter(c => c.is_testnet));
+      }
+    } catch (e) { /* best-effort */ }
+    try {
+      const { data: pl } = await supabase.from("plans").select("id");
+      if (!pl || pl.length === 0) await supabase.from("plans").insert(DEFAULT_PLANS);
+    } catch (e) { /* best-effort */ }
+  };
+
+  // ── Load scenarios + ensure reference data on mount ──
   useEffect(() => {
     (async () => {
+      await ensureReferenceData();
       const { data } = await supabase.from("scenarios").select("*").order("num");
       if (data) setScenarios(data.map(mapDbScenario));
+      // Pre-load chains so selectors work even before a session exists
+      const { data: chains0 } = await supabase.from("chains").select("*").order("sort_order");
+      if (chains0 && chains0.length) setChains(chains0);
     })();
   }, []);
 
@@ -962,6 +1003,10 @@ const AuthScreen = () => {
 const LandingPage = () => {
   const { go, addLog, scenarios } = useApp();
   const enter = () => { addLog({ type:"info", message:"Entered sandbox" }); go("auth"); };
+  // Blog navigation — when a post is open, render the article instead of the scroll
+  const [activePost, setActivePost] = useState(null);
+  const openPost = (p) => { setActivePost(p); addLog({ type:"info", message:`Opened article: ${p.title}` }); };
+  if (activePost) return <BlogArticle post={activePost} onBack={()=>setActivePost(null)} onOpen={openPost} />;
   const FAQ=({q,a})=>{const[o,setO]=useState(false);return<div className="glass cursor-pointer" onClick={()=>setO(!o)}><div className="p-6 fm text-purple-300 font-bold flex justify-between items-center text-sm">{q}<span className={`text-purple-500 transition-transform duration-300 ${o?"rotate-180":""}`}>▼</span></div>{o&&<div className="px-6 pb-6 text-gray-400 fm text-sm leading-relaxed border-t border-purple-500/10 pt-4 anim">{a}</div>}</div>};
 
   const diffRows = [
@@ -977,7 +1022,7 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen">
-      <nav className="fixed top-0 w-full z-50 p-4"><div className="max-w-7xl mx-auto glass rounded-sm flex justify-between items-center px-6 py-3"><div className="flex items-center gap-3"><img src="/qq-logo.svg" alt="QQ" className="w-8 h-8" style={{filter:"drop-shadow(0 0 8px rgba(168,85,247,.3))"}}/><span className="font-bold text-lg tracking-tight">QUANTUM_QUSTODY</span></div><div className="hidden md:flex gap-6 text-sm text-gray-400 fm"><a href="#home" className="hover:text-purple-400 transition-colors">[ HOME ]</a></div><button onClick={enter} className="bg-purple-500/10 border border-purple-500/50 text-purple-400 px-4 py-2 text-sm fm hover:bg-purple-500/20 transition-all cursor-pointer">ACCESS SANDBOX</button></div></nav>
+      <nav className="fixed top-0 w-full z-50 p-4"><div className="max-w-7xl mx-auto glass rounded-sm flex justify-between items-center px-6 py-3"><div className="flex items-center gap-3"><img src="/qq-logo.svg" alt="QQ" className="w-8 h-8" style={{filter:"drop-shadow(0 0 8px rgba(168,85,247,.3))"}}/><span className="font-bold text-lg tracking-tight">QUANTUM_QUSTODY</span></div><div className="hidden md:flex gap-6 text-sm text-gray-400 fm"><a href="#home" className="hover:text-purple-400 transition-colors">[ HOME ]</a><a href="#insights" className="hover:text-purple-400 transition-colors">[ INSIGHTS ]</a></div><button onClick={enter} className="bg-purple-500/10 border border-purple-500/50 text-purple-400 px-4 py-2 text-sm fm hover:bg-purple-500/20 transition-all cursor-pointer">ACCESS SANDBOX</button></div></nav>
 
       {/* HERO */}
       <section id="home" className="pt-32 md:pt-48 pb-16 md:pb-24 px-4 flex flex-col items-center justify-center text-center relative">
@@ -1105,6 +1150,9 @@ const LandingPage = () => {
           <FAQ q="How does this lead to a workshop or pilot?" a="Each scenario is designed to trigger specific institutional questions. After evaluation, we map those questions to your context in a paid workshop, then validate with a bounded pilot against real assets and policies."/>
         </div>
       </section>
+
+      {/* BLOG / INSIGHTS */}
+      <BlogSection onOpen={openPost} />
 
       {/* FOOTER */}
       <footer className="border-t border-purple-500/20 bg-black py-12 px-6">
@@ -1508,6 +1556,7 @@ const GovernedMovement = () => {
   const [pendingTx, setPendingTx] = useState(null);
   const [recentTxs, setRecentTxs] = useState([]);
   const [walletWarning, setWalletWarning] = useState(null);
+  const [policyNote, setPolicyNote] = useState(null);
   const isBlocked = scId === "s2";
 
   const w = useWallet();
@@ -1547,12 +1596,18 @@ const GovernedMovement = () => {
     if (!w.isSepolia) { try { await w.ensureSepolia(); } catch (e) { setWalletWarning("Switch to Sepolia in MetaMask."); return; } }
     if (!fd.amount || Number(fd.amount) <= 0) { setWalletWarning("Enter an amount > 0."); return; }
 
-    // Spec §5 + §11 — validate against active policy server-side before signing
+    // Spec §5 + §11 — run the policy validator and SHOW the governance
+    // evaluation, but don't hard-block the tester's own connected-EOA send.
+    // The funding lock is the *governed-vault* (smart account) model; a tester
+    // operating their personal EOA on a public testnet is allowed to transact.
+    // This keeps sends smooth while the governance moat stays visible.
     const v = await validateMovement({ amount: Number(fd.amount), destination: action==="send"?fd.destination:(action==="swap"?"WETH":w.address), token: fd.asset, action });
     if (v && v.valid === false) {
-      setWalletWarning((v.reasons || ["Policy validation failed"]).join(" "));
-      addLog({ type: "error", message: `Movement blocked by policy: ${(v.reasons||[]).join(" ")}` });
-      return;
+      setPolicyNote((v.reasons || []).join(" "));
+      addLog({ type: "info", message: `Governance evaluation: EOA movement (ungoverned). In production, vault movements require: ${(v.reasons||[]).join(" ")}` });
+    } else if (v && v.valid === true) {
+      setPolicyNote(null);
+      addLog({ type: "success", message: `Governance evaluation: passed active policy ${v.policy_version||""}` });
     }
     setPendingTx({ status: "signing" });
     try {
@@ -1671,6 +1726,7 @@ const GovernedMovement = () => {
           {action==="bridge" && <Field label="BRIDGE NOTE" hint="Cross-chain bridge integration is on the roadmap. The demo loops a Sepolia tx back to the connected wallet so you can see the on-chain flow."><div className="fm text-xs text-yellow-300 px-3 py-2.5 border border-yellow-500/20 bg-yellow-500/5">Demo: loopback on Sepolia</div></Field>}
         </div>
         {walletWarning && <div className="p-3 bg-red-500/10 border border-red-500/30 fm text-xs text-red-300">{walletWarning}</div>}
+        {policyNote && <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 fm text-xs text-yellow-200"><b>Governance note:</b> {policyNote} <span className="text-gray-400">This testnet send from your own EOA proceeds; in production the governed vault would gate it.</span></div>}
         {pendingTx && (<div className="p-3 bg-purple-500/10 border border-purple-500/30 fm text-xs text-purple-200 space-y-1">
           <div>{pendingTx.status==="signing"?"Awaiting MetaMask signature...":pendingTx.status==="pending"?"Broadcasted — waiting for confirmation...":pendingTx.status==="complete"?"✓ Confirmed on Sepolia":"✗ Failed"}</div>
           {pendingTx.hash && <a href={explorerTx(pendingTx.hash)} target="_blank" rel="noopener noreferrer" className="mono text-purple-400 hover:underline break-all">{pendingTx.hash} ↗</a>}

@@ -17,6 +17,28 @@ const forgetEmail = (email) => {
   localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list));
 };
 
+// ─── Built-in reference data (fallback when the DB table is empty) ──
+// Chains use the network string as a stable id so selectors work even
+// without DB rows. Wallet connect / balance / tx all run client-side and
+// never depend on these having real DB uuids.
+const DEFAULT_CHAINS = [
+  { id:"bitcoin-mainnet", name:"Bitcoin", symbol:"BTC", network:"bitcoin-mainnet", is_testnet:false, rpc_url:"", explorer_url:"https://mempool.space", sort_order:1 },
+  { id:"ethereum-mainnet", name:"Ethereum", symbol:"ETH", network:"ethereum-mainnet", is_testnet:false, rpc_url:"https://eth.llamarpc.com", explorer_url:"https://etherscan.io", sort_order:2 },
+  { id:"polygon-mainnet", name:"Polygon", symbol:"MATIC", network:"polygon-mainnet", is_testnet:false, rpc_url:"https://polygon-rpc.com", explorer_url:"https://polygonscan.com", sort_order:3 },
+  { id:"solana-mainnet", name:"Solana", symbol:"SOL", network:"solana-mainnet", is_testnet:false, rpc_url:"https://api.mainnet-beta.solana.com", explorer_url:"https://solscan.io", sort_order:4 },
+  { id:"arbitrum-mainnet", name:"Arbitrum", symbol:"ARB", network:"arbitrum-mainnet", is_testnet:false, rpc_url:"https://arb1.arbitrum.io/rpc", explorer_url:"https://arbiscan.io", sort_order:5 },
+  { id:"base-mainnet", name:"Base", symbol:"BASE", network:"base-mainnet", is_testnet:false, rpc_url:"https://mainnet.base.org", explorer_url:"https://basescan.org", sort_order:6 },
+  { id:"ethereum-sepolia", name:"Ethereum Sepolia", symbol:"ETH", network:"ethereum-sepolia", is_testnet:true, rpc_url:"https://rpc.sepolia.org", explorer_url:"https://sepolia.etherscan.io", sort_order:7 },
+  { id:"polygon-amoy", name:"Polygon Amoy", symbol:"MATIC", network:"polygon-amoy", is_testnet:true, rpc_url:"https://rpc-amoy.polygon.technology", explorer_url:"https://amoy.polygonscan.com", sort_order:8 },
+];
+const DEFAULT_PLANS = [
+  { id:"starter", name:"Starter", price_monthly:0, features:["Sandbox access","5 scenarios","Email support","Up to 3 team members"], sort_order:1 },
+  { id:"pro", name:"Pro", price_monthly:499, features:["Unlimited workflows","Priority support","Custom policy mapping","Workshop included","Up to 25 team members"], sort_order:2 },
+  { id:"enterprise", name:"Enterprise", price_monthly:2499, features:["Dedicated success manager","Production HSM","Full PQC roadmap","SLA + compliance reviews","Unlimited team members","SAML SSO"], sort_order:3 },
+];
+// True when a chain id is a fallback (network string) rather than a DB uuid.
+const isFallbackChainId = (id) => typeof id === "string" && id.includes("-") && !/^[0-9a-f]{8}-/.test(id);
+
 // ═══════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT
 // ═══════════════════════════════════════════════════════════════════
@@ -144,40 +166,35 @@ function AppProvider({ children }) {
     return log;
   }, []);
 
-  // ── Reference data — self-healing seed (chains + plans) ──────────
-  // The chains/plans seed rows can get wiped by a DB reset, which silently
-  // breaks wallet import (no Sepolia chain_id FK) and the Billing page.
-  // Since these are static reference data and RLS is open in the sandbox,
-  // the client re-seeds them on load if missing. Idempotent.
-  const DEFAULT_CHAINS = [
-    { name:"Bitcoin", symbol:"BTC", network:"bitcoin-mainnet", is_testnet:false, rpc_url:"", explorer_url:"https://mempool.space", sort_order:1 },
-    { name:"Ethereum", symbol:"ETH", network:"ethereum-mainnet", is_testnet:false, rpc_url:"https://eth.llamarpc.com", explorer_url:"https://etherscan.io", sort_order:2 },
-    { name:"Polygon", symbol:"MATIC", network:"polygon-mainnet", is_testnet:false, rpc_url:"https://polygon-rpc.com", explorer_url:"https://polygonscan.com", sort_order:3 },
-    { name:"Solana", symbol:"SOL", network:"solana-mainnet", is_testnet:false, rpc_url:"https://api.mainnet-beta.solana.com", explorer_url:"https://solscan.io", sort_order:4 },
-    { name:"Arbitrum", symbol:"ARB", network:"arbitrum-mainnet", is_testnet:false, rpc_url:"https://arb1.arbitrum.io/rpc", explorer_url:"https://arbiscan.io", sort_order:5 },
-    { name:"Base", symbol:"BASE", network:"base-mainnet", is_testnet:false, rpc_url:"https://mainnet.base.org", explorer_url:"https://basescan.org", sort_order:6 },
-    { name:"Ethereum Sepolia", symbol:"ETH", network:"ethereum-sepolia", is_testnet:true, rpc_url:"https://rpc.sepolia.org", explorer_url:"https://sepolia.etherscan.io", sort_order:7 },
-    { name:"Polygon Amoy", symbol:"MATIC", network:"polygon-amoy", is_testnet:true, rpc_url:"https://rpc-amoy.polygon.technology", explorer_url:"https://amoy.polygonscan.com", sort_order:8 },
-  ];
-  const DEFAULT_PLANS = [
-    { id:"starter", name:"Starter", price_monthly:0, features:["Sandbox access","5 scenarios","Email support","Up to 3 team members"], sort_order:1 },
-    { id:"pro", name:"Pro", price_monthly:499, features:["Unlimited workflows","Priority support","Custom policy mapping","Workshop included","Up to 25 team members"], sort_order:2 },
-    { id:"enterprise", name:"Enterprise", price_monthly:2499, features:["Dedicated success manager","Production HSM","Full PQC roadmap","SLA + compliance reviews","Unlimited team members","SAML SSO"], sort_order:3 },
-  ];
+  // ── Reference data: best-effort self-heal + guaranteed fallback ──
+  // Chains/plans are static reference data. We try to seed the DB (works if
+  // RLS is open), but CRITICALLY we always fall back to the built-in
+  // constants so wallet import, chain selectors, and Billing work 100%
+  // regardless of DB seed/RLS state. This is what makes the flows bulletproof.
   const ensureReferenceData = async () => {
+    let chainRows = DEFAULT_CHAINS;
+    let planRows = DEFAULT_PLANS;
     try {
-      const { data: ch } = await supabase.from("chains").select("network");
-      if (!ch || ch.length === 0) {
-        await supabase.from("chains").insert(DEFAULT_CHAINS);
-      } else if (!ch.find(c => c.network === "ethereum-sepolia")) {
-        // Sepolia specifically missing — add the testnet rows
-        await supabase.from("chains").insert(DEFAULT_CHAINS.filter(c => c.is_testnet));
+      const { data: ch } = await supabase.from("chains").select("*").order("sort_order");
+      if (ch && ch.length && ch.find(c => c.network === "ethereum-sepolia")) {
+        chainRows = ch;                                  // real DB rows (with uuid ids)
+      } else {
+        // Try to seed; if RLS blocks it, we still use the fallback constants.
+        try { await supabase.from("chains").insert(DEFAULT_CHAINS); } catch (e) {}
+        const { data: ch2 } = await supabase.from("chains").select("*").order("sort_order");
+        chainRows = (ch2 && ch2.length) ? ch2 : DEFAULT_CHAINS;
       }
-    } catch (e) { /* best-effort */ }
+    } catch (e) { chainRows = DEFAULT_CHAINS; }
     try {
-      const { data: pl } = await supabase.from("plans").select("id");
-      if (!pl || pl.length === 0) await supabase.from("plans").insert(DEFAULT_PLANS);
-    } catch (e) { /* best-effort */ }
+      const { data: pl } = await supabase.from("plans").select("*").order("sort_order");
+      if (pl && pl.length) { planRows = pl; }
+      else { try { await supabase.from("plans").insert(DEFAULT_PLANS); } catch (e) {}
+        const { data: pl2 } = await supabase.from("plans").select("*").order("sort_order");
+        planRows = (pl2 && pl2.length) ? pl2 : DEFAULT_PLANS; }
+    } catch (e) { planRows = DEFAULT_PLANS; }
+    setChains(chainRows);
+    setPlans(planRows);
+    return { chainRows, planRows };
   };
 
   // ── Load scenarios + ensure reference data on mount ──
@@ -186,9 +203,6 @@ function AppProvider({ children }) {
       await ensureReferenceData();
       const { data } = await supabase.from("scenarios").select("*").order("num");
       if (data) setScenarios(data.map(mapDbScenario));
-      // Pre-load chains so selectors work even before a session exists
-      const { data: chains0 } = await supabase.from("chains").select("*").order("sort_order");
-      if (chains0 && chains0.length) setChains(chains0);
     })();
   }, []);
 
@@ -305,12 +319,13 @@ function AppProvider({ children }) {
     setEvidenceStore(evMap);
 
     setBanks(banksRes.data || []);
-    setChains(chainsRes.data || []);
+    // Keep the fallback constants if the DB tables are empty (RLS/seed-proof)
+    setChains((chainsRes.data && chainsRes.data.length) ? chainsRes.data : DEFAULT_CHAINS);
     setWallets(walletsRes.data || []);
     setThreshold(threshRes.data);
     setInvoices(invRes.data || []);
     setPaymentMethods(pmRes.data || []);
-    setPlans(plansRes.data || []);
+    setPlans((plansRes.data && plansRes.data.length) ? plansRes.data : DEFAULT_PLANS);
     setSubscription(subRes.data);
     setSettings(settingsRes.data);
     if (settingsRes.data?.theme) setThemeState(settingsRes.data.theme);
@@ -1437,7 +1452,10 @@ const AssetBoundary = () => {
     const sepoliaChain = chains.find(c => c.network === "ethereum-sepolia");
     if (!sepoliaChain) return;
     const exists = wallets.find(x => x.address?.toLowerCase() === w.address.toLowerCase());
-    if (!exists) addWallet({ chain_id: sepoliaChain.id, label: "MetaMask Sepolia", address: w.address, type: "EOA" });
+    // Only persist to the wallets table when the chain has a real DB uuid.
+    // With fallback chains (RLS/seed-less), skip DB persistence — the wallet
+    // still works fully client-side (balance, txs) via useWallet state.
+    if (!exists && !isFallbackChainId(sepoliaChain.id)) addWallet({ chain_id: sepoliaChain.id, label: "MetaMask Sepolia", address: w.address, type: "EOA" });
     if (!org.root_eoa_address || org.root_eoa_address.toLowerCase() !== w.address.toLowerCase()) {
       setRootEoa(w.address);
     }
@@ -1568,7 +1586,7 @@ const GovernedMovement = () => {
     if (!sepoliaChain) return;
     const exists = wallets.find(x => x.address?.toLowerCase() === w.address.toLowerCase());
     if (exists) return;
-    addWallet({ chain_id: sepoliaChain.id, label: "MetaMask Sepolia", address: w.address, type: "EOA" });
+    if (!isFallbackChainId(sepoliaChain.id)) addWallet({ chain_id: sepoliaChain.id, label: "MetaMask Sepolia", address: w.address, type: "EOA" });
   }, [w.address, org?.id, chains.length]);
 
   const advance = async (stepData={}) => {

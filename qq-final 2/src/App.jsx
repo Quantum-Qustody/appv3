@@ -38,6 +38,13 @@ const DEFAULT_PLANS = [
 ];
 // True when a chain id is a fallback (network string) rather than a DB uuid.
 const isFallbackChainId = (id) => typeof id === "string" && id.includes("-") && !/^[0-9a-f]{8}-/.test(id);
+// Dedupe chains by network (keeps one per network) so duplicate DB rows
+// never produce repeated selector options. Sorted by sort_order.
+const dedupeChains = (arr) => {
+  const seen = new Map();
+  (arr || []).forEach(c => { if (c && c.network && !seen.has(c.network)) seen.set(c.network, c); });
+  return Array.from(seen.values()).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT
@@ -192,9 +199,9 @@ function AppProvider({ children }) {
         const { data: pl2 } = await supabase.from("plans").select("*").order("sort_order");
         planRows = (pl2 && pl2.length) ? pl2 : DEFAULT_PLANS; }
     } catch (e) { planRows = DEFAULT_PLANS; }
-    setChains(chainRows);
+    setChains(dedupeChains(chainRows));
     setPlans(planRows);
-    return { chainRows, planRows };
+    return { chainRows: dedupeChains(chainRows), planRows };
   };
 
   // ── Load scenarios + ensure reference data on mount ──
@@ -320,7 +327,7 @@ function AppProvider({ children }) {
 
     setBanks(banksRes.data || []);
     // Keep the fallback constants if the DB tables are empty (RLS/seed-proof)
-    setChains((chainsRes.data && chainsRes.data.length) ? chainsRes.data : DEFAULT_CHAINS);
+    setChains(dedupeChains((chainsRes.data && chainsRes.data.length) ? chainsRes.data : DEFAULT_CHAINS));
     setWallets(walletsRes.data || []);
     setThreshold(threshRes.data);
     setInvoices(invRes.data || []);

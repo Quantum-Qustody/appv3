@@ -614,6 +614,11 @@ function AppProvider({ children }) {
   // ── SESSION ──
   const createSession = async (orgConfig) => {
     setLoading(true);
+    // Guard: organizations has a CHECK constraint on institution_type — an empty
+    // value 500s the scenario-engine. Coerce to a valid default so a user who
+    // skips the optional field can still complete setup.
+    const VALID_INST = ["Asset Manager", "Bank / Custodian", "Fund", "Corporate Treasury"];
+    orgConfig = { ...orgConfig, instType: VALID_INST.includes(orgConfig?.instType) ? orgConfig.instType : "Asset Manager" };
     try {
       // Phase 3, item 9: joining an existing org? skip the scenario-engine
       // create_session path and start a sandbox session against that org.
@@ -1191,7 +1196,7 @@ const LandingPage = () => {
 const SandboxSetup = () => {
   const { createSession, addLog, loading, user } = useApp();
   const [step, setStep] = useState(0);
-  const [f, setF] = useState({orgName:"",instType:"",jurisdiction:"",evalObjective:"",controlModel:"threshold",trustEnv:"current",inviteCode:"",joinOrgId:""});
+  const [f, setF] = useState({orgName:"",instType:"Asset Manager",jurisdiction:"",evalObjective:"",controlModel:"threshold",trustEnv:"current",inviteCode:"",joinOrgId:""});
   const [suggestions, setSuggestions] = useState([]);
   const [joinError, setJoinError] = useState(null);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));

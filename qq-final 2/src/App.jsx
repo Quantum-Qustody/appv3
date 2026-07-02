@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { useWallet, FAUCETS, CIRCLE_FAUCET, SEPOLIA_CHAIN_ID, INDICATIVE_PRICES, explorerTx, explorerAddr, shortAddr, readBalance, readSepoliaTokens, fetchWalletTxHistory } from "./sepolia.js";
+import { useWallet, useTestnetValue, FAUCETS, CIRCLE_FAUCET, explorerTx, explorerAddr, shortAddr, fetchWalletTxHistory } from "./sepolia.js";
 import { BlogSection, BlogArticle } from "./blog.jsx";
 
 // ─── localStorage account picker (Phase 1, item 1) ─────────────────
@@ -108,6 +108,15 @@ function mapDbScenario(s) {
 // ═══════════════════════════════════════════════════════════════════
 
 const AppContext = createContext(null);
+
+// Fix 3 — one wallet instance lifted to the app root so the live connection
+// (and its card) persist across every view instead of re-mounting per page.
+const WalletContext = createContext(null);
+function WalletProvider({ children }) {
+  const w = useWallet();   // the single real EIP-1193/Coinbase wallet instance for the whole app
+  return <WalletContext.Provider value={w}>{children}</WalletContext.Provider>;
+}
+const useSharedWallet = () => useContext(WalletContext);
 
 function AppProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -894,43 +903,63 @@ const PROTOCOL_APPS = [
   { id:"aave",   name:"Aave",   tagline:"Lending & borrowing markets",       url:"https://app.aave.com/",                    color:"#B6509E" },
   { id:"pendle", name:"Pendle", tagline:"Yield trading & tokenization",       url:"https://app.pendle.finance/trade/markets", color:"#5FCFB0" },
 ];
-const ProtocolApps = ({ w, addLog }) => {
-  const [linked, setLinked] = useState({});
-  const [busyId, setBusyId] = useState(null);
-  const connectApp = async (app) => {
-    setBusyId(app.id);
-    try {
-      // Genuinely connect the wallet first (real EIP-1193 / Coinbase SDK),
-      // then open the protocol's official dapp so the user lands wallet-ready.
-      let addr = w.address;
-      if (!w.isConnected) addr = await w.connect();
-      setLinked(l => ({ ...l, [app.id]: addr || true }));
-      addLog?.({ type: addr ? "success" : "info", message: addr ? `${app.name}: wallet ${shortAddr(addr)} connected — opening ${app.name}` : `Opening ${app.name} dapp connect` });
-      window.open(app.url, "_blank", "noopener,noreferrer");
-    } catch (e) {
-      addLog?.({ type: "error", message: `${app.name} connect failed: ${e?.shortMessage || e?.message || e}` });
-    } finally { setBusyId(null); }
+// Fix 4 — QQ-owned connect modal. Clicking a dApp NEVER fires the injected
+// wallet (no eth_requestAccounts, no Rabby popup). Quantum Qustody brokers the
+// connection over WalletConnect and hands off to the app; if a QQ wallet
+// session already exists it is surfaced so the app opens with that account.
+function AppConnectModal({ app, w, onClose, addLog }) {
+  if (!app) return null;
+  const openApp = () => {
+    addLog?.({ type: "success", message: `${app.name}: connecting via Quantum Qustody${w?.isConnected ? ` (session ${shortAddr(w.address)})` : ""} — no extension handoff` });
+    window.open(app.url, "_blank", "noopener,noreferrer");
+    onClose();
   };
-  return (<GC className="p-5" style={{borderLeft:"3px solid #818cf8"}}>
-    <div className="flex items-center justify-between flex-wrap gap-2 mb-1"><SL>CONNECT PROTOCOL APPS</SL></div>
-    <p className="fm text-xs text-gray-400 mb-4">Link institutional DeFi & custody protocols. Each button performs a real wallet connect, then hands off to the protocol's own dapp-connect flow. Position sync arrives in a later phase — the connection itself is live today.</p>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-      {PROTOCOL_APPS.map(app => { const isLinked = !!linked[app.id]; return (
-        <div key={app.id} className="p-4 border border-gray-800 bg-black/30 flex flex-col gap-3" style={{borderTopColor:`${app.color}66`, borderTopWidth:2}}>
-          <div className="flex items-center gap-3">
-            <img src={APP_ICONS[app.id]} alt={`${app.name} logo`} className="w-9 h-9 rounded-lg flex-shrink-0"/>
-            <div className="min-w-0"><div className="font-bold text-sm">{app.name}</div><div className="fm text-[10px] text-gray-500 leading-tight">{app.tagline}</div></div>
-          </div>
-          <div className="flex items-center justify-between gap-2 mt-auto">
-            <button onClick={()=>connectApp(app)} disabled={busyId===app.id} className="fm text-xs px-3 py-2 border transition-all cursor-pointer disabled:opacity-40 flex-1 text-center" style={{borderColor:`${app.color}66`, background:`${app.color}14`, color:app.color}}>
-              {busyId===app.id ? "CONNECTING..." : isLinked ? "OPEN AGAIN ↗" : "CONNECT ↗"}
-            </button>
-            {isLinked && <Badge c="green">LINKED</Badge>}
-          </div>
-        </div>
-      ); })}
+  return (<div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{background:"rgba(3,4,11,.82)"}} onClick={onClose}>
+    <div className="glass w-full max-w-md p-6 space-y-4" style={{background:"#07030f"}} onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center gap-3">
+        <img src={APP_ICONS[app.id]} alt={`${app.name} logo`} className="w-10 h-10 rounded-lg flex-shrink-0"/>
+        <div className="min-w-0"><div className="font-bold">Connect {app.name}</div><div className="fm text-[11px] text-gray-500">{app.tagline}</div></div>
+        <button onClick={onClose} aria-label="Close" className="ml-auto text-gray-500 hover:text-gray-300 cursor-pointer text-xl leading-none">×</button>
+      </div>
+      <div className="p-3 border border-purple-500/20 bg-purple-500/5 fm text-xs text-gray-300 leading-relaxed">
+        Quantum Qustody brokers this connection. Your browser wallet extension is <b className="text-purple-300">not</b> invoked directly — you connect {app.name} <b>through Quantum Qustody</b> over WalletConnect.
+      </div>
+      <div className="flex items-center justify-between p-3 border border-gray-800 bg-black/30 fm text-xs">
+        <span className="text-gray-500">QQ WALLET SESSION</span>
+        {w?.isConnected ? <span className="mono text-emerald-400">{shortAddr(w.address)}{w.isSepolia?" · SEPOLIA":""}</span> : <span className="text-yellow-300">not connected</span>}
+      </div>
+      {!w?.isConnected && <div className="fm text-[10px] text-gray-500 -mt-1">Connect a wallet to Quantum Qustody (header wallet control) so {app.name} opens with your QQ session.</div>}
+      <button onClick={openApp} className="w-full fm text-sm px-4 py-3 border transition-all cursor-pointer flex items-center justify-center gap-2" style={{borderColor:`${app.color}66`, background:`${app.color}18`, color:app.color}}>
+        OPEN {app.name.toUpperCase()} VIA WALLETCONNECT ↗
+      </button>
+      <div className="fm text-[9px] text-gray-600 leading-snug">On {app.name}, choose <b className="text-gray-400">WalletConnect</b> as the connection method (not the browser extension) to keep Quantum Qustody in the loop.</div>
     </div>
-  </GC>);
+  </div>);
+}
+const ProtocolApps = ({ w, addLog }) => {
+  const [modalApp, setModalApp] = useState(null);
+  return (<>
+    <GC className="p-5" style={{borderLeft:"3px solid #818cf8"}}>
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-1"><SL>CONNECT PROTOCOL APPS</SL></div>
+      <p className="fm text-xs text-gray-400 mb-4">Link institutional DeFi & custody protocols. Quantum Qustody brokers each connection over WalletConnect — your browser extension is never invoked directly. Position sync arrives in a later phase; the connection is mediated by QQ today.</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {PROTOCOL_APPS.map(app => (
+          <div key={app.id} className="p-4 border border-gray-800 bg-black/30 flex flex-col gap-3" style={{borderTopColor:`${app.color}66`, borderTopWidth:2}}>
+            <div className="flex items-center gap-3">
+              <img src={APP_ICONS[app.id]} alt={`${app.name} logo`} className="w-9 h-9 rounded-lg flex-shrink-0"/>
+              <div className="min-w-0"><div className="font-bold text-sm">{app.name}</div><div className="fm text-[10px] text-gray-500 leading-tight">{app.tagline}</div></div>
+            </div>
+            <div className="mt-auto">
+              <button onClick={()=>setModalApp(app)} className="fm text-xs px-3 py-2 border transition-all cursor-pointer w-full text-center" style={{borderColor:`${app.color}66`, background:`${app.color}14`, color:app.color}}>
+                CONNECT VIA QQ ↗
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </GC>
+    <AppConnectModal app={modalApp} w={w} addLog={addLog} onClose={()=>setModalApp(null)}/>
+  </>);
 };
 
 // Send / Swap / Bridge action bar
@@ -1371,13 +1400,18 @@ const SideNav = ({ onSelect }) => {
 // ═══════════════════════════════════════════════════════════════════
 const EvaluationHub = () => {
   const { org, threshold, participants, wallets, assets, banks, logs, settings, scenarios, progress, setActiveView, addLog } = useApp();
-  const w = useWallet();
+  const w = useSharedWallet();
   // Item 7: counters track live wallet/chain state, not just stale DB rows
   const liveWalletCount = Math.max(wallets.length, w.isConnected ? 1 : 0);
   const usdNum = (s) => Number(String(s||"").replace(/[^0-9.-]/g,"")) || 0;
-  const cryptoUsd = assets.reduce((s,a) => s + usdNum(a.balance_usd), 0);
+  // Fix 1 — fold the connected wallet's live Sepolia value (ETH×spot + testnet
+  // USDC/EURC @ $1) into CRYPTO and TOTAL so a funded wallet is never $0.
+  const tv = useTestnetValue(w);
+  const manualCryptoUsd = assets.reduce((s,a) => s + usdNum(a.balance_usd), 0);
+  const cryptoUsd = manualCryptoUsd + tv.testnetUsd;
   const banksUsd = banks.reduce((s,b) => s + Number(b.balance||0), 0);
   const totalUsd = cryptoUsd + banksUsd;
+  const money = (n) => `$${n.toLocaleString(undefined,{maximumFractionDigits:2})}`;
   const qsScore = computeQSafety({ org, threshold, participants, wallets, settings, scenarios, progress });
   const goAction = (id) => { addLog({ type:"info", message:`${id.toUpperCase()} initiated from Dashboard` }); setActiveView("movement"); };
   const actions = [
@@ -1405,8 +1439,16 @@ const EvaluationHub = () => {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <GC className="p-7 md:col-span-2 anim-d1 relative overflow-hidden" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}>
         <div className="fm text-xs text-purple-500 tracking-widest mb-3">[ TOTAL_VALUE ]</div>
-        <div className="text-5xl md:text-6xl font-black tg leading-none mb-3">${totalUsd.toLocaleString()}</div>
-        <div className="flex flex-wrap gap-4 fm text-xs"><span className="text-gray-500">BANKS:</span><span className="text-blue-400 font-bold">${banksUsd.toLocaleString()}</span><span className="text-gray-700">·</span><span className="text-gray-500">CRYPTO:</span><span className="text-purple-400 font-bold">${cryptoUsd.toLocaleString()}</span></div>
+        <div className="text-5xl md:text-6xl font-black tg leading-none mb-3">{money(totalUsd)}</div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 fm text-xs">
+          <span className="text-gray-500">BANKS:</span><span className="text-blue-400 font-bold">{money(banksUsd)}</span>
+          <span className="text-gray-700">·</span>
+          <span className="text-gray-500">CRYPTO:</span><span className="text-purple-400 font-bold">{money(cryptoUsd)}</span>
+          {w.isConnected && <><span className="text-gray-700">·</span><span className="text-gray-500">SEPOLIA:</span><span className="text-emerald-400 font-bold">{tv.eth.toFixed(4)} ETH ({money(tv.ethUsd)})</span></>}
+        </div>
+        {w.isConnected
+          ? <div className="fm text-[10px] text-gray-500 mt-2">ETH @ {money(tv.ethPriceUsd)}{tv.priceLive?" · live":" · indicative"} · testnet USDC/EURC pegged $1{(tv.usdc+tv.eurc)>0?` · ${tv.usdc.toFixed(2)} USDC · ${tv.eurc.toFixed(2)} EURC`:""}</div>
+          : <div className="fm text-[10px] text-gray-500 mt-2">Connect a wallet to include live Sepolia balances in the total.</div>}
         <div className="absolute -right-12 -bottom-12 w-48 h-48 rounded-full" style={{background:"radial-gradient(circle, rgba(168,85,247,.15), transparent 70%)"}}/>
       </GC>
       <GC className="p-7 anim-d2 flex flex-col items-center justify-center text-center" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
@@ -1513,7 +1555,7 @@ const AssetBoundary = () => {
   const [f, setF] = useState({ name:"", chain:"", balance:"", balance_usd:"", scope:"in-scope", boundary_tag:"Operating Reserve", control_model:"Threshold Governance", evidence_path:"", wallet_id:"" });
   const u = (k,v) => setF(p=>({...p,[k]:v}));
 
-  const w = useWallet();
+  const w = useSharedWallet();
 
   // Auto-persist a connected MetaMask wallet to the wallets table the first time we see it.
   // Also calls set_root_eoa so the org gets a smart-account address derived from the EOA (spec §3, §4).
@@ -1651,7 +1693,7 @@ const GovernedMovement = () => {
   const [policyNote, setPolicyNote] = useState(null);
   const isBlocked = scId === "s2";
 
-  const w = useWallet();
+  const w = useSharedWallet();
 
   // When MetaMask connects, persist that wallet to Supabase wallets table (idempotent best-effort)
   useEffect(() => {
@@ -2092,7 +2134,7 @@ const EvidenceViewer = () => {
   const ev = scId ? evidenceStore[scId] : null;
   const [tab, setTab] = useState("__transactions__");
   // Item 2 — wallet-scoped on-chain history, read live from the Sepolia chain
-  const w = useWallet();
+  const w = useSharedWallet();
   const [chainTxs, setChainTxs] = useState([]);
   const [chainLoading, setChainLoading] = useState(false);
   const loadChainTxs = async (addr) => {
@@ -2211,27 +2253,18 @@ const EvidenceViewer = () => {
 // ═══════════════════════════════════════════════════════════════════
 const EvalOverview = () => {
   const { activeScenario, progress, scenarios, participants, assets, banks, wallets, transactions, setActiveView, org } = useApp();
-  const w = useWallet();
+  const w = useSharedWallet();
   const liveWalletCount = Math.max(wallets.length, w.isConnected?1:0);
   const completed = Object.values(progress).filter(p=>p.status==="completed").length;
   const total = scenarios.length || 0;
 
-  // Item 4 — total value now spans mainnet (booked) AND Sepolia testnet.
+  // Item 4 — total value spans mainnet (booked) AND Sepolia testnet.
   // Mainnet: USD-valued in-scope assets + imported bank balances.
   const usdNum = (s) => Number(String(s||"").replace(/[^0-9.-]/g,"")) || 0;
   const mainnetUsd = assets.reduce((s,a)=>s+usdNum(a.balance_usd),0) + banks.reduce((s,b)=>s+Number(b.balance||0),0);
-  // Testnet: live Sepolia ETH/WETH + testnet USDC/EURC, valued at indicative prices.
-  const [tok, setTok] = useState({ usdc: "0", eurc: "0" });
-  useEffect(() => {
-    let alive = true;
-    if (w.isConnected && w.address) { readSepoliaTokens(w.address).then(t => { if (alive) setTok(t); }).catch(()=>{}); }
-    else setTok({ usdc: "0", eurc: "0" });
-    return () => { alive = false; };
-  }, [w.address, w.isConnected]);
-  const tEth = w.isConnected ? Number(w.balance||0) : 0;
-  const tWeth = w.isConnected ? Number(w.wethBalance||0) : 0;
-  const tUsdc = Number(tok.usdc||0), tEurc = Number(tok.eurc||0);
-  const testnetUsd = tEth*INDICATIVE_PRICES.ETH + tWeth*INDICATIVE_PRICES.WETH + tUsdc*INDICATIVE_PRICES.USDC + tEurc*INDICATIVE_PRICES.EURC;
+  // Testnet: shared valuation — live ETH spot price + testnet USDC/EURC @ $1 (Fix 1 consistency).
+  const tv = useTestnetValue(w);
+  const testnetUsd = tv.testnetUsd;
   const fmtUsd = (n) => `$${n.toLocaleString(undefined,{maximumFractionDigits:2})}`;
 
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1"><div><h2 className="text-2xl font-bold mb-1 anim">Overview</h2><p className="fm text-sm text-gray-500 anim-d1">{org?.name||"—"} · LIVE EVALUATION</p></div>
@@ -2240,9 +2273,9 @@ const EvalOverview = () => {
     <GC className="p-5 anim">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL EVALUATION VALUE <Tip text="Mainnet booked value (USD-valued in-scope assets + imported bank balances) plus live Sepolia testnet holdings (ETH, WETH, USDC, EURC). Testnet assets are valued at indicative reference prices — Sepolia tokens have no real monetary value."/></div>
+          <div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL EVALUATION VALUE <Tip text="Mainnet booked value (USD-valued in-scope assets + imported bank balances) plus live Sepolia testnet holdings (ETH, WETH, USDC, EURC). ETH is valued at the live spot price; testnet USDC/EURC are pegged at $1. Sepolia tokens have no real monetary value."/></div>
           <div className="text-3xl md:text-4xl font-black tg">{fmtUsd(mainnetUsd + testnetUsd)}</div>
-          <div className="fm text-[10px] text-gray-500 mt-1">Mainnet booked + Sepolia testnet (indicative)</div>
+          <div className="fm text-[10px] text-gray-500 mt-1">Mainnet booked + Sepolia testnet · ETH @ {fmtUsd(tv.ethPriceUsd)}{tv.priceLive?" (live)":" (indicative)"}</div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 border border-emerald-500/30 bg-emerald-500/5 min-w-[150px]">
@@ -2253,7 +2286,7 @@ const EvalOverview = () => {
           <div className="p-3 border border-yellow-500/30 bg-yellow-500/5 min-w-[150px]">
             <div className="fm text-[10px] text-yellow-300 mb-1">● TESTNET · SEPOLIA</div>
             <div className="text-xl font-bold text-yellow-300">{fmtUsd(testnetUsd)}</div>
-            <div className="fm text-[9px] text-gray-600 mt-0.5">{w.isConnected ? `${tEth.toFixed(4)} ETH · ${tUsdc.toFixed(2)} USDC · ${tEurc.toFixed(2)} EURC` : "connect wallet to read"}</div>
+            <div className="fm text-[9px] text-gray-600 mt-0.5">{w.isConnected ? `${tv.eth.toFixed(4)} ETH · ${tv.usdc.toFixed(2)} USDC · ${tv.eurc.toFixed(2)} EURC` : "connect wallet to read"}</div>
           </div>
         </div>
       </div>
@@ -2592,12 +2625,78 @@ const Billing = () => {
   </div>);
 };
 
+// ── Fix 2 — header faucet menu: claim USDC + EURC on Sepolia (Circle) ──
+// Official-style token marks (blue Circle disc) as inline data URIs so they
+// always render without hotlinking third-party assets.
+const USDC_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%232775CA'/%3E%3Cpath fill='%23fff' d='M15.2 7h1.6v1.6c2.3.3 3.9 1.7 4 3.7h-2.1c-.1-1-.8-1.7-1.9-1.9v3.9c2.6.5 4.2 1.4 4.2 3.7 0 2.1-1.6 3.5-4.2 3.8V25h-1.6v-1.5c-2.5-.3-4.2-1.7-4.3-3.9h2.1c.1 1.1.9 1.9 2.2 2.1v-4.1c-2.5-.5-4.1-1.4-4.1-3.6 0-2 1.6-3.4 4.1-3.7V7Zm0 3.3c-1.1.2-1.8.8-1.8 1.7 0 .8.6 1.3 1.8 1.6v-3.3Zm1.6 5.7v3.6c1.2-.2 1.9-.8 1.9-1.8 0-.9-.6-1.4-1.9-1.8Z'/%3E%3C/svg%3E";
+const EURC_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23286FB4'/%3E%3Cpath fill='%23fff' d='M18.6 20.6c-1 .9-2.1 1.3-3.4 1.3-2 0-3.6-1.2-4.3-3.1h5l.6-1.6h-6c0-.2-.1-.4-.1-.7 0-.3 0-.5.1-.8h6.6l.6-1.6h-6.8c.7-1.9 2.3-3.1 4.3-3.1 1.3 0 2.4.4 3.4 1.3l1.3-1.4C18.4 9.5 16.9 9 15.2 9c-3.2 0-5.8 2.1-6.6 5.1H7l-.6 1.6h1.9c0 .2-.1.5-.1.8 0 .3 0 .5.1.7H6.4L5.8 18.8h2.8c.8 3 3.4 5.1 6.6 5.1 1.7 0 3.2-.6 4.4-1.7Z'/%3E%3C/svg%3E";
+function FaucetMenu() {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const tokens = [{ sym:"USDC", name:"USD Coin", icon: USDC_ICON }, { sym:"EURC", name:"Euro Coin", icon: EURC_ICON }];
+  return (<div ref={wrapRef} className="relative">
+    <button onClick={()=>setOpen(o=>!o)} title="Claim testnet USDC & EURC on Sepolia — Circle faucet" aria-haspopup="true" aria-expanded={open} aria-label="Open faucet menu for USDC and EURC" className="flex items-center gap-1.5 px-2 md:px-2.5 py-1.5 border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.7S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.7 12 2.7z"/></svg>
+      <span className="hidden sm:inline">FAUCET</span>
+      <svg width="9" height="9" viewBox="0 0 12 12" className="hidden sm:inline" fill="currentColor"><path d="M6 8 2 4h8z"/></svg>
+    </button>
+    {open && <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-24px)] z-[70] glass p-2" style={{background:"#05020f"}}>
+      <div className="fm text-[10px] text-gray-500 px-2 py-1 tracking-wide">CLAIM ON SEPOLIA · CIRCLE FAUCET</div>
+      {tokens.map(t => (
+        <a key={t.sym} href={CIRCLE_FAUCET} target="_blank" rel="noopener noreferrer" onClick={()=>setOpen(false)} className="flex items-center gap-3 px-2 py-2 hover:bg-emerald-500/10 transition-all cursor-pointer rounded-sm">
+          <img src={t.icon} alt={`${t.sym} logo`} className="w-7 h-7 flex-shrink-0"/>
+          <div className="min-w-0 flex-1"><div className="fm text-xs font-bold text-gray-200">{t.sym}</div><div className="fm text-[10px] text-gray-500">{t.name} · testnet</div></div>
+          <span className="fm text-[10px] text-emerald-400 flex-shrink-0">CLAIM ↗</span>
+        </a>
+      ))}
+      <div className="fm text-[9px] text-gray-600 px-2 py-1.5 border-t border-gray-800/60 mt-1 leading-snug">Opens faucet.circle.com — select the token and <b className="text-gray-400">Ethereum Sepolia</b>, then paste your wallet address.</div>
+    </div>}
+  </div>);
+}
+
+// ── Fix 3 — global connected-wallet chip, rendered from shared state on every
+// in-app view so the connection is visibly persistent across navigation.
+function WalletChip({ w }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  if (!w?.isConnected) return null;
+  return (<div ref={wrapRef} className="relative">
+    <button onClick={()=>setOpen(o=>!o)} aria-haspopup="true" aria-expanded={open} title="Connected wallet" className={`flex items-center gap-1.5 px-2 md:px-2.5 py-1.5 border transition-all cursor-pointer ${w.isSepolia?"border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20":"border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20"}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${w.isSepolia?"bg-emerald-400":"bg-red-400"}`} style={{boxShadow:w.isSepolia?"0 0 6px #34d399":"0 0 6px #f87171"}}/>
+      <span className="mono text-[11px]">{shortAddr(w.address)}</span>
+      <span className="hidden md:inline fm text-[10px] opacity-80">{w.isSepolia?`${Number(w.balance||0).toFixed(3)} SEP`:"WRONG NET"}</span>
+    </button>
+    {open && <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-24px)] z-[70] glass p-3 space-y-2" style={{background:"#05020f"}}>
+      <div className="flex items-center justify-between gap-2"><span className="fm text-[10px] text-gray-500">WALLET · SEPOLIA</span><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="mono text-[10px] text-purple-300 hover:underline">{shortAddr(w.address)} ↗</a></div>
+      <div className="flex items-center gap-2 flex-wrap fm text-xs"><span className="text-gray-500">ETH:</span><span className="text-emerald-400 font-bold">{Number(w.balance||0).toFixed(6)} SEP</span></div>
+      {!w.isSepolia && <button onClick={()=>{ w.ensureSepolia?.(); }} className="w-full fm text-[11px] px-2 py-1.5 border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/20 transition-all cursor-pointer">SWITCH TO SEPOLIA</button>}
+      <div className="flex gap-2">
+        <button onClick={()=>{ w.reconnect?.(); setOpen(false); }} className="flex-1 fm text-[11px] px-2 py-1.5 border border-purple-500/30 text-purple-300 hover:bg-purple-500/10 transition-all cursor-pointer">SWITCH ACCOUNT</button>
+        <button onClick={()=>{ w.disconnect?.(); setOpen(false); }} className="flex-1 fm text-[11px] px-2 py-1.5 border border-gray-700 text-gray-400 hover:bg-red-500/10 hover:text-red-300 transition-all cursor-pointer">DISCONNECT</button>
+      </div>
+    </div>}
+  </div>);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════
 function AppShell() {
   const { phase, fading, activeView, activeScenario, user, org, threshold, participants, wallets, settings, scenarios, progress } = useApp();
   const qsScore = computeQSafety({ org, threshold, participants, wallets, settings, scenarios, progress });
+  const hw = useSharedWallet();   // Fix 3 — shared wallet, so the header chip persists on every view
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const views = { hub:<EvaluationHub/>, "scenario-detail":<ScenarioDetail/>, overview:<EvalOverview/>, assets:<AssetBoundary/>, "import-bank":<ImportBank/>, movement:<GovernedMovement/>, team:<Team/>, evidence:<EvidenceViewer/>, "how-it-works":<HowItWorks/>, "user-guide":<UserGuide/>, support:<Support/>, billing:<Billing/>, settings:<SettingsPage/> };
@@ -2615,11 +2714,9 @@ function AppShell() {
           {activeScenario&&<><span className="hidden md:inline text-gray-700">|</span><span className="hidden md:inline fm text-xs text-gray-500">SCENARIO {activeScenario.num}</span></>}
         </div>
         <div className="flex items-center gap-2 md:gap-4 fm text-xs flex-shrink-0">
-          {/* Item 3 — header faucet: claim testnet EURC + USDC on Sepolia via Circle */}
-          <a href={CIRCLE_FAUCET} target="_blank" rel="noopener noreferrer" title="Claim testnet EURC & USDC on Sepolia — Circle faucet" aria-label="Open Circle testnet faucet for EURC and USDC" className="flex items-center gap-1.5 px-2 md:px-2.5 py-1.5 border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.7S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.7 12 2.7z"/></svg>
-            <span className="hidden sm:inline">FAUCET</span>
-          </a>
+          {/* Item 3 / Fix 2 — header faucet: claim testnet USDC + EURC on Sepolia via Circle */}
+          <FaucetMenu/>
+          <WalletChip w={hw}/>
           <QuantumSafetyAtom score={qsScore}/>
           <span className="hidden lg:inline text-gray-700">|</span>
           <span className="hidden lg:inline text-gray-500">USER:</span>
@@ -2647,5 +2744,5 @@ function AppShell() {
 }
 
 export default function App() {
-  return (<AppProvider><AppShell/></AppProvider>);
+  return (<AppProvider><WalletProvider><AppShell/></WalletProvider></AppProvider>);
 }

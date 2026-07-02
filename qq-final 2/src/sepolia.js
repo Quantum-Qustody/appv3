@@ -91,6 +91,29 @@ export async function readSepoliaTokens(address) {
   return { usdc, eurc };
 }
 
+// Shared testnet valuation (Fix 1 + item 4): live ETH spot price applied to the
+// connected wallet's Sepolia ETH + WETH, with testnet USDC/EURC pegged at $1.
+// Recomputes on wallet connect and on account / chain change.
+export function useTestnetValue(w) {
+  const [price, setPrice] = useState(null);
+  const [tok, setTok] = useState({ usdc: "0", eurc: "0" });
+  useEffect(() => { let a = true; fetchEthUsdPrice().then(p => { if (a) setPrice(p); }); return () => { a = false; }; }, [w.address, w.isConnected, w.chainId]);
+  useEffect(() => {
+    let alive = true;
+    if (w.isConnected && w.address) readSepoliaTokens(w.address).then(t => { if (alive) setTok(t); }).catch(() => {});
+    else setTok({ usdc: "0", eurc: "0" });
+    return () => { alive = false; };
+  }, [w.address, w.isConnected, w.chainId]);
+  const ethPriceUsd = price || INDICATIVE_PRICES.ETH;
+  const eth = w.isConnected ? Number(w.balance || 0) : 0;
+  const weth = w.isConnected ? Number(w.wethBalance || 0) : 0;
+  const usdc = Number(tok.usdc || 0), eurc = Number(tok.eurc || 0);
+  const ethUsd = (eth + weth) * ethPriceUsd;
+  const stableUsd = usdc + eurc;                 // testnet USDC/EURC pegged at $1
+  const testnetUsd = ethUsd + stableUsd;
+  return { ethPriceUsd, priceLive: !!price, eth, weth, usdc, eurc, ethUsd, stableUsd, testnetUsd };
+}
+
 // ─── EIP-6963: multi-wallet discovery ──────────────────────────────
 // Modules-level cache shared across all useWallet() consumers
 const discovered = new Map();        // uuid → ProviderDetail
@@ -164,6 +187,34 @@ function getCoinbaseDetail() {
       provider: coinbaseProvider,
     };
   } catch { return null; }
+}
+
+// ── Persist the last-connected wallet identity (Fix 3) ─────────────
+// We store only the provider identity (uuid / rdns) — never keys — so we can
+// silently re-attach the same wallet on reload without a permission popup.
+const WALLET_STORAGE_KEY = "qq_wallet_v1";
+function saveWalletChoice(detail) {
+  try { if (typeof localStorage !== "undefined" && detail?.info) localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ uuid: detail.info.uuid, rdns: detail.info.rdns })); } catch {}
+}
+function clearWalletChoice() {
+  try { if (typeof localStorage !== "undefined") localStorage.removeItem(WALLET_STORAGE_KEY); } catch {}
+}
+function readWalletChoice() {
+  try { if (typeof localStorage === "undefined") return null; const v = localStorage.getItem(WALLET_STORAGE_KEY); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+
+// ── Live ETH spot price for testnet USD valuation (Fix 1) ──────────
+// CoinGecko public simple-price endpoint (no key, CORS-enabled). Cached 60s;
+// falls back to the indicative constant if the network call fails.
+let _ethPrice = null, _ethPriceAt = 0;
+export async function fetchEthUsdPrice() {
+  const now = Date.now();
+  if (_ethPrice && now - _ethPriceAt < 60000) return _ethPrice;
+  try {
+    const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd");
+    if (res.ok) { const j = await res.json(); const p = Number(j?.ethereum?.usd); if (p > 0) { _ethPrice = p; _ethPriceAt = now; return p; } }
+  } catch {}
+  return _ethPrice || INDICATIVE_PRICES.ETH;
 }
 
 // ─── Connect a single EIP-1193 provider with timeout ───────────────
@@ -319,6 +370,7 @@ export function useWallet() {
       const cid = await target.provider.request({ method: "eth_chainId" }).catch(() => null);
       if (cid) setChainId(parseInt(cid, 16));
       await refreshBalance(addr);
+      saveWalletChoice(target);   // remember for silent reconnect on reload (Fix 3)
       return addr;
     } catch (e) {
       // 4001 = user rejected — soft error
@@ -356,7 +408,38 @@ export function useWallet() {
     setBalance("0");
     setWethBalance("0");
     setError(null);
+    clearWalletChoice();   // forget so we don't silently reconnect (Fix 3)
   };
+
+  // Silent auto-reconnect on reload (Fix 3): if a wallet was connected before,
+  // and the same provider is available and still authorized, restore the
+  // session WITHOUT a permission prompt (eth_accounts, not eth_requestAccounts).
+  const autoReconnectTried = useRef(false);
+  useEffect(() => {
+    if (autoReconnectTried.current || address) return;
+    const saved = readWalletChoice();
+    if (!saved) return;
+    let match = providers.find(p => p.info?.uuid === saved.uuid)
+             || (saved.rdns ? providers.find(p => p.info?.rdns === saved.rdns) : null)
+             || (saved.uuid === "coinbase-wallet-sdk" ? getCoinbaseDetail() : null)
+             || legacyDetail();
+    if (!match?.provider) return;   // provider not ready yet — retry when it appears
+    autoReconnectTried.current = true;
+    (async () => {
+      try {
+        const accs = await match.provider.request({ method: "eth_accounts" });
+        if (accs?.[0]) {
+          setActive(match);
+          setAddress(accs[0]);
+          const cid = await match.provider.request({ method: "eth_chainId" }).catch(() => null);
+          if (cid) setChainId(parseInt(cid, 16));
+          refreshBalance(accs[0]);
+        } else {
+          clearWalletChoice();   // authorization lapsed — stop trying
+        }
+      } catch { /* leave saved choice for a later mount */ }
+    })();
+  }, [providers, address, refreshBalance]);
 
   // Send ETH on Sepolia
   const sendEth = async ({ to, amount }) => {

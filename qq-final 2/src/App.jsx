@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { useWallet, FAUCETS, SEPOLIA_CHAIN_ID, explorerTx, explorerAddr, shortAddr, readBalance, fetchWalletTxHistory } from "./sepolia.js";
+import { useWallet, FAUCETS, CIRCLE_FAUCET, SEPOLIA_CHAIN_ID, INDICATIVE_PRICES, explorerTx, explorerAddr, shortAddr, readBalance, readSepoliaTokens, fetchWalletTxHistory } from "./sepolia.js";
 import { BlogSection, BlogArticle } from "./blog.jsx";
 
 // ─── localStorage account picker (Phase 1, item 1) ─────────────────
@@ -650,6 +650,10 @@ function AppProvider({ children }) {
       const required = orgConfig?.controlModel === "committee" ? 3 : orgConfig?.controlModel === "single" ? 1 : 2;
       const total = orgConfig?.controlModel === "committee" ? 5 : orgConfig?.controlModel === "single" ? 1 : 3;
       try { await supabase.rpc("bootstrap_draft_policy", { p_org: result.org.id, p_required: required, p_total: total }); } catch (e) {}
+      // Item 2 — default the sandbox approval threshold to a single signer so
+      // testers can execute send/swap without assembling a quorum. This is not
+      // mandatory: raise it any time in Evaluation Configuration → Control Posture.
+      try { await supabase.from("threshold_settings").upsert({ org_id: result.org.id, required_approvals: 1, required_reviewers: 0, policy_version: "v1.0" }); } catch (e) {}
       await loadSessionData(result.session.id, result.org.id);
       addLog({ type: "success", message: "Sandbox launched", detail: "EVALUATION_READY" });
       go("app");
@@ -861,9 +865,11 @@ const WalletPicker = ({ w, onAfterConnect }) => {
       Coinbase Wallet, Rabby or Brave Wallet, then refresh this page.
     </div>);
   }
-  if (w.providers.length <= 1) {
-    return (<Btn onClick={()=>handle(w.providers[0])} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>);
+  // No discovered providers but a legacy one exists — single generic connect.
+  if (!w.providers.length) {
+    return (<Btn onClick={()=>handle()} disabled={w.busy}>{w.busy?"CONNECTING...":"CONNECT WALLET"}</Btn>);
   }
+  // Always show each connector by name (item 5 — MetaMask, Coinbase Wallet, Rabby, …).
   return (<div className="flex flex-wrap gap-2">
     {w.providers.map(p => (
       <button key={p.info.uuid} onClick={()=>handle(p)} disabled={w.busy} className="fm text-xs px-3 py-2 border border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20 transition-all cursor-pointer disabled:opacity-40 flex items-center gap-2">
@@ -872,6 +878,59 @@ const WalletPicker = ({ w, onAfterConnect }) => {
       </button>
     ))}
   </div>);
+};
+
+// ── Item 5 — connect institutional DeFi / custody protocol apps ──────
+// Each entry carries the protocol's official brand mark and a genuinely
+// functional connect: we perform a real EIP-1193 / Coinbase wallet connect,
+// then hand off to the protocol's own dapp-connect surface. No mocked buttons.
+const APP_ICONS = {
+  safe: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2312FF80'/%3E%3Cpath fill='%23121312' d='M11.6 9.8h9.2a1.4 1.4 0 0 1 0 2.8h-6.4a1.4 1.4 0 0 0 0 2.8h3.6a4.2 4.2 0 0 1 0 8.4H8.8a1.4 1.4 0 0 1 0-2.8h9.2a1.4 1.4 0 0 0 0-2.8h-3.6a4.2 4.2 0 0 1 0-8.4Z'/%3E%3Ccircle cx='9.2' cy='11.2' r='1.4' fill='%23121312'/%3E%3Ccircle cx='22.8' cy='20.8' r='1.4' fill='%23121312'/%3E%3C/svg%3E",
+  aave: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='ag' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23B6509E'/%3E%3Cstop offset='1' stop-color='%232EBAC6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='16' fill='url(%23ag)'/%3E%3Cpath fill='%23fff' d='M20.6 22h-1.9l-1-2.5h-3.4l-1 2.5h-1.9l4.1-9.8c.2-.5.6-.7 1.1-.7h.6c.5 0 .9.2 1.1.7Zm-4.6-7.7-1.2 3h2.4Z'/%3E%3C/svg%3E",
+  pendle: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230C1F1A'/%3E%3Cpath fill='none' stroke='%235FCFB0' stroke-width='2.4' stroke-linecap='round' d='M9 22V12a3 3 0 0 1 3-3h3.5a3.5 3.5 0 0 1 0 7H12'/%3E%3Ccircle cx='22.5' cy='11' r='1.8' fill='%235FCFB0'/%3E%3C/svg%3E",
+};
+const PROTOCOL_APPS = [
+  { id:"safe",   name:"Safe",   tagline:"Smart-account custody & multisig", url:"https://app.safe.global/",                 color:"#12FF80" },
+  { id:"aave",   name:"Aave",   tagline:"Lending & borrowing markets",       url:"https://app.aave.com/",                    color:"#B6509E" },
+  { id:"pendle", name:"Pendle", tagline:"Yield trading & tokenization",       url:"https://app.pendle.finance/trade/markets", color:"#5FCFB0" },
+];
+const ProtocolApps = ({ w, addLog }) => {
+  const [linked, setLinked] = useState({});
+  const [busyId, setBusyId] = useState(null);
+  const connectApp = async (app) => {
+    setBusyId(app.id);
+    try {
+      // Genuinely connect the wallet first (real EIP-1193 / Coinbase SDK),
+      // then open the protocol's official dapp so the user lands wallet-ready.
+      let addr = w.address;
+      if (!w.isConnected) addr = await w.connect();
+      setLinked(l => ({ ...l, [app.id]: addr || true }));
+      addLog?.({ type: addr ? "success" : "info", message: addr ? `${app.name}: wallet ${shortAddr(addr)} connected — opening ${app.name}` : `Opening ${app.name} dapp connect` });
+      window.open(app.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      addLog?.({ type: "error", message: `${app.name} connect failed: ${e?.shortMessage || e?.message || e}` });
+    } finally { setBusyId(null); }
+  };
+  return (<GC className="p-5" style={{borderLeft:"3px solid #818cf8"}}>
+    <div className="flex items-center justify-between flex-wrap gap-2 mb-1"><SL>CONNECT PROTOCOL APPS</SL></div>
+    <p className="fm text-xs text-gray-400 mb-4">Link institutional DeFi & custody protocols. Each button performs a real wallet connect, then hands off to the protocol's own dapp-connect flow. Position sync arrives in a later phase — the connection itself is live today.</p>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {PROTOCOL_APPS.map(app => { const isLinked = !!linked[app.id]; return (
+        <div key={app.id} className="p-4 border border-gray-800 bg-black/30 flex flex-col gap-3" style={{borderTopColor:`${app.color}66`, borderTopWidth:2}}>
+          <div className="flex items-center gap-3">
+            <img src={APP_ICONS[app.id]} alt={`${app.name} logo`} className="w-9 h-9 rounded-lg flex-shrink-0"/>
+            <div className="min-w-0"><div className="font-bold text-sm">{app.name}</div><div className="fm text-[10px] text-gray-500 leading-tight">{app.tagline}</div></div>
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-auto">
+            <button onClick={()=>connectApp(app)} disabled={busyId===app.id} className="fm text-xs px-3 py-2 border transition-all cursor-pointer disabled:opacity-40 flex-1 text-center" style={{borderColor:`${app.color}66`, background:`${app.color}14`, color:app.color}}>
+              {busyId===app.id ? "CONNECTING..." : isLinked ? "OPEN AGAIN ↗" : "CONNECT ↗"}
+            </button>
+            {isLinked && <Badge c="green">LINKED</Badge>}
+          </div>
+        </div>
+      ); })}
+    </div>
+  </GC>);
 };
 
 // Send / Swap / Bridge action bar
@@ -1396,7 +1455,7 @@ const EvaluationHub = () => {
         { l:"BANKS", v:banks.length, c:"text-blue-400" },
         { l:"WALLETS", v:liveWalletCount, c:"text-fuchsia-400" },
         { l:"TEAM", v:participants.length, c:"text-indigo-400" },
-        { l:"THRESHOLD", v:`${threshold?.required_approvals||0}/${participants.length||0}`, c:"text-yellow-400" },
+        { l:"THRESHOLD", v:`${threshold?.required_approvals||1}/${participants.length||0}`, c:"text-yellow-400" },
         { l:"TRUST", v:org?.trust_environment==="pqc"?"PQC":"CURRENT", c:"text-emerald-400" },
       ].map((c,i) => (<GC key={c.l} className={`p-4 anim-d${Math.min(i,3)+1}`}><div className="fm text-[10px] text-gray-500 mb-1">{c.l}</div><div className={`text-xl font-bold ${c.c}`}>{c.v}</div></GC>))}
     </div>
@@ -1552,6 +1611,9 @@ const AssetBoundary = () => {
       <div className="space-y-2">{wallets.map(wl=>{ const isActive = w.address?.toLowerCase() === wl.address?.toLowerCase(); return (<div key={wl.id} className={`flex items-center justify-between p-3 ${isActive?"bg-emerald-500/10 border border-emerald-500/30":"bg-black/30 border border-gray-800/50"} flex-wrap gap-2`}><div className="flex items-center gap-3 min-w-0 flex-1"><Wallet/><div className="fm text-xs min-w-0"><div className="text-gray-300 font-bold truncate">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><a href={wl.chain?.explorer_url ? `${wl.chain.explorer_url}/address/${wl.address}` : "#"} target="_blank" rel="noopener noreferrer" className="mono text-gray-600 hover:text-purple-400 truncate block">{wl.address}</a></div></div><div className="flex items-center gap-2">{isActive && <Badge c="green">ACTIVE</Badge>}<Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>); })}</div>
     </GC>}
 
+    {/* Item 5 — connect protocol apps (Safe, Aave, Pendle) */}
+    <ProtocolApps w={w} addLog={addLog}/>
+
     <div className="space-y-3">
       {assets.length===0 && !w.isConnected && <Empty>No assets yet. Click IMPORT_CRYPTO to connect a wallet, or ADD_MANUALLY to track a non-EVM asset.</Empty>}
       {assets.length===0 && w.isConnected && <Empty>Wallet connected — your live Sepolia balance is shown above. ADD_MANUALLY to also track non-EVM assets.</Empty>}
@@ -1683,7 +1745,7 @@ const GovernedMovement = () => {
     { l: "CRYPTO VALUE", v: `$${cryptoUsd.toLocaleString()}`, c: "purple" },
     { l: "WALLETS", v: Math.max(wallets.length, w.isConnected?1:0), c: "fuchsia" },
     { l: "TEAM", v: teamCount, c: "indigo" },
-    { l: "THRESHOLD", v: `${threshold?.required_approvals || 0}/${teamCount || 0}`, c: "yellow" },
+    { l: "THRESHOLD", v: `${threshold?.required_approvals || 1}/${teamCount || 0}`, c: "yellow" },
   ];
 
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
@@ -1779,7 +1841,7 @@ const GovernedMovement = () => {
       <GC className="p-4" style={{borderLeft:"3px solid #a855f7"}}><div className="flex items-center gap-3 fm text-xs flex-wrap"><Badge c="purple">SCENARIO {activeScenario.num}</Badge><span className="text-gray-400">{activeScenario.title}</span><span className="text-gray-600">|</span><span className="text-purple-400 font-bold">{step.toUpperCase()}</span>{isBlocked&&<Badge c="red">BLOCKED PATH</Badge>}</div>{(() => { const requester = participants.find(p=>p.scenario_role==="Requester"); const approver = participants.find(p=>p.scenario_role==="Approver"); const actor = step==="request"?(requester?.institution_fn||"Requester"):step==="policy"?"Policy Engine":(approver?.institution_fn||"Approver"); return (<div className="fm text-xs text-gray-600 mt-1">Policy: Movement Policy {threshold?.policy_version||"—"} · Actor: {actor}</div>); })()}</GC>
       <div className="flex gap-2 flex-wrap">{["request","policy","approval","execution"].map((s,i)=><div key={s} className={`flex items-center gap-1 px-3 py-1.5 fm text-xs ${step===s?"text-purple-400 bg-purple-500/10 border border-purple-500/30":i<["request","policy","approval","execution"].indexOf(step)?"text-emerald-400":"text-gray-600"}`}>{i<["request","policy","approval","execution"].indexOf(step)?"✓":String(i+1).padStart(2,"0")} {s.toUpperCase()}</div>)}</div>
       {step==="policy"&&<GC className="p-6 max-w-xl"><SL>POLICY APPLICATION</SL><div className="space-y-4"><InfoRow label="POLICY_IN_FORCE" value={`Movement Policy ${threshold?.policy_version||"—"}`}/><InfoRow label="ACTING_FUNCTION" value={participants.find(p=>p.scenario_role==="Requester")?.institution_fn||"—"}/><InfoRow label="OUTCOME" badge={isBlocked?{t:"BLOCKED",c:"red"}:{t:"PASSED",c:"green"}}/>{isBlocked&&<div className="p-4 bg-red-500/5 border border-red-500/20 fm text-xs text-red-300">Policy conflict detected. Exception trail being generated.</div>}<Btn full onClick={()=>advance()}>{isBlocked?"VIEW_EXCEPTION":"VIEW_POLICY_PATH"} <Arr/></Btn></div></GC>}
-      {step==="approval"&&<GC className="p-6 max-w-xl"><SL>THRESHOLD APPROVAL</SL><div className="space-y-4">{participants.filter(p=>["Approver","Reviewer"].includes(p.scenario_role)).map(p=><div key={p.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{p.initials}</div><div><div className="text-sm font-bold">{p.name}</div><div className="fm text-xs text-gray-500">{p.institution_fn}</div></div></div><Badge c="green">APPROVED</Badge></div>)}<InfoRow label="THRESHOLD" value={`${threshold?.required_approvals||2} of ${teamCount||2} — Met`}/><Btn full onClick={()=>advance()}>ADVANCE_TO_EXECUTION <Arr/></Btn></div></GC>}
+      {step==="approval"&&<GC className="p-6 max-w-xl"><SL>THRESHOLD APPROVAL</SL><div className="space-y-4">{participants.filter(p=>["Approver","Reviewer"].includes(p.scenario_role)).map(p=><div key={p.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{p.initials}</div><div><div className="text-sm font-bold">{p.name}</div><div className="fm text-xs text-gray-500">{p.institution_fn}</div></div></div><Badge c="green">APPROVED</Badge></div>)}<InfoRow label="THRESHOLD" value={`${threshold?.required_approvals||1} of ${teamCount||1} — Met`}/><Btn full onClick={()=>advance()}>ADVANCE_TO_EXECUTION <Arr/></Btn></div></GC>}
       {step==="execution"&&<GC className="p-6 max-w-xl"><SL>{isBlocked?"BLOCKED OUTCOME":"EXECUTION"}</SL><div className="space-y-4"><div className="text-center py-4"><div className={`inline-block p-4 rounded-full mb-4 ${isBlocked?"bg-red-500/10 border border-red-500/30":"bg-emerald-500/10 border border-emerald-500/30"}`}>{isBlocked?<Blk/>:<Chk/>}</div><h3 className="text-xl font-bold mb-2">{isBlocked?"Movement Blocked":"Movement Executed"}</h3></div><Btn full onClick={()=>advance()}>COMPLETE <Arr/></Btn></div></GC>}
       {step==="complete"&&<GC className="p-6 max-w-xl"><div className="text-center py-4"><div className="inline-block p-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-4"><Chk/></div><h3 className="text-xl font-bold mb-2">Scenario Flow Complete</h3></div><div className="flex gap-3 justify-center"><Btn onClick={()=>setActiveView("evidence")}>VIEW_EVIDENCE</Btn></div></GC>}
     </>)}
@@ -1802,8 +1864,8 @@ const Team = () => {
   const [busy, setBusy] = useState(false);
   const [inv, setInv] = useState({ email:"", full_name:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 });
   const [m, setM] = useState({ name:"", email:"", institution_fn:"", scenario_role:"Requester", threshold_weight:1 });
-  const [t, setT] = useState({ required_approvals: threshold?.required_approvals||2, required_reviewers: threshold?.required_reviewers||1, policy_version: threshold?.policy_version||"v2.1" });
-  useEffect(() => { setT({ required_approvals: threshold?.required_approvals||2, required_reviewers: threshold?.required_reviewers||1, policy_version: threshold?.policy_version||"v2.1" }); }, [threshold]);
+  const [t, setT] = useState({ required_approvals: threshold?.required_approvals||1, required_reviewers: threshold?.required_reviewers||0, policy_version: threshold?.policy_version||"v2.1" });
+  useEffect(() => { setT({ required_approvals: threshold?.required_approvals||1, required_reviewers: threshold?.required_reviewers||0, policy_version: threshold?.policy_version||"v2.1" }); }, [threshold]);
   const ui = (k,v) => setInv(p=>({...p,[k]:v}));
   const um = (k,v) => setM(p=>({...p,[k]:v}));
   const sendInvite = async () => {
@@ -1938,14 +2000,14 @@ const PolicyPanel = () => {
     (p.user_state || (p.status === "active" ? "Active" : "Pending")) === "Active"
   );
   const approveCount = approvals.filter(a => a.vote === "approve").length;
-  const ready = approveCount >= (policy.required_approvals || 2);
+  const ready = approveCount >= (policy.required_approvals || 1);
   const policyColor = { Draft:"yellow", PendingApproval:"fuchsia", Active:"green", Rejected:"red", Superseded:"gray" }[policy.status] || "purple";
 
   const submit = async () => { setBusy(true); try { await submitPolicyForActivation(policy.id); await reload(); } finally { setBusy(false); } };
   const vote = async (v) => { setBusy(true); try { await voteOnPolicy(policy.id, v); await reload(); } finally { setBusy(false); } };
   const proposeChange = async () => {
     const payload = propType === "IncreaseLimit" ? { new_ceiling_usd: Number(propAmount||0) }
-                  : propType === "ReduceThreshold" ? { new_required_approvals: Math.max(1, (policy.required_approvals||2) - 1) }
+                  : propType === "ReduceThreshold" ? { new_required_approvals: Math.max(1, (policy.required_approvals||1) - 1) }
                   : {};
     setBusy(true);
     try { await proposePolicyChange(propType, payload); await reload(); setPropAmount(""); } finally { setBusy(false); }
@@ -2153,7 +2215,50 @@ const EvalOverview = () => {
   const liveWalletCount = Math.max(wallets.length, w.isConnected?1:0);
   const completed = Object.values(progress).filter(p=>p.status==="completed").length;
   const total = scenarios.length || 0;
+
+  // Item 4 — total value now spans mainnet (booked) AND Sepolia testnet.
+  // Mainnet: USD-valued in-scope assets + imported bank balances.
+  const usdNum = (s) => Number(String(s||"").replace(/[^0-9.-]/g,"")) || 0;
+  const mainnetUsd = assets.reduce((s,a)=>s+usdNum(a.balance_usd),0) + banks.reduce((s,b)=>s+Number(b.balance||0),0);
+  // Testnet: live Sepolia ETH/WETH + testnet USDC/EURC, valued at indicative prices.
+  const [tok, setTok] = useState({ usdc: "0", eurc: "0" });
+  useEffect(() => {
+    let alive = true;
+    if (w.isConnected && w.address) { readSepoliaTokens(w.address).then(t => { if (alive) setTok(t); }).catch(()=>{}); }
+    else setTok({ usdc: "0", eurc: "0" });
+    return () => { alive = false; };
+  }, [w.address, w.isConnected]);
+  const tEth = w.isConnected ? Number(w.balance||0) : 0;
+  const tWeth = w.isConnected ? Number(w.wethBalance||0) : 0;
+  const tUsdc = Number(tok.usdc||0), tEurc = Number(tok.eurc||0);
+  const testnetUsd = tEth*INDICATIVE_PRICES.ETH + tWeth*INDICATIVE_PRICES.WETH + tUsdc*INDICATIVE_PRICES.USDC + tEurc*INDICATIVE_PRICES.EURC;
+  const fmtUsd = (n) => `$${n.toLocaleString(undefined,{maximumFractionDigits:2})}`;
+
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1"><div><h2 className="text-2xl font-bold mb-1 anim">Overview</h2><p className="fm text-sm text-gray-500 anim-d1">{org?.name||"—"} · LIVE EVALUATION</p></div>
+
+    {/* Item 4 — portfolio value: mainnet booked + Sepolia testnet, split legibly */}
+    <GC className="p-5 anim">
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <div className="fm text-xs text-gray-500 mb-1 flex items-center gap-2">TOTAL EVALUATION VALUE <Tip text="Mainnet booked value (USD-valued in-scope assets + imported bank balances) plus live Sepolia testnet holdings (ETH, WETH, USDC, EURC). Testnet assets are valued at indicative reference prices — Sepolia tokens have no real monetary value."/></div>
+          <div className="text-3xl md:text-4xl font-black tg">{fmtUsd(mainnetUsd + testnetUsd)}</div>
+          <div className="fm text-[10px] text-gray-500 mt-1">Mainnet booked + Sepolia testnet (indicative)</div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 border border-emerald-500/30 bg-emerald-500/5 min-w-[150px]">
+            <div className="fm text-[10px] text-emerald-400 mb-1">● MAINNET · BOOKED</div>
+            <div className="text-xl font-bold text-emerald-400">{fmtUsd(mainnetUsd)}</div>
+            <div className="fm text-[9px] text-gray-600 mt-0.5">{assets.length} assets · {banks.length} banks</div>
+          </div>
+          <div className="p-3 border border-yellow-500/30 bg-yellow-500/5 min-w-[150px]">
+            <div className="fm text-[10px] text-yellow-300 mb-1">● TESTNET · SEPOLIA</div>
+            <div className="text-xl font-bold text-yellow-300">{fmtUsd(testnetUsd)}</div>
+            <div className="fm text-[9px] text-gray-600 mt-0.5">{w.isConnected ? `${tEth.toFixed(4)} ETH · ${tUsdc.toFixed(2)} USDC · ${tEurc.toFixed(2)} EURC` : "connect wallet to read"}</div>
+          </div>
+        </div>
+      </div>
+    </GC>
+
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
       <GC className="p-5 anim"><div className="fm text-xs text-gray-500 mb-2">[ SCENARIOS ]</div><div className="text-2xl font-bold mb-1">{completed}/{total||0}</div><div className="fm text-xs text-gray-500">completed</div></GC>
       <GC className="p-5 anim-d1"><div className="fm text-xs text-gray-500 mb-2">[ ACTIVE ]</div><div className="text-lg font-bold mb-1">{activeScenario?activeScenario.num:"—"}</div><div className="fm text-xs text-gray-500">{activeScenario?activeScenario.title?.slice(0,28)+"…":"none"}</div></GC>
@@ -2172,11 +2277,16 @@ const EvalOverview = () => {
 // SETTINGS (items 14, 19 — replaces EvalConfig)
 // ═══════════════════════════════════════════════════════════════════
 const SettingsPage = () => {
-  const { org, settings, theme, setTheme, updateSettings, resetSandbox, addLog } = useApp();
+  const { org, settings, theme, setTheme, updateSettings, resetSandbox, addLog, threshold, updateThreshold, participants } = useApp();
   const [tab,setTab] = useState("preferences");
   const [language, setLanguage] = useState(settings?.language || "en");
   useEffect(() => { setLanguage(settings?.language || "en"); }, [settings]);
   const saveLang = async (v) => { setLanguage(v); await updateSettings({ language: v, theme }); addLog({type:"info",message:`Language: ${v.toUpperCase()}`}); };
+  // Item 2 — approval threshold is configurable here, not mandatory. Default 1.
+  const [thr, setThr] = useState(threshold?.required_approvals || 1);
+  useEffect(() => { setThr(threshold?.required_approvals || 1); }, [threshold]);
+  const [savingThr, setSavingThr] = useState(false);
+  const saveThr = async () => { setSavingThr(true); try { await updateThreshold({ required_approvals: Math.max(1, Number(thr)||1) }); } finally { setSavingThr(false); } };
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
     <div><h2 className="text-2xl font-bold mb-1">Settings</h2><p className="fm text-sm text-gray-500">PREFERENCES · CONTEXT · CONTROL · EVIDENCE</p></div>
     <div className="flex gap-2 flex-wrap">{[{id:"preferences",l:"Preferences"},{id:"context",l:"Context"},{id:"control",l:"Control Posture"},{id:"evidence",l:"Evidence & Assurance"}].map(t=><button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2 fm text-xs cursor-pointer transition-all ${tab===t.id?"text-purple-400 bg-purple-500/10 border border-purple-500/40":"text-gray-500 hover:text-gray-300 border border-transparent"}`}>{t.l}</button>)}</div>
@@ -2192,7 +2302,18 @@ const SettingsPage = () => {
     </div></GC>}
 
     {tab==="context"&&<GC className="p-6 anim"><SL>ORGANIZATION</SL><div className="space-y-3"><InfoRow label="ORGANIZATION" value={org?.name||"—"}/><InfoRow label="TYPE" value={org?.institution_type||"—"}/><InfoRow label="JURISDICTION" value={org?.jurisdiction||"—"}/><InfoRow label="OBJECTIVE" value={org?.eval_objective||"—"}/><InfoRow label="INVITE_CODE" value={<span className="mono tracking-widest">{org?.invite_code||"—"}</span>}/></div><div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">Share your <b className="text-purple-300">INVITE_CODE</b> with teammates. They can paste it on the Sandbox Setup screen to join this org instead of creating a duplicate.</div></GC>}
-    {tab==="control"&&<GC className="p-6 anim"><SL>CONTROL POSTURE</SL><div className="space-y-3"><InfoRow label="CONTROL_MODEL" value={(org?.control_model||"threshold")+" Governance"}/><InfoRow label="TRUST" value={org?.trust_environment||"current"}/></div></GC>}
+    {tab==="control"&&<GC className="p-6 anim"><SL>CONTROL POSTURE</SL><div className="space-y-3"><InfoRow label="CONTROL_MODEL" value={(org?.control_model||"threshold")+" Governance"}/><InfoRow label="TRUST" value={org?.trust_environment||"current"}/></div>
+      {/* Item 2 — approval threshold: configurable, not mandatory. Default 1 for sandbox. */}
+      <div className="mt-6 pt-5 border-t border-purple-500/10">
+        <SL>APPROVAL THRESHOLD</SL>
+        <p className="fm text-xs text-gray-400 mb-4">Number of Approver-role members who must approve before a movement executes. Set to <b className="text-purple-300">1</b> for single-signer sandbox testing — a single connected wallet can then send and swap on Sepolia without assembling a quorum. Raise it to require multi-party approval. This threshold is <b>not mandatory</b>.</p>
+        <div className="flex items-end gap-3 flex-wrap">
+          <Field label="REQUIRED_APPROVALS"><input type="number" min="1" value={thr} onChange={e=>setThr(e.target.value)} style={{maxWidth:130}}/></Field>
+          <Btn onClick={saveThr} disabled={savingThr}>{savingThr?"SAVING...":"SAVE_THRESHOLD"} <Chk/></Btn>
+          <div className="fm text-xs text-gray-500 pb-2.5">Current: <span className="text-purple-300 font-bold">{threshold?.required_approvals||1}</span> of {participants.length||0} member{participants.length===1?"":"s"}</div>
+        </div>
+      </div>
+    </GC>}
     {tab==="evidence"&&<GC className="p-6 anim"><SL>EVIDENCE & ASSURANCE</SL><div className="space-y-3"><InfoRow label="EVIDENCE_VIEWS" badge={{t:"AVAILABLE",c:"green"}}/><InfoRow label="SELECTIVE_VERIFICATION" badge={{t:"VIEW AVAILABLE",c:"fuchsia"}}/><InfoRow label="PQC_CRYPTO_AGILITY" badge={{t:"VIEW AVAILABLE",c:"purple"}}/></div></GC>}
     <GC className="p-5"><SL>SANDBOX STATE</SL><div className="flex items-center justify-between"><div><div className="text-sm font-bold text-yellow-400">Reset Sandbox State</div><div className="fm text-xs text-gray-500">Clear all progress and evidence</div></div><Btn v="danger" onClick={resetSandbox}>RESET_SANDBOX</Btn></div></GC>
   </div>);
@@ -2494,6 +2615,11 @@ function AppShell() {
           {activeScenario&&<><span className="hidden md:inline text-gray-700">|</span><span className="hidden md:inline fm text-xs text-gray-500">SCENARIO {activeScenario.num}</span></>}
         </div>
         <div className="flex items-center gap-2 md:gap-4 fm text-xs flex-shrink-0">
+          {/* Item 3 — header faucet: claim testnet EURC + USDC on Sepolia via Circle */}
+          <a href={CIRCLE_FAUCET} target="_blank" rel="noopener noreferrer" title="Claim testnet EURC & USDC on Sepolia — Circle faucet" aria-label="Open Circle testnet faucet for EURC and USDC" className="flex items-center gap-1.5 px-2 md:px-2.5 py-1.5 border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.7S5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.7 12 2.7z"/></svg>
+            <span className="hidden sm:inline">FAUCET</span>
+          </a>
           <QuantumSafetyAtom score={qsScore}/>
           <span className="hidden lg:inline text-gray-700">|</span>
           <span className="hidden lg:inline text-gray-500">USER:</span>

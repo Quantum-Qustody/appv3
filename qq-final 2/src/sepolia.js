@@ -3,7 +3,8 @@
 // ║   Phase 2 rebuild — feedback items 3, 5, 6, 7                     ║
 // ╚═══════════════════════════════════════════════════════════════════╝
 import { useEffect, useState, useCallback, useRef } from "react";
-import { BrowserProvider, JsonRpcProvider, formatEther, parseEther, Contract, isAddress } from "ethers";
+import { BrowserProvider, JsonRpcProvider, formatEther, formatUnits, parseEther, Contract, isAddress } from "ethers";
+import { createCoinbaseWalletSDK } from "@coinbase/wallet-sdk";
 
 export const SEPOLIA_CHAIN_ID = 11155111;
 export const SEPOLIA_HEX = "0xaa36a7";
@@ -11,10 +12,28 @@ export const SEPOLIA_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
 export const SEPOLIA_EXPLORER = "https://sepolia.etherscan.io";
 export const WETH_SEPOLIA = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
 
+// Circle's official testnet stablecoins on Ethereum Sepolia (item 4).
+// Verified against developers.circle.com contract-address tables.
+export const USDC_SEPOLIA = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+export const EURC_SEPOLIA = "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4";
+
+// Circle's public, permissionless faucet — claim testnet USDC + EURC on Sepolia (item 3).
+export const CIRCLE_FAUCET = "https://faucet.circle.com/";
+
+// Indicative USD reference prices used only to value *testnet* holdings on the
+// Evaluation Overview (item 4). Testnet assets have no real value — this is a
+// legible sandbox valuation, clearly labelled as indicative in the UI.
+export const INDICATIVE_PRICES = { ETH: 3000, WETH: 3000, USDC: 1, EURC: 1.08 };
+
 const WETH_ABI = [
   "function deposit() payable",
   "function withdraw(uint256 wad)",
   "function balanceOf(address) view returns (uint256)",
+];
+
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function decimals() view returns (uint8)",
 ];
 
 const SEPOLIA_PARAMS = {
@@ -26,10 +45,10 @@ const SEPOLIA_PARAMS = {
 };
 
 export const FAUCETS = [
+  { name: "Circle Faucet · USDC + EURC", url: CIRCLE_FAUCET, note: "Testnet USDC & EURC on Sepolia — no signup" },
   { name: "Google Cloud Faucet", url: "https://cloud.google.com/application/web3/faucet/ethereum/sepolia", note: "0.05 ETH/day, no signup" },
   { name: "Alchemy Sepolia Faucet", url: "https://www.alchemy.com/faucets/ethereum-sepolia", note: "Requires Alchemy account" },
   { name: "QuickNode Faucet", url: "https://faucet.quicknode.com/ethereum/sepolia", note: "Free, multi-chain" },
-  { name: "Infura Faucet", url: "https://www.infura.io/faucet/sepolia", note: "Requires Infura account" },
 ];
 
 // ─── Read-only provider for balance lookups even without a wallet ──
@@ -51,6 +70,25 @@ export async function readWethBalance(address) {
     const c = new Contract(WETH_SEPOLIA, WETH_ABI, getReadProvider());
     return formatEther(await c.balanceOf(address));
   } catch { return "0"; }
+}
+
+// Read an arbitrary ERC-20 balance on Sepolia (item 4 — testnet USDC / EURC).
+export async function readErc20Balance(token, address) {
+  if (!isAddress(address) || !isAddress(token)) return "0";
+  try {
+    const c = new Contract(token, ERC20_ABI, getReadProvider());
+    const [raw, dec] = await Promise.all([c.balanceOf(address), c.decimals().catch(() => 6)]);
+    return formatUnits(raw, Number(dec));
+  } catch { return "0"; }
+}
+
+// Read the connected wallet's testnet stablecoin balances in one shot (item 4).
+export async function readSepoliaTokens(address) {
+  const [usdc, eurc] = await Promise.all([
+    readErc20Balance(USDC_SEPOLIA, address),
+    readErc20Balance(EURC_SEPOLIA, address),
+  ]);
+  return { usdc, eurc };
 }
 
 // ─── EIP-6963: multi-wallet discovery ──────────────────────────────
@@ -104,6 +142,30 @@ function legacyDetail() {
   };
 }
 
+// Item 5 — Coinbase Wallet as a first-class connector via the official SDK.
+// Works with or without the browser extension (falls back to mobile / smart
+// wallet via popup), so a Coinbase user can always connect. The provider is
+// created lazily and cached at module scope.
+const COINBASE_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230052FF'/%3E%3Cpath fill='%23fff' d='M16 6.3a9.7 9.7 0 1 0 9.7 9.7A9.7 9.7 0 0 0 16 6.3Zm-2.6 7.3c0-.6.5-1.1 1.1-1.1h3c.6 0 1.1.5 1.1 1.1v2.8c0 .6-.5 1.1-1.1 1.1h-3c-.6 0-1.1-.5-1.1-1.1Z'/%3E%3C/svg%3E";
+let coinbaseProvider = null;
+function getCoinbaseDetail() {
+  if (typeof window === "undefined") return null;
+  try {
+    if (!coinbaseProvider) {
+      const sdk = createCoinbaseWalletSDK({
+        appName: "Quantum Qustody",
+        appLogoUrl: window.location.origin + "/qq-logo.svg",
+        appChainIds: [SEPOLIA_CHAIN_ID],
+      });
+      coinbaseProvider = sdk.getProvider();
+    }
+    return {
+      info: { uuid: "coinbase-wallet-sdk", name: "Coinbase Wallet", icon: COINBASE_ICON, rdns: "com.coinbase.wallet" },
+      provider: coinbaseProvider,
+    };
+  } catch { return null; }
+}
+
 // ─── Connect a single EIP-1193 provider with timeout ───────────────
 function withTimeout(promise, ms, label = "operation") {
   return new Promise((resolve, reject) => {
@@ -133,6 +195,10 @@ export function useWallet() {
       const merged = [...list];
       const leg = legacyDetail();
       if (leg && !merged.find(p => p.provider === leg.provider)) merged.push(leg);
+      // Item 5 — always expose a Coinbase Wallet connector via the official SDK,
+      // unless an injected Coinbase provider was already discovered (dedupe).
+      const hasCoinbase = merged.some(p => p.info?.rdns === "com.coinbase.wallet" || p.provider?.isCoinbaseWallet);
+      if (!hasCoinbase) { const cb = getCoinbaseDetail(); if (cb) merged.push(cb); }
       setProviders(merged);
     });
     // One extra poll after 1.5s catches very-late injectors
@@ -213,6 +279,22 @@ export function useWallet() {
     }
   };
 
+  // Item 1 — auto-switch to Sepolia via the wallet's own prompt. Whenever the
+  // connected wallet reports a chain other than Sepolia, immediately fire the
+  // native switch prompt (with add-chain fallback). The tester just accepts the
+  // popup and lands on Sepolia — no manual chain-picker step. Guarded so a
+  // rejected prompt doesn't loop: we only re-prompt when the chain changes.
+  const autoSwitchGuard = useRef(0);
+  useEffect(() => {
+    if (!active?.provider || !address || chainId == null) return;
+    if (chainId === SEPOLIA_CHAIN_ID) { autoSwitchGuard.current = 0; return; }
+    if (autoSwitchGuard.current === chainId) return; // already prompted for this chain
+    autoSwitchGuard.current = chainId;
+    ensureSepolia().catch((e) => {
+      if (e?.code !== 4001) console.warn("auto-switch to Sepolia:", e?.message || e);
+    });
+  }, [active?.info?.uuid, address, chainId]);
+
   // Connect to a chosen provider (or the only one available). 30s timeout (item 3).
   const connect = useCallback(async (chosen) => {
     setError(null);
@@ -232,10 +314,8 @@ export function useWallet() {
       const addr = accs?.[0];
       if (!addr) throw new Error("No account returned by wallet");
       setAddress(addr);
-      // Try to switch to Sepolia; if the user rejects we stay connected on whatever chain
-      try { await ensureSepolia(); } catch (e) {
-        if (e?.code !== 4001) console.warn("ensureSepolia:", e?.message || e);
-      }
+      // Read the current chain. If it isn't Sepolia, the auto-switch effect
+      // (item 1) fires the wallet's native switch prompt automatically.
       const cid = await target.provider.request({ method: "eth_chainId" }).catch(() => null);
       if (cid) setChainId(parseInt(cid, 16));
       await refreshBalance(addr);

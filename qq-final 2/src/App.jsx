@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase, supabaseAnonKey, FUNCTIONS_URL } from "./supabaseClient.js";
 import { useWallet, useTestnetValue, FAUCETS, CIRCLE_FAUCET, explorerTx, explorerAddr, shortAddr, fetchWalletTxHistory } from "./sepolia.js";
 import { BlogSection, BlogArticle } from "./blog.jsx";
+import DesignPartnerPage from "./designPartner.jsx";
 
 // ─── localStorage account picker (Phase 1, item 1) ─────────────────
 const KNOWN_EMAILS_KEY = "qq:known_emails";
@@ -50,16 +51,8 @@ const dedupeChains = (arr) => {
 // SUPABASE CLIENT
 // ═══════════════════════════════════════════════════════════════════
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("Missing Supabase environment variables. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
-}
-
-const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "");
-
-const FUNCTIONS_URL = `${supabaseUrl}/functions/v1`;
+// Client now lives in supabaseClient.js (imported at the top of this file) so
+// feature modules reuse the same GoTrue instance instead of creating a second.
 
 async function callFunction(fnName, body) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -1120,8 +1113,11 @@ const LandingPage = () => {
   const enter = () => { addLog({ type:"info", message:"Entered sandbox" }); go("auth"); };
   // Blog navigation — when a post is open, render the article instead of the scroll
   const [activePost, setActivePost] = useState(null);
+  const [showDP, setShowDP] = useState(false);
   const openPost = (p) => { setActivePost(p); addLog({ type:"info", message:`Opened article: ${p.title}` }); };
   if (activePost) return <BlogArticle post={activePost} onBack={()=>setActivePost(null)} onOpen={openPost} />;
+  // Design Partner — gated discovery intake (footer entry point)
+  if (showDP) return <DesignPartnerPage onBack={()=>setShowDP(false)} />;
   const FAQ=({q,a})=>{const[o,setO]=useState(false);return<div className="glass cursor-pointer" onClick={()=>setO(!o)}><div className="p-6 fm text-purple-300 font-bold flex justify-between items-center text-sm">{q}<span className={`text-purple-500 transition-transform duration-300 ${o?"rotate-180":""}`}>▼</span></div>{o&&<div className="px-6 pb-6 text-gray-400 fm text-sm leading-relaxed border-t border-purple-500/10 pt-4 anim">{a}</div>}</div>};
 
   const diffRows = [
@@ -1278,7 +1274,11 @@ const LandingPage = () => {
             <a href="https://www.instagram.com/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a>
             <a href="https://www.linkedin.com/company/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
           </div>
-          <div>© 2026 QUANTUM QUSTODY</div>
+          <div className="flex items-center gap-4">
+            <button onClick={()=>setShowDP(true)} className="fm text-xs text-gray-500 hover:text-purple-400 transition-colors cursor-pointer">Design Partner</button>
+            <span className="text-gray-800">·</span>
+            <span>© 2026 QUANTUM QUSTODY</span>
+          </div>
         </div>
       </footer>
     </div>

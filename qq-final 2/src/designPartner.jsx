@@ -249,8 +249,10 @@ function Gate({ onIn }) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
       if (error) throw error;
-      const role = data?.user?.user_metadata?.role;
-      if (role !== "design_partner") {
+      // Gate on app_metadata, NOT user_metadata: user_metadata is writable by
+      // the account holder at sign-up (the anon key is public), so gating on it
+      // would let anyone self-grant access. app_metadata is service-role only.
+      if (data?.user?.app_metadata?.role !== "design_partner") {
         await supabase.auth.signOut();
         throw new Error("This account does not have Design Partner access.");
       }
@@ -380,7 +382,7 @@ export default function DesignPartnerPage({ onBack }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
       const u = data?.session?.user;
-      if (u && u.user_metadata?.role === "design_partner") setUser(u);
+      if (u && u.app_metadata?.role === "design_partner") setUser(u);
       setChecking(false);
     }).catch(() => alive && setChecking(false));
     return () => { alive = false; };

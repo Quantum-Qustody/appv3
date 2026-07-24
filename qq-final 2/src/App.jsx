@@ -1117,7 +1117,7 @@ const LandingPage = () => {
   const openPost = (p) => { setActivePost(p); addLog({ type:"info", message:`Opened article: ${p.title}` }); };
   if (activePost) return <BlogArticle post={activePost} onBack={()=>setActivePost(null)} onOpen={openPost} />;
   // Design Partner — gated discovery intake (footer entry point)
-  if (showDP) return <DesignPartnerPage onBack={()=>setShowDP(false)} />;
+  if (showDP) return <DesignPartnerPage onBack={()=>setShowDP(false)} onSandbox={()=>{ setShowDP(false); enter(); }} />;
   const FAQ=({q,a})=>{const[o,setO]=useState(false);return<div className="glass cursor-pointer" onClick={()=>setO(!o)}><div className="p-6 fm text-purple-300 font-bold flex justify-between items-center text-sm">{q}<span className={`text-purple-500 transition-transform duration-300 ${o?"rotate-180":""}`}>▼</span></div>{o&&<div className="px-6 pb-6 text-gray-400 fm text-sm leading-relaxed border-t border-purple-500/10 pt-4 anim">{a}</div>}</div>};
 
   const diffRows = [
@@ -1140,7 +1140,34 @@ const LandingPage = () => {
         <div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(168,85,247,.1) 0%,transparent 50%)"}}/>
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-tight anim">Institutional Control.<br/><span className="tg">Defensible Evidence.</span></h1>
         <p className="text-gray-400 text-base sm:text-lg md:text-xl max-w-2xl fm mb-10 leading-relaxed anim-d1">A new institutional operating model built around governed movement, policy enforcement, selective verification, and crypto-agile evidence.</p>
-        <div className="flex flex-col sm:flex-row gap-4 anim-d2"><button onClick={enter} className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-8 py-4 fm font-bold hover:from-purple-500 hover:to-fuchsia-500 transition-colors glow cursor-pointer">ENTER SANDBOX</button></div>
+        <div className="flex flex-col sm:flex-row gap-4 anim-d2"><button onClick={enter} className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-8 py-4 fm font-bold hover:from-purple-500 hover:to-fuchsia-500 transition-colors glow cursor-pointer">ENTER SANDBOX</button><button onClick={()=>setShowDP(true)} className="px-8 py-4 fm font-bold border border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-300 hover:bg-fuchsia-500/20 transition-all cursor-pointer">DESIGN PARTNER PROGRAM →</button></div>
+
+        {/* Design Partner programme — hero-level entry point */}
+        <div className="w-full max-w-4xl mt-16 md:mt-20 anim-d3">
+          <div className="glass p-6 md:p-8 text-left relative overflow-hidden" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+            <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full pointer-events-none" style={{background:"radial-gradient(circle, rgba(217,70,239,.14), transparent 70%)"}}/>
+            <div className="relative flex flex-col md:flex-row md:items-center gap-6">
+              <div className="flex-1 min-w-0">
+                <div className="fm text-[10px] text-fuchsia-500 tracking-widest mb-2">[ DESIGN PARTNER PROGRAM ]</div>
+                <h3 className="text-xl md:text-2xl font-bold mb-3 leading-tight">Build the governance layer with us.</h3>
+                <p className="fm text-sm text-gray-400 leading-relaxed mb-4">
+                  We work with a small number of institutional funds to shape Q² around real operations — how your assets actually move, who authorizes them, and how you prove control. Design partners get direct influence over the roadmap and early access to the platform.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {["Non-custodial by design","Sandbox on synthetic data","Zero touch on your systems"].map(t=>(
+                    <span key={t} className="fm text-[10px] px-2.5 py-1 border border-fuchsia-500/25 bg-fuchsia-500/5 text-fuchsia-200">{t}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-shrink-0">
+                <button onClick={()=>setShowDP(true)} className="w-full md:w-auto bg-fuchsia-500/15 border border-fuchsia-500/50 text-fuchsia-200 px-6 py-3.5 fm text-sm font-bold hover:bg-fuchsia-500/25 transition-all cursor-pointer whitespace-nowrap">
+                  ENTER PROGRAM →
+                </button>
+                <div className="fm text-[10px] text-gray-600 mt-2 text-center md:text-right">Invitation only</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* APPROACH — tech section with orbit */}

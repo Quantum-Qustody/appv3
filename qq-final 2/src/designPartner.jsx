@@ -8,6 +8,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient.js";
 
 const DRAFT_KEY = "qq_dp_chayne_v1";
+const CONSENT_KEY = "qq_dp_chayne_consent_v1";
+const SANDBOX_URL = "https://quantumqustody.com";
 
 // ─── Partner context ───────────────────────────────────────────────
 export const PARTNER = {
@@ -27,6 +29,17 @@ Q² is a non-custodial governance and evidence overlay across three pillars — 
 
 Time: about 30–40 minutes. Confidential, for the Q² × Chayne engagement only. Questions: info@quantumqustody.com`;
 
+// Shown directly under the title, above the progress bar.
+export const REASSURANCE = `Nothing in this questionnaire asks for production private keys or signing authority, customer personal data, or source-code access. Q² is non-custodial by design. Stage 1 runs entirely in our sandbox on synthetic data, with zero touch on your systems. Share at whatever fidelity your security policy allows — a redacted or whiteboard-level answer is enough for this stage.`;
+export const REASSURANCE_SHORT = `If you are short on time, Sections 2, 3 and 8 matter most.`;
+
+// Consent gate — must be accepted before the questionnaire opens.
+export const CONFIDENTIALITY = `Quantum Qustody Inc. ("Q²") is a Delaware corporation. We expect to enter into a mutual non-disclosure agreement, which will apply retroactively to everything exchanged through this form. In the meantime, both parties agree to treat the other's non-public information as confidential, to use it solely to evaluate and scope a potential design partner engagement, and to disclose it only to personnel and professional advisers bound by equivalent obligations — excluding information that is public, already known, independently developed, or required to be disclosed by law. Please share only at the fidelity your own policies allow, and do not submit credentials, private keys, or personal data. This creates no obligation on either party to proceed, and transfers no intellectual property. Governed by Delaware law.
+
+Q² will protect your information using at least the same degree of care it applies to its own confidential information, and no less than reasonable care.
+
+We retain your responses for the duration of the evaluation and will delete or return them on written request, subject to any applicable legal retention requirement.`;
+
 // ─── The questionnaire ─────────────────────────────────────────────
 // t: short | para | choice | checks    req: required    other: free-text "Other"
 export const SECTIONS = [
@@ -38,6 +51,7 @@ export const SECTIONS = [
       { id: "s1q1", t: "short", req: true, q: "Your name and role." },
       { id: "s1q2", t: "short", req: true, q: "Best technical counterpart for integration questions (name / role / email)." },
       { id: "s1q3", t: "para", q: "Entities in scope. We assume Chayne Modern Yield Fund, L.P. (the moving entity) and Chayne Global Management, LLC (adviser / ERA), with an offshore feeder under evaluation. Please confirm or correct, and name any other entity that touches asset movements." },
+      { id: "s1q4", t: "short", q: "Scale, as ranges — ranges are fine: number of LPs · AUM · headcount (total / technical / compliance-ops)." },
     ],
   },
   {
@@ -45,8 +59,9 @@ export const SECTIONS = [
     title: "How assets move (Governed Movement)",
     why: "The movement lifecycle — who can initiate, who approves, and where that breaks — is the core of what Q² governs.",
     qs: [
-      { id: "s2q1", t: "para", q: "Walk us through the life of an LP subscription in USDC/USDT, from wire or stablecoin receipt to capital deployed — who touches it, where, and with what authority. (We note your stated ~48h processing after KYC and receipt.)" },
-      { id: "s2q2", t: "para", q: "Walk us through a redemption / distribution out to an LP, across the 14-day notice window and 10-business-day settlement — who initiates, who approves, and how the payout is signed and released." },
+      { id: "s2q0", t: "para", q: "Before we walk through the detail: rank your top three operational or compliance pain points around how assets move, who can authorize movements, and how you prove control." },
+      { id: "s2q1", t: "para", q: "Walk us through the life of an LP subscription in USDC/USDT, from wire or stablecoin receipt to capital deployed — who touches it, where, and with what authority. (Per your website, processing is ~48h after KYC and receipt — please correct us if that's out of date.)" },
+      { id: "s2q2", t: "para", q: "Walk us through a redemption / distribution out to an LP, across the 14-day notice window and 10-business-day settlement your site describes — who initiates, who approves, and how the payout is signed and released. Please correct us if that's out of date." },
       { id: "s2q3", t: "para", q: "How is capital moved into and out of the three sleeves (Core / Alpha / Opportunistic) — especially the Opportunistic sleeve's on-chain positions (overcollateralized lending, aggregated stablecoin yield)? Who authorizes those movements?" },
       { id: "s2q4", t: "short", q: "How many people can authorize an asset movement today (individually or jointly), and what is the approval threshold (e.g., M-of-N)?" },
       { id: "s2q5", t: "checks", other: true, q: "Where do approvals actually happen today?", opts: ["Salt policy console", "Internal tool / app", "Email", "Chat (Slack / Signal / etc.)", "Verbal / call", "Ticketing system"] },
@@ -66,6 +81,7 @@ export const SECTIONS = [
       { id: "s3q4", t: "short", q: "Who administers policy changes in Salt, and how is a policy change recorded or evidenced today?" },
       { id: "s3q5", t: "para", q: "Key ceremony, rotation, and re-key practice, at the level you can share: how often keys rotate, what triggers a rotation, and who runs it." },
       { id: "s3q6", t: "para", q: "Wallet / account topology: approximately how many wallets or accounts, and how are they segregated (treasury vs. client / LP-facing vs. per-sleeve vs. per-venue)?" },
+      { id: "s3q7", t: "para", q: "Besides Salt, do any other custody, wallet, or signing arrangements touch Fund or adviser assets — hardware wallets, exchange-held balances, or a third-party custodian?" },
     ],
   },
   {
@@ -73,7 +89,7 @@ export const SECTIONS = [
     title: "Chains, assets & standards (XDC + stablecoins)",
     why: "The chains, account model, and asset standards decide how Q² enforces and evidences movements at the account layer.",
     qs: [
-      { id: "s4q1", t: "para", q: "Your site lists XDC as the DLT network. Is Fund settlement on XDC, on Ethereum or other chains, or multi-chain? Which chain carries which flow (subscriptions, redemptions, sleeve positions)?" },
+      { id: "s4q1", t: "para", q: "Your site lists XDC as the DLT network — please correct us if that's out of date. Is Fund settlement on XDC, on Ethereum or other chains, or multi-chain? Which chain carries which flow (subscriptions, redemptions, sleeve positions)?" },
       { id: "s4q2", t: "para", q: "Stablecoins in use and the chains they settle on (e.g., USDC on XDC / Ethereum; USDT on …). List any others." },
       { id: "s4q3", t: "choice", q: "Account model on-chain: are Fund wallets EOAs, smart accounts / contract wallets, or a mix?", opts: ["EOA", "Smart accounts", "Mix", "Not sure"] },
       { id: "s4q4", t: "choice", q: "Any account-abstraction exposure or plans (ERC-4337, or EIP-7702-style EOA delegation)? Q² enforces Governed Movement at the account layer, so this materially affects the integration pattern.", opts: ["Using today", "Planned", "No", "Not sure"] },
@@ -102,8 +118,9 @@ export const SECTIONS = [
       { id: "s6q1", t: "checks", other: true, q: "Movement types today (check all that apply):", opts: ["LP subscriptions in", "Redemptions / distributions out", "Sleeve deployment / rebalancing", "On-chain yield / lending deposits & withdrawals", "Treasury / operating movements", "Fee movements"] },
       { id: "s6q2", t: "short", q: "Approximate monthly movement count and total value range across all types (ranges are fine)." },
       { id: "s6q3", t: "short", q: "Typical vs. peak single-movement value, and any internal threshold that already triggers extra scrutiny or approval." },
-      { id: "s6q4", t: "choice", q: "Your stated limits — no single end-obligor >5% of NAV, no platform >15% — are these enforced at the moment of movement, or monitored / reported after the fact?", opts: ["Enforced at movement", "Monitored after", "Both", "Not sure"] },
+      { id: "s6q4", t: "choice", q: "Per your website, no single end-obligor exceeds 5% of NAV and no platform exceeds 15% — please correct us if that's out of date. Are these enforced at the moment of movement, or monitored / reported after the fact?", opts: ["Enforced at movement", "Monitored after", "Both", "Not sure"] },
       { id: "s6q5", t: "para", q: "Movement types you do not do today but plan to within 12 months (e.g., the offshore feeder's flows, new venues, new chains)?" },
+      { id: "s6q6", t: "para", q: "What must never be blocked or delayed by a governance layer — which movement, under what conditions, has to complete even if a check fails? And what response time would you consider acceptable for an approval step?" },
     ],
   },
   {
@@ -125,13 +142,15 @@ export const SECTIONS = [
     why: "We pre-map our evidence templates to your specific obligations, so the workshop starts from your reality — Parsera, your auditor, your LPs, and the SEC — not a generic deck.",
     qs: [
       { id: "s8q1", t: "para", q: "List everyone who asks you to prove control over asset movements — SEC (as ERA), your annual GAAP auditor, Parsera, LPs (on demand), banking partners, insurers — and what each asks for, in what format, how often." },
-      { id: "s8q2", t: "para", q: "Your site describes “three reads on every position” (Administrator, Auditor, LP read the same record). How is that consistency produced today, and where does it break or take manual effort?" },
+      { id: "s8q2", t: "para", q: "Your site describes “three reads on every position” (Administrator, Auditor, LP read the same record) — please correct us if that's out of date. How is that consistency produced today, and where does it break or take manual effort?" },
       { id: "s8q3", t: "short", q: "Take the most recent control-evidence request: how many hours, across which teams and systems, did it take to answer?" },
       { id: "s8q4", t: "para", q: "Where do you rely on screenshots or manual attestations today, and which of those would you least like to defend to an examiner?" },
       { id: "s8q5", t: "para", q: "Selective disclosure: is there anything you must prove to one party without revealing everything to them (e.g., prove a movement was authorized to an auditor without exposing LP identities; prove reserves without exposing positions)? To whom?" },
       { id: "s8q6", t: "short", q: "Audit & attestation cycle: annual GAAP auditor (who / when), any SOC / ISAE attestations held or demanded of you, Parsera's review cadence." },
       { id: "s8q7", t: "short", q: "Upcoming regulatory or reporting events in the next 12 months (ERA filings, examinations, feeder launch, attestation renewals)." },
-      { id: "s8q8", t: "short", q: "Data retention and residency requirements for movement / evidence records (US-only? any constraint from the offshore feeder?)." },
+      { id: "s8q8", t: "para", q: "Data retention and residency requirements for movement / evidence records: any constraint on where your data can be stored or processed (US-based adviser today, and anything the offshore feeder would add if it proceeds)?" },
+      { id: "s8q9", t: "para", q: "Which regimes and supervisors do you answer to, and what registrations or authorizations do you hold or have in application — SEC as ERA, any state regimes, AML obligations, and the offshore feeder's jurisdiction if it proceeds?" },
+      { id: "s8q10", t: "para", q: "Which obligations consume the most compliance or operations hours to evidence today?" },
     ],
   },
   {
@@ -143,7 +162,8 @@ export const SECTIONS = [
       { id: "s9q2", t: "choice", q: "Are you comfortable running Stage 1 entirely in the Q² sandbox with synthetic data (no touch on your systems)?", opts: ["Yes", "Prefer our environment", "Need to discuss"] },
       { id: "s9q3", t: "choice", q: "For a pilot, is a read-only shadow feed of in-scope movements feasible?", opts: ["Yes", "Maybe", "No", "Not sure"] },
       { id: "s9q4", t: "short", q: "Vendor security review process for a new tool, and typical duration." },
-      { id: "s9q5", t: "para", q: "Any data-residency or jurisdictional constraints on where your data can be stored or processed (US-based adviser; offshore feeder under evaluation)?" },
+      { id: "s9q6", t: "para", q: "Artifacts, at whatever fidelity your policy allows: a high-level architecture diagram (redacted or whiteboard-level is fine), your approval / policy matrix, one recent audit-evidence example, and one administrator or LP report. Note here what you can share and we will arrange a secure channel." },
+      { id: "s9q7", t: "para", q: "Your change and release process for new integrations, plus any freeze windows in the next four months." },
     ],
   },
   {
@@ -154,7 +174,11 @@ export const SECTIONS = [
       { id: "s10q1", t: "choice", q: "Which flow would you most want governed and evidenced first?", opts: ["LP redemptions / distributions", "LP subscriptions", "Opportunistic-sleeve on-chain deployment", "Sleeve rebalancing", "Other"] },
       { id: "s10q2", t: "para", q: "In one or two sentences: what would make the Sandbox clearly worth it, and what must a Pilot demonstrate for you to advocate internally?" },
       { id: "s10q3", t: "short", q: "Program roles (names / titles): executive sponsor · program champion · technical counterpart · compliance contact." },
-      { id: "s10q4", t: "short", q: "Working days, time zone (we assume US Eastern / Miami), and preferred meeting cadence & channel." },
+      { id: "s10q4", t: "short", q: "Working days, time zone (as your site describes, US Eastern / Miami — please correct us if that's out of date), and preferred meeting cadence & channel." },
+      { id: "s10q6", t: "para", q: "Your top three strategic initiatives over the next 12–24 months, and which of them will increase the volume, value, or complexity of movements — or add a new regulator or jurisdiction to your obligations." },
+      { id: "s10q7", t: "para", q: "In one sentence: what would your leadership most want this program to have achieved twelve months from now?" },
+      { id: "s10q8", t: "short", q: "Realistic timeline expectations: Discovery → Sandbox start · Sandbox → Pilot decision · Pilot → Production decision." },
+      { id: "s10q9", t: "para", q: "Beyond the initial scope, what would you expect from Q² over time — and how do you see the partnership growing (more entities, more workflows, more jurisdictions)?" },
       { id: "s10q5", t: "para", q: "Anything else about how the Fund operates, or constraints we should know, that these questions did not reach?" },
     ],
   },
@@ -210,7 +234,8 @@ async function buildPdf(answers, meta) {
   write(`Partner: ${meta.partner}`, { size: 10 });
   write(`Respondent: ${meta.respondent}`, { size: 10 });
   write(`Submitted: ${meta.submittedAt}`, { size: 10 });
-  write(`Completed: ${meta.answered} of ${meta.total} questions`, { size: 10, gap: 12 });
+  write(`Completed: ${meta.answered} of ${meta.total} questions`, { size: 10 });
+  write(`Confidentiality accepted: ${meta.consentAt}`, { size: 10, gap: 12 });
 
   SECTIONS.forEach(sec => {
     nl(60);
@@ -366,9 +391,10 @@ function Question({ q, idx, secN, value, onChange }) {
 }
 
 // ─── Main page ─────────────────────────────────────────────────────
-export default function DesignPartnerPage({ onBack }) {
+export default function DesignPartnerPage({ onBack, onSandbox }) {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [consent, setConsent] = useState(null);     // ISO timestamp once accepted
   const [step, setStep] = useState(0);              // 0..9 sections, 10 = review
   const [answers, setAnswers] = useState({});
   const [saved, setSaved] = useState(false);
@@ -388,9 +414,10 @@ export default function DesignPartnerPage({ onBack }) {
     return () => { alive = false; };
   }, []);
 
-  // Restore draft
+  // Restore draft + prior consent
   useEffect(() => {
     try { const raw = localStorage.getItem(DRAFT_KEY); if (raw) setAnswers(JSON.parse(raw)); } catch {}
+    try { const c = localStorage.getItem(CONSENT_KEY); if (c) setConsent(c); } catch {}
   }, []);
 
   // Autosave draft
@@ -416,6 +443,7 @@ export default function DesignPartnerPage({ onBack }) {
     const meta = {
       title: FORM_TITLE, partner: PARTNER.name, respondent: user?.email || "unknown",
       submittedAt: new Date(submittedAt).toLocaleString(), answered: answeredCount, total: ALL_QS.length,
+      consentAt: consent ? new Date(consent).toLocaleString() : "not recorded",
     };
     const flat = SECTIONS.map(sec => ({
       section: `Section ${sec.n} — ${sec.title}`,
@@ -434,6 +462,7 @@ export default function DesignPartnerPage({ onBack }) {
         body: {
           partner: PARTNER.id, partner_name: PARTNER.name, respondent: user?.email,
           submitted_at: submittedAt, answered: answeredCount, total: ALL_QS.length,
+          consent_accepted_at: consent,
           answers, sections: flat, pdf_base64: pdfB64,
           filename: `QQ-Chayne-Discovery-${submittedAt.slice(0, 10)}.pdf`,
         },
@@ -473,6 +502,44 @@ export default function DesignPartnerPage({ onBack }) {
     );
   }
 
+  // ── Confidentiality consent — must be accepted before the questionnaire ──
+  if (!consent && !result) {
+    const accept = () => {
+      const ts = new Date().toISOString();
+      try { localStorage.setItem(CONSENT_KEY, ts); } catch {}
+      setConsent(ts);
+    };
+    return (
+      <div className="min-h-screen">
+        <TopBar onBack={onBack} user={user} onOut={async () => { await supabase.auth.signOut(); setUser(null); }} />
+        <div className="max-w-2xl mx-auto px-4 pt-28 pb-20">
+          <div className="glass p-6 md:p-8 space-y-5" style={{ background: "rgba(10,5,25,.7)" }}>
+            <div>
+              <div className="fm text-[10px] text-fuchsia-500 tracking-widest mb-2">[ BEFORE YOU BEGIN ]</div>
+              <h1 className="text-2xl font-bold mb-1">Confidentiality</h1>
+              <p className="fm text-xs text-gray-500">{FORM_TITLE}</p>
+            </div>
+            <div className="p-4 border border-purple-500/20 bg-purple-500/5 space-y-3 max-h-[42vh] overflow-y-auto">
+              {CONFIDENTIALITY.split("\n\n").map((p, i) => (
+                <p key={i} className="text-[13px] text-gray-300 leading-relaxed">{p}</p>
+              ))}
+            </div>
+            <button onClick={accept} type="button"
+              className="w-full flex items-start gap-3 p-4 border border-gray-800 bg-black/30 hover:border-purple-500/50 transition-all cursor-pointer text-left">
+              <span className="w-4 h-4 mt-0.5 border border-gray-600 flex-shrink-0" />
+              <span className="text-[13px] text-gray-300 leading-relaxed">
+                I have read and agree to the confidentiality terms above, and I am authorised to provide this information on behalf of {PARTNER.name}.
+              </span>
+            </button>
+            <div className="fm text-[10px] text-gray-600 leading-snug">
+              Ticking the box records your acceptance with a timestamp and continues to the questionnaire.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Submitted ──
   if (result) {
     return (
@@ -494,6 +561,44 @@ export default function DesignPartnerPage({ onBack }) {
               RETURN TO SITE
             </button>
           </div>
+
+          {/* Next step — take the sandbox for a drive */}
+          <div className="glass mt-5 p-7 md:p-8 relative overflow-hidden" style={{ background: "rgba(10,5,25,.7)", borderTop: "2px solid rgba(217,70,239,.5)" }}>
+            <div className="absolute -right-16 -top-16 w-52 h-52 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(217,70,239,.16), transparent 70%)" }} />
+            <div className="relative">
+              <div className="fm text-[10px] text-fuchsia-500 tracking-widest mb-3">[ NEXT STEP ]</div>
+              <h3 className="text-xl md:text-2xl font-bold mb-3 leading-tight">Ready to try the sandbox?</h3>
+              <p className="fm text-sm text-gray-400 leading-relaxed mb-5">
+                Your discovery is with us. While we prepare your session, take the platform for a drive — create an account and run a governed movement end to end on the Ethereum Sepolia testnet. It runs entirely on test assets, so nothing you do there touches production.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-6">
+                {[
+                  { k: "01", t: "Create your account", d: "Email + password, under a minute." },
+                  { k: "02", t: "Connect a test wallet", d: "MetaMask or Coinbase on Sepolia." },
+                  { k: "03", t: "Move under policy", d: "Send, swap, and see the evidence." },
+                ].map(s => (
+                  <div key={s.k} className="p-3 border border-gray-800 bg-black/30">
+                    <div className="fm text-[10px] text-fuchsia-400 mb-1">{s.k}</div>
+                    <div className="text-xs font-bold text-gray-200 mb-0.5">{s.t}</div>
+                    <div className="fm text-[10px] text-gray-500 leading-snug">{s.d}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={() => (onSandbox ? onSandbox() : window.location.assign(SANDBOX_URL))}
+                  className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-6 py-3.5 fm text-sm font-bold hover:from-purple-500 hover:to-fuchsia-500 transition-colors glow cursor-pointer">
+                  CREATE SANDBOX ACCOUNT →
+                </button>
+                <button onClick={onBack}
+                  className="fm text-sm px-6 py-3.5 border border-gray-700 text-gray-400 hover:bg-white/5 transition-all cursor-pointer">
+                  MAYBE LATER
+                </button>
+              </div>
+              <div className="fm text-[10px] text-gray-600 mt-4 leading-snug">
+                Testnet only — no real assets, no custody, no signing authority. Q² never holds your keys.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -511,7 +616,12 @@ export default function DesignPartnerPage({ onBack }) {
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-6">
         <div className="fm text-[10px] text-fuchsia-500 tracking-widest mb-2">[ DESIGN PARTNER DISCOVERY ]</div>
         <h1 className="text-2xl md:text-3xl font-bold mb-2 leading-tight">{FORM_TITLE}</h1>
-        <p className="fm text-xs text-gray-500">{PARTNER.fund} · confidential</p>
+        <p className="fm text-xs text-gray-500 mb-4">{PARTNER.fund} · confidential</p>
+        {/* Reassurance — directly under the title, above the progress bar */}
+        <div className="p-4 border border-emerald-500/25 bg-emerald-500/[.06]">
+          <p className="text-[13px] text-gray-300 leading-relaxed">{REASSURANCE}</p>
+          <p className="text-[13px] text-emerald-300 leading-relaxed mt-2">{REASSURANCE_SHORT}</p>
+        </div>
       </div>
 
       {/* Progress */}

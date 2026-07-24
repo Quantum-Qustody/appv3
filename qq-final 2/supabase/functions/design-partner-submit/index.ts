@@ -38,6 +38,7 @@ Deno.serve(async (req: Request) => {
   const {
     partner = "unknown", partner_name = "", respondent = null,
     submitted_at = new Date().toISOString(), answered = 0, total = 0,
+    consent_accepted_at = null,
     answers = {}, sections = [], pdf_base64 = null,
     filename = `QQ-Discovery-${new Date().toISOString().slice(0, 10)}.pdf`,
   } = body ?? {};
@@ -53,6 +54,7 @@ Deno.serve(async (req: Request) => {
     const { error } = await admin.from("design_partner_responses").insert({
       partner, respondent_email: respondent, answers, sections,
       answered_count: answered, total_questions: total,
+      consent_accepted_at,
     });
     if (error) store_error = error.message; else stored = true;
   } catch (e) {
@@ -63,7 +65,10 @@ Deno.serve(async (req: Request) => {
   let emailed = false, email_error: string | null = null;
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   const MAIL_FROM = Deno.env.get("DP_MAIL_FROM") || "Quantum Qustody <noreply@moods.build>";
-  const MAIL_TO = Deno.env.get("DP_MAIL_TO") || "gdb@quantumqustody.com";
+  // Comma-separated list — every recipient gets the transcript + PDF.
+  const MAIL_TO = (Deno.env.get("DP_MAIL_TO") ||
+    "gdb@moodglobalservices.com,chee@quantumqustody.com,sohil@quantumqustody.com")
+    .split(",").map((s) => s.trim()).filter(Boolean);
 
   if (!RESEND_API_KEY) {
     email_error = "RESEND_API_KEY is not set — submission stored but not emailed.";
@@ -91,6 +96,7 @@ Deno.serve(async (req: Request) => {
               <b>Respondent:</b> ${esc(respondent || "unknown")}<br/>
               <b>Submitted:</b> ${esc(submitted_at)}<br/>
               <b>Completed:</b> ${esc(answered)} of ${esc(total)} questions<br/>
+              <b>Confidentiality accepted:</b> ${esc(consent_accepted_at || "not recorded")}<br/>
               <b>Stored in Supabase:</b> ${stored ? "yes" : "no — " + esc(store_error)}
             </p>
             <p style="font-size:12px;color:#666;margin:0 0 6px">Full transcript attached as PDF.</p>
@@ -100,7 +106,7 @@ Deno.serve(async (req: Request) => {
 
       const payload: Record<string, unknown> = {
         from: MAIL_FROM,
-        to: [MAIL_TO],
+        to: MAIL_TO,
         subject: `Design Partner Discovery — ${partner_name || partner} (${answered}/${total})`,
         html,
       };

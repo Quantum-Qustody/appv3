@@ -17,6 +17,14 @@ const SWATCHES = [
   { v: "--q-brand-signal", name: "Signal", hex: "#F2B04A", use: "Approved and sealed only. Under 5% of any page" },
 ];
 
+const OBJECTS = [
+  { file: "atom", name: "Nucleus", note: "Keys at the centre, decisions in orbit. Hero only." },
+  { file: "custody", name: "Custody", note: "A core held inside glass. Self-custody." },
+  { file: "quorum", name: "Quorum", note: "Three interlocked rings. Approval." },
+  { file: "record", name: "Record", note: "A stack of plates, one in violet. The record." },
+  { file: "seal", name: "Seal", note: "A closed sphere with an amber seal. Sealing." },
+];
+
 const EXPLORATIONS = [
   { file: "a-signature-seal.svg", name: "A · Signature seal", note: "The tail runs out as a signature line and ends in a seal.", picked: true },
   { file: "b-nib.svg", name: "B · Nib", note: "A tapered pen stroke. Rejected: it reads as a speech bubble or a map pin." },
@@ -104,8 +112,26 @@ export default function BrandPage() {
       <Section id="usage" title="Use and misuse">
         <div className="dodont">
           <div><h3 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-3)" }}>Do</h3><ul><li>Use the supplied SVG files.</li><li>Use purple on Paper, light purple on Ink.</li><li>Keep the clear space.</li><li>Write the name as Q Squared, or Q² once it has been introduced.</li></ul></div>
-          <div><h3 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-3)" }}>Do not</h3><ul><li>Add gradients, glows or shadows to the mark.</li><li>Rotate, stretch or outline it.</li><li>Use Signal for the mark.</li><li>Pair it with atoms, padlocks, circuits or chain cubes.</li></ul></div>
+          <div><h3 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-3)" }}>Do not</h3><ul><li>Add gradients, glows or shadows to the mark.</li><li>Rotate, stretch or outline it.</li><li>Use Signal for the mark.</li><li>Place the mark on the object photography, or redraw it as an object.</li><li>Add padlocks, circuits or chain cubes.</li></ul></div>
         </div>
+      </Section>
+
+      <Section id="objects" title="Objects" lede="A family of photographed objects carries the imagery: violet cores, brushed steel, clear and frosted glass, one amber accent. One object per chapter, shot on paper for the light theme and on ink for the dark theme. They illustrate ideas. They are never the logo.">
+        <div className="obj-grid">
+          {OBJECTS.map((o) => (
+            <figure key={o.file} className="obj">
+              <div className="obj__pair">
+                <img src={`/objects/${o.file}-560.webp`} alt={`${o.name}, on paper`} width="560" height={o.file === "atom" ? 560 : 700} loading="lazy" decoding="async" />
+                <img src={`/objects/${o.file}-ink-560.webp`} alt={`${o.name}, on ink`} width="560" height={o.file === "atom" ? 560 : 700} loading="lazy" decoding="async" />
+              </div>
+              <figcaption><b>{o.name}</b><span>{o.note}</span></figcaption>
+            </figure>
+          ))}
+        </div>
+        <p style={{ marginTop: "var(--space-6)", maxWidth: "var(--measure)", fontSize: "var(--text-sm)", color: "var(--q-ink-3)" }}>
+          Provenance: generated with Higgsfield (GPT Image 2.5), then graded, grained and cropped. The dark set was generated from the light set as reference.
+          Files are in <span className="mono">/public/objects</span> as WebP at 560 px and up to 960 px wide.
+        </p>
       </Section>
 
       <Section id="explorations" title="Explorations" lede="Three directions were drawn. Direction A was chosen.">
@@ -120,8 +146,8 @@ export default function BrandPage() {
         <p style={{ marginTop: "var(--space-8)", maxWidth: "var(--measure)", color: "var(--q-ink-2)" }}>
           Direction A is the only one that says what Q² does without borrowing another icon's meaning. The ring is the Q.
           The line along its base is the line a decision is signed on, and the solid disc that closes it is the seal.
-          It holds at 16 px as three shapes, it works in one colour, and it avoids the crypto and quantum clichés:
-          no atoms, padlocks, circuits or chain cubes. B was rejected because at small sizes it reads as a speech bubble,
+          It holds at 16 px as three shapes, it works in one colour, and the mark itself avoids the crypto and quantum
+          clichés: no padlocks, circuits, chain cubes or atoms. The atom appears only as a photographed object, never in the mark. B was rejected because at small sizes it reads as a speech bubble,
           and C because it reads as a magnifying glass, which is the wrong message for a product about proof.
         </p>
       </Section>

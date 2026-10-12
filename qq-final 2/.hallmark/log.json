@@ -1,3 +1,24 @@
 [
-  { "date": "2026-10-12", "macrostructure": "Workbench", "theme": "custom", "theme_axes": "light / grotesk-sans / cool", "vibe": "central bank meets security lab, purple on paper", "enrichment": "E-live: animated signed authority record (hand-built)", "nav": "N1b", "footer": "Ft3", "brief": "Q Squared rebrand · decision assurance layer for agentic finance" }
+  {
+    "date": "2026-10-12",
+    "macrostructure": "Workbench",
+    "theme": "custom",
+    "theme_axes": "light / grotesk-sans / cool",
+    "vibe": "central bank meets security lab, purple on paper",
+    "enrichment": "E-live: animated signed authority record (hand-built)",
+    "nav": "N1b",
+    "footer": "Ft3",
+    "brief": "Q Squared rebrand \u00b7 decision assurance layer for agentic finance"
+  },
+  {
+    "date": "2026-10-12",
+    "macrostructure": "Split Studio",
+    "theme": "custom",
+    "theme_axes": "light+dark / grotesk-sans / cool",
+    "vibe": "museum catalogue of objects, self-custody, purple on paper with one ink chapter",
+    "enrichment": "E-photo: generated object family (higgsfield gpt_image_2_5, paper + ink sets) \u00b7 post-processed; live signed record retained",
+    "nav": "N1b (kept for continuity)",
+    "footer": "Ft3 (kept for continuity)",
+    "brief": "Q Squared landing v2 \u00b7 self-custody, abstract objects"
+  }
 ]

@@ -74,6 +74,17 @@
   --q-brand-ink-deep: #0F0C1F;
   --q-brand-signal: #F2B04A;
 
+  /* Ink chapter: one dark band on the public site, the same in both themes */
+  --q-chapter-bg: #08061A;
+  --q-chapter-ink: #F4F2FB;
+  --q-chapter-ink-2: #C6C1DA;
+  --q-chapter-ink-3: #A29CBA;
+  --q-chapter-rule: #2A2445;
+  --q-chapter-accent: #C9BDFF;
+
+  /* Object plates: the paper the generated objects were shot on */
+  --q-plate: #F1EFF7;
+
   --measure: 66ch;
   --page-max: 1200px;
   --gutter: clamp(1rem, 0.6rem + 2vw, 2.5rem);

@@ -126,51 +126,121 @@ function EnquiryForm({ onPartnerSignIn }) {
   );
 }
 
+// The object family. Generated with Higgsfield (GPT Image 2.5) on paper, and
+// again on ink for the dark theme, then graded, grained and cropped. Widths are
+// the real pixel widths of each file in /public/objects.
+const OBJECTS = {
+  atom:    { w: [560, 880], ratio: 1,    dark: { name: "atom-ink", w: [560, 752] } },
+  custody: { w: [560, 704], ratio: 1.25, dark: { name: "custody-ink", w: [560, 819] } },
+  quorum:  { w: [560, 819], ratio: 1.25, dark: { name: "quorum-ink", w: [560, 819] } },
+  record:  { w: [560, 819], ratio: 1.25, dark: { name: "record-ink", w: [560, 820] } },
+  seal:    { w: [560, 819], ratio: 1.25, dark: { name: "seal-ink", w: [560, 820] } },
+};
+const srcset = (name, ws) => ws.map((w, i) => `/objects/${name}-${i ? 960 : 560}.webp ${w}w`).join(", ");
+
+function Plate({ name, n, title, note, eager = false, className = "" }) {
+  const o = OBJECTS[name];
+  const sizes = "(max-width: 860px) 92vw, 560px";
+  return (
+    <figure className={`plate ${className}`}>
+      <picture>
+        {o.dark && <source media="(prefers-color-scheme: dark)" srcSet={srcset(o.dark.name, o.dark.w)} sizes={sizes} />}
+        <img
+          src={`/objects/${name}-560.webp`}
+          srcSet={srcset(name, o.w)}
+          sizes={sizes}
+          width={560}
+          height={Math.round(560 * o.ratio)}
+          alt=""
+          loading={eager ? "eager" : "lazy"}
+          decoding={eager ? "sync" : "async"}
+          {...(eager ? { fetchpriority: "high" } : {})}
+        />
+      </picture>
+      <figcaption>
+        <span className="plate__n">{n}</span>
+        <span className="plate__t">{title}</span>
+        {note && <span className="plate__note">{note}</span>}
+      </figcaption>
+    </figure>
+  );
+}
+
+const CHAPTERS = [
+  { id: "custody", n: "01", name: "Custody", line: "Your keys stay where they are." },
+  { id: "approve", n: "02", name: "Approve", line: "A quorum decides before any key signs." },
+  { id: "record", n: "03", name: "Record", line: "One signed record per decision." },
+  { id: "seal", n: "04", name: "Seal", line: "Proof that outlasts the algorithm." },
+];
+
 export default function Landing({ go, enterPlatform }) {
-  const toPartner = (e) => { e?.preventDefault(); document.getElementById("partner")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  const scrollTo = (id) => (e) => { e?.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const link = (path) => (e) => { e.preventDefault(); go(path); };
 
   return (
     <main id="main">
-      {/* 1 · Hero */}
+      {/* Hero · diptych: claim left, nucleus right */}
       <section className="hero" aria-labelledby="hero-title">
         <div className="wrap hero__grid">
-          <div>
-            <h1 id="hero-title">Agents move assets. Prove every decision.</h1>
+          <div className="hero__text">
+            <h1 id="hero-title"><span>Keep your keys.</span> <span>Prove every decision.</span></h1>
             <p className="hero__usp">
-              <strong>Q² is the decision assurance layer for agentic finance.</strong> It decides who may approve,
-              records one signed proof of who decided what under which mandate, and keeps that proof valid
-              past the post-quantum deadline.
+              <strong>Q² is the decision assurance layer for agentic finance.</strong> Your keys stay in your own
+              MPC or HSM. Q² decides who may approve each movement, by people or AI agents, and gives you one signed
+              record of it that stays valid past the post-quantum deadline.
             </p>
             <div className="hero__ctas">
-              <a className="btn btn--primary" href="#partner" onClick={toPartner}>Become a design partner <Arrow /></a>
+              <a className="btn btn--primary" href="#partner" onClick={scrollTo("partner")}>Become a design partner <Arrow /></a>
               <a className="btn btn--secondary" href="/research" onClick={link("/research")}>Read the research</a>
             </div>
-            <p className="hero__note">Works across every custodian and agent rail. The institution holds the record.</p>
+            <p className="hero__note">Q² is not a custodian. It never holds your keys or your assets.</p>
           </div>
-          <SignedRecord />
+          <Plate name="atom" n="Fig. 00" title="Nucleus" note="Your keys at the centre. Every decision in orbit." eager className="plate--hero" />
         </div>
       </section>
 
-      {/* 2 · The problem */}
+      {/* Index · the four chapters, read like a catalogue contents page */}
+      <nav className="index" id="how" aria-label="How Q² works">
+        <div className="wrap">
+          <ol className="index__list">
+            {CHAPTERS.map((c) => (
+              <li key={c.id}>
+                <a href={`#${c.id}`} onClick={scrollTo(c.id)}>
+                  <span className="index__n">{c.n}</span>
+                  <span className="index__name">{c.name}</span>
+                  <span className="index__line">{c.line}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </nav>
+
+      {/* 01 · Custody */}
+      <section className="chapter" id="custody" aria-labelledby="custody-title">
+        <div className="wrap diptych">
+          <Plate name="custody" n="Fig. 01" title="Custody" note="The core stays inside the glass." />
+          <div className="chapter__text">
+            <p className="chapter__n">01 · Custody</p>
+            <h2 id="custody-title">Self-custody settled who holds the keys. Not who decided.</h2>
+            <p className="chapter__lede">
+              MPC and HSMs keep keys out of reach. But a key signs whatever it is asked to sign. When an agent
+              proposes a transfer, the approval sits in a chat thread, the evidence sits with several wallets and
+              custodians, and none of it is built to outlast the cryptography it was signed with.
+            </p>
+            <dl className="facts">
+              <div><dt>No gate before the action</dt><dd>On most agent rails the agent can initiate. Approval is a setting, not a step that leaves proof. Once funds move on chain, reversal is rarely an option.</dd></div>
+              <div><dt>No single record after it</dt><dd>Each custodian, wallet and payment rail keeps its own log in its own format. An auditor receives fragments, not a decision.</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      {/* Why now · sourced proof points */}
       <section className="section section--tint" id="problem" aria-labelledby="problem-title">
         <div className="wrap">
           <div className="sh">
-            <h2 id="problem-title">Agents act faster than anyone can watch.</h2>
-            <p>
-              An agent can propose, sign and settle in seconds. The approval sits in a chat thread, the evidence
-              sits with several custodians, and none of it is built to outlast the cryptography it was signed with.
-            </p>
-          </div>
-          <div className="problem">
-            <div>
-              <h3>No gate before the action</h3>
-              <p>On most agent rails the agent can initiate. Approval is a setting, not a step that leaves proof. Once funds move on chain, reversal is rarely an option.</p>
-            </div>
-            <div>
-              <h3>No single record after it</h3>
-              <p>Evidence is split across custodians, wallets and payment rails, each with its own log and format. An auditor receives fragments, not a decision.</p>
-            </div>
+            <h2 id="problem-title">Why it matters now.</h2>
           </div>
           <ul className="proofs">
             <li className="proof">
@@ -192,28 +262,88 @@ export default function Landing({ go, enterPlatform }) {
         </div>
       </section>
 
-      {/* 3 · How it works */}
-      <section className="section" id="how" aria-labelledby="how-title">
+      {/* 02 · Approve */}
+      <section className="chapter" id="approve" aria-labelledby="approve-title">
+        <div className="wrap diptych diptych--flip">
+          <Plate name="quorum" n="Fig. 02" title="Quorum" note="No single ring carries the weight." />
+          <div className="chapter__text">
+            <p className="chapter__n">02 · Approve</p>
+            <h2 id="approve-title">A quorum before any key signs.</h2>
+            <p className="chapter__lede">
+              A quorum of people, or a policy they signed, approves each movement. Only then does your own
+              key sign. The agent proposes. It never initiates, and no single approver can move assets alone.
+            </p>
+            <dl className="spec">
+              <div><dt>Proposes</dt><dd>An agent, a system or a person</dd></div>
+              <div><dt>Decides</dt><dd>A quorum, or a policy they signed</dd></div>
+              <div><dt>Signs</dt><dd>Your MPC or HSM, after the decision</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      {/* 03 · Record */}
+      <section className="chapter chapter--tint" id="record" aria-labelledby="record-title">
+        <div className="wrap diptych diptych--top">
+          <Plate name="record" n="Fig. 03" title="Record" note="One plate per decision. The violet one is yours." className="plate--sticky" />
+          <div className="chapter__text">
+            <p className="chapter__n">03 · Record</p>
+            <h2 id="record-title">One signed record per decision.</h2>
+            <p className="chapter__lede">
+              Q² writes one authority record: who decided, under which mandate, against which policy version,
+              with what result. The format is the same whichever wallet or custodian holds the asset, so an
+              auditor reads a decision, not fragments.
+            </p>
+            <SignedRecord />
+          </div>
+        </div>
+      </section>
+
+      {/* 04 · Seal */}
+      <section className="chapter" id="seal" aria-labelledby="seal-title">
+        <div className="wrap diptych diptych--flip">
+          <Plate name="seal" n="Fig. 04" title="Seal" note="Closed once, re-sealed as algorithms retire." />
+          <div className="chapter__text">
+            <p className="chapter__n">04 · Seal</p>
+            <h2 id="seal-title">Sealed to outlast the algorithm.</h2>
+            <p className="chapter__lede">
+              Each record is sealed with post-quantum signatures and re-sealed as algorithms retire, so the
+              proof stays valid for as long as you must keep it.
+            </p>
+            <dl className="spec">
+              <div><dt>Signature</dt><dd>ML-DSA-65</dd></div>
+              <div><dt>Lifetime</dt><dd>Re-sealed when an algorithm retires</dd></div>
+              <div><dt>Deadline</dt><dd>Post-quantum signatures by 31 Dec 2031, US EO 14412</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      {/* Ink chapter · self-custody of the proof, and where it runs */}
+      <section className="ink" id="deploy" aria-labelledby="deploy-title">
+        <div className="ink__art" aria-hidden="true">
+          <img src="/objects/orbit-ink-960.webp" srcSet="/objects/orbit-ink-960.webp 960w, /objects/orbit-ink-1344.webp 1344w" sizes="(max-width: 860px) 100vw, 70vw" width="1344" height="752" alt="" loading="lazy" decoding="async" />
+        </div>
+        <div className="wrap ink__in">
+          <div className="ink__head">
+            <h2 id="deploy-title">Self-custody, extended to the proof.</h2>
+            <p>You hold the keys. With Q² you also hold the record of every decision made with them, stored and signed where your data must live.</p>
+          </div>
+          <ul className="ink__opts">
+            <li><h3>On-premise</h3><p>Runs inside your own infrastructure, next to your HSM or MPC cluster. Q² never sees the data.</p></li>
+            <li><h3>In-region</h3><p>Runs in the region you choose, so records and signing keys stay within your residency requirements.</p></li>
+            <li><h3>Cloud</h3><p>Run by Q². The fastest way to start, suited to a sandbox and a first pilot.</p></li>
+          </ul>
+        </div>
+      </section>
+
+      {/* Where it sits */}
+      <section className="section" id="where" aria-labelledby="where-title">
         <div className="wrap">
           <div className="sh">
-            <h2 id="how-title">One decision. One record. One seal.</h2>
-            <p>Q² sits between the agent and the asset. The agent proposes. People, or a policy they signed, decide. Q² keeps the proof.</p>
+            <h2 id="where-title">Between your agents and your keys.</h2>
+            <p>Agent rails sit above Q². Your keys sit below it, in self-custody or with any custodian. Auditors, supervisors, insurers and counterparties read the record.</p>
           </div>
-          <div className="flow">
-            <div className="flow__item">
-              <h3>Approve</h3>
-              <p>A quorum of people, or a policy they signed, approves each movement. The agent proposes. It never initiates.</p>
-            </div>
-            <div className="flow__item">
-              <h3>Record</h3>
-              <p>Q² writes one signed authority record: who decided, under which mandate, against which policy version, with what result.</p>
-            </div>
-            <div className="flow__item is-seal">
-              <h3>Seal</h3>
-              <p>Each record is sealed with post-quantum signatures and re-sealed as algorithms retire, so the proof stays valid for as long as you must keep it.</p>
-            </div>
-          </div>
-
           <figure className="diagram" aria-labelledby="diagram-cap" style={{ margin: 0 }}>
             <div className="diagram__stack">
               <div className="tier">
@@ -227,8 +357,8 @@ export default function Landing({ go, enterPlatform }) {
               </div>
               <div className="joint" aria-hidden="true" />
               <div className="tier">
-                <div className="tier__label"><span>Custody</span><span>any provider</span></div>
-                <ul className="chips"><li className="chip">Self-custody (MPC, HSM)</li><li className="chip">Institutional custodians</li></ul>
+                <div className="tier__label"><span>Your keys</span><span>you choose where</span></div>
+                <ul className="chips"><li className="chip">Self-custody: MPC</li><li className="chip">Self-custody: HSM</li><li className="chip">Institutional custodians</li></ul>
               </div>
             </div>
             <div className="readers">
@@ -236,11 +366,11 @@ export default function Landing({ go, enterPlatform }) {
               <ul><li>Auditors</li><li>Supervisors</li><li>Insurers</li><li>Counterparties</li></ul>
             </div>
           </figure>
-          <p id="diagram-cap" className="diagram__note">Agent rails sit above Q², custodians below it, readers to the side. x402, AP2 and Visa Trusted Agent Protocol are named as examples of agent rails. They are not partners of Q².</p>
+          <p id="diagram-cap" className="diagram__note">Agent rails sit above Q², keys below it, readers to the side. x402, AP2 and Visa Trusted Agent Protocol are named as examples of agent rails. They are not partners of Q².</p>
         </div>
       </section>
 
-      {/* 4 · Built for the rules */}
+      {/* Built for the rules */}
       <section className="section section--tint" id="rules" aria-labelledby="rules-title">
         <div className="wrap">
           <div className="sh">
@@ -256,37 +386,22 @@ export default function Landing({ go, enterPlatform }) {
         </div>
       </section>
 
-      {/* 5 · Deploy */}
-      <section className="section" id="deploy" aria-labelledby="deploy-title">
+      {/* For whom */}
+      <section className="section" id="who" aria-labelledby="who-title">
         <div className="wrap">
           <div className="sh">
-            <h2 id="deploy-title">Deploy where your data must live.</h2>
-            <p>The record belongs to the institution. You choose where it is stored and where it is signed.</p>
-          </div>
-          <div className="deploy">
-            <div className="deploy__opt"><h3>Cloud</h3><p>Run by Q². The fastest way to start, suited to a sandbox and a first pilot.</p><span className="mono">Managed service</span></div>
-            <div className="deploy__opt"><h3>In-region</h3><p>Runs in the region you choose, so records and signing keys stay within your residency requirements.</p><span className="mono">Region of your choice</span></div>
-            <div className="deploy__opt"><h3>On-premise</h3><p>Runs inside your own infrastructure, next to your HSM or MPC cluster. Q² never sees the data.</p><span className="mono">Your infrastructure</span></div>
-          </div>
-        </div>
-      </section>
-
-      {/* 6 · For whom */}
-      <section className="section section--tint" id="who" aria-labelledby="who-title">
-        <div className="wrap">
-          <div className="sh">
-            <h2 id="who-title">For firms that must prove every movement.</h2>
+            <h2 id="who-title">For firms that hold their own keys and must prove every movement.</h2>
           </div>
           <div className="who">
-            <div className="who__item"><h3>Multi-custodian funds and RWA issuers</h3><p>Assets sit with several custodians and on several chains.</p><p className="need">One record per decision, whichever custodian holds the asset.</p></div>
+            <div className="who__item"><h3>Multi-custodian funds and RWA issuers</h3><p>Assets sit in self-custody, with several custodians and on several chains.</p><p className="need">One record per decision, whoever holds the key.</p></div>
             <div className="who__item"><h3>EU CASPs and EMIs</h3><p>Licensed firms whose supervisors ask how each movement was authorised.</p><p className="need">Records an examiner can read without your internal tools.</p></div>
             <div className="who__item"><h3>Agent operators and PSPs</h3><p>Teams running agents or payment flows that move funds for clients.</p><p className="need">A gate before the agent acts, and proof after it.</p></div>
           </div>
         </div>
       </section>
 
-      {/* 7 · Developers */}
-      <section className="section" id="developers" aria-labelledby="dev-title">
+      {/* Developers */}
+      <section className="section section--tint" id="developers" aria-labelledby="dev-title">
         <div className="wrap dev">
           <div>
             <span className="badge">Preview API</span>
@@ -297,7 +412,7 @@ export default function Landing({ go, enterPlatform }) {
             <ul className="dev__list">
               <li>Submit a proposal from any agent or system.</li>
               <li>Get a quorum or signed-policy decision. Agents never initiate.</li>
-              <li>Receive a signed record ID to store, share or verify.</li>
+              <li>Sign with your own keys, then store, share or verify the record.</li>
             </ul>
           </div>
           <figure className="code">
@@ -323,8 +438,8 @@ console.log(decision.record.signature); <span className="c">// "ML-DSA-65"</span
         </div>
       </section>
 
-      {/* 8 · Design partner programme */}
-      <section className="section section--tint" id="partner" aria-labelledby="partner-title">
+      {/* Design partner programme */}
+      <section className="section" id="partner" aria-labelledby="partner-title">
         <div className="wrap dp">
           <div>
             <div className="sh" style={{ marginBottom: "var(--space-8)" }}>
@@ -338,7 +453,7 @@ console.log(decision.record.signature); <span className="c">// "ML-DSA-65"</span
               <li>Founder-level support from diagnostic to production.</li>
             </ul>
             <ol className="stages">
-              <li><h3>Diagnostic <span>stage 1</span></h3><p>We map how assets move, who approves and how you prove control today. Synthetic data only, no access to your systems.</p></li>
+              <li><h3>Diagnostic <span>stage 1</span></h3><p>We map how assets move, who approves and how you prove control today. Synthetic data only, no access to your systems or keys.</p></li>
               <li><h3>Paid pilot <span>stage 2</span></h3><p>Q² runs alongside one real flow, in a bounded scope, against success criteria we agree together.</p></li>
               <li><h3>Production <span>stage 3</span></h3><p>Q² becomes the record of decision for the flows you choose, deployed where your data must live.</p></li>
             </ol>

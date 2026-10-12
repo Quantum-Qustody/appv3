@@ -11,7 +11,11 @@ Approval needed from Gianluca, Chee and Sohil.
 
 **Design system.** `src/styles/tokens.css` is the single source for colour, type, space, radius and motion, with light and dark themes. Purple and white carry the brand; ink carries text; a warm signal is reserved for approved and sealed moments.
 
-**Public site** (`src/site/`). New landing page in the brief's order: hero with an animated signed authority record, the problem with the three sourced proof points, Approve / Record / Seal with the rails and custodians diagram, the rules (maps to, never compliant with), deployment options, audiences, a preview API sample, the design partner programme with an enquiry form, and the footer. Plus `/research`, `/research/:id`, `/brand` (with `/brand/explorations`), and `/design-partner` as real URLs.
+**Public site** (`src/site/`). The landing page is a run of diptychs: text on one side, a photographed object on the other, alternating. It leads with self-custody: *Keep your keys. Prove every decision.* Q² is positioned as the layer between your agents and your keys, not as a custodian.
+
+Order: hero with the nucleus object; a contents strip (01 Custody, 02 Approve, 03 Record, 04 Seal); Custody (what self-custody leaves open); the three sourced proof points; Approve (quorum before any key signs); Record (with the animated signed authority record); Seal (post-quantum, re-sealed); one dark chapter, *Self-custody, extended to the proof*, with the three deployment options; where Q² sits (agent rails above, your keys below, readers to the side); the rules (maps to, never compliant with); audiences; a preview API sample; the design partner programme with an enquiry form; the footer. Also `/research`, `/research/:id`, `/brand` (with `/brand/explorations`) and `/design-partner` as real URLs.
+
+**Objects.** Five objects carry the imagery: Nucleus (atom), Custody (a violet core inside glass), Quorum (three interlocked rings), Record (a stack of glass plates, one violet), Seal (a ceramic sphere with an amber seal). Each was generated with Higgsfield (GPT Image 2.5) on a paper backdrop. A second set on an ink backdrop was generated from the first as reference, so dark mode shows dark photographs instead of white blocks. All were graded, given fine grain, cropped off-centre and exported as WebP (`public/objects/`, 7 to 35 kB each). The logo is still hand-drawn SVG; the objects never appear in or with the mark. They are documented on `/brand#objects`.
 
 **Platform.** Every sandbox function is unchanged. It keeps its dark ink surface on the new tokens: new mark, Q Squared wordmark, solid purple buttons, no gradient text or glows, calmer labels. Tailwind's purple and fuchsia scales map to the brand purple, so all existing screens adopt the brand.
 
@@ -22,11 +26,11 @@ Approval needed from Gianluca, Chee and Sohil.
 | Route | Performance | Accessibility | Best practices | SEO |
 | --- | --- | --- | --- | --- |
 | Before, `/` (production) | 70 | 93 | 100 | 91 |
-| After, `/` | 99 | 100 | 100 | 100 |
+| After, `/` (with objects) | 99 | 100 | 100 | 100 |
 | After, `/research` | 100 | 100 | 100 | 100 |
 | After, `/brand` | 100 | 100 | 100 | 100 |
 
-Lighthouse 12, mobile emulation, against the production build. No element exceeds the viewport at 360, 390, 768, 1440 or 1920 px on any public route (checked by script, not only by scroll width). Screenshots: `docs/rebrand/before/` and `docs/rebrand/after/`.
+Lighthouse 12, mobile emulation, against the production build. Home LCP 2.0 s, CLS 0. No element exceeds the viewport at 360, 390, 768, 1440 or 1920 px on any public route (checked by script, not only by scroll width). Screenshots: `docs/rebrand/before/` and `docs/rebrand/after/`.
 
 **Verified working on the preview build:** site to sandbox sign-in and back (no bounce); `/design-partner` deep link and gate (Supabase rejects bad credentials as expected); enquiry form validation (5 field errors on an empty submit); enquiry form end to end (one labelled test row stored, see open question 9).
 
@@ -68,6 +72,8 @@ Platform variables (`--bg`, `--text`, `--panel`, `--border`) are in `src/index.c
 8. **What partners get.** "Founder-level support from diagnostic to production" was written for this page. Confirm it is an offer you want to make.
 9. **Test data.** One enquiry labelled `[TEST] Rebrand preview check` was submitted to verify the form. Delete it with `delete from design_partner_responses where respondent_email = 'gdb@moodglobalservices.com' and partner = 'inbound';`
 10. **Platform light theme.** The sandbox stays dark-first; its existing light toggle is unchanged. A full light theme for the platform is a separate piece of work.
+11. **Self-custody positioning.** The page now says Q² "is not a custodian" and "never holds your keys or your assets", and that keys stay "in your own MPC or HSM". This follows the instruction to lead with self-custody. Please confirm it matches the product, including the managed cloud option.
+12. **Generated imagery.** The object photographs are AI-generated (Higgsfield, GPT Image 2.5) and post-processed. They are illustrations, not product photos. Confirm you are comfortable using generated imagery on the public site and check the Higgsfield licence terms for commercial use.
 
 ## Could not verify
 

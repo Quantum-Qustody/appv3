@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-labelledby="t">
+  <title id="t">Direction C · Stamp: the Q sits inside a document stamp; its tail breaks the frame.</title>
+  <!-- Stamp frame, open at the lower-right corner where the tail exits -->
+  <path d="M44 58H14a10 10 0 0 1-10-10V14A10 10 0 0 1 14 4h34a10 10 0 0 1 10 10v30" fill="none" stroke="#5B3BEA" stroke-width="4.5"/>
+  <circle cx="29" cy="30" r="12" fill="none" stroke="#5B3BEA" stroke-width="5"/>
+  <path d="M36.5 37.5 L58 59" stroke="#5B3BEA" stroke-width="5"/>
+  <path d="M43.5 11.5a3 3 0 1 1 5.3 1.9L43.5 19H50" fill="none" stroke="#5B3BEA" stroke-width="2.2"/>
+</svg>

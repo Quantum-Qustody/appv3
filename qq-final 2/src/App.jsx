@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { supabase, supabaseAnonKey, FUNCTIONS_URL } from "./supabaseClient.js";
 import { useWallet, useTestnetValue, FAUCETS, CIRCLE_FAUCET, explorerTx, explorerAddr, shortAddr, fetchWalletTxHistory } from "./sepolia.js";
-import { BlogSection, BlogArticle } from "./blog.jsx";
-import DesignPartnerPage from "./designPartner.jsx";
+import { Mark, Lockup } from "./brand/Logo.jsx";
 
 // ─── localStorage account picker (Phase 1, item 1) ─────────────────
 const KNOWN_EMAILS_KEY = "qq:known_emails";
@@ -111,7 +110,7 @@ function WalletProvider({ children }) {
 }
 const useSharedWallet = () => useContext(WalletContext);
 
-function AppProvider({ children }) {
+function AppProvider({ children, initialPhase = "landing" }) {
   const [user, setUser] = useState(null);
   const [org, setOrg] = useState(null);
   const [session, setSession] = useState(null);
@@ -124,7 +123,7 @@ function AppProvider({ children }) {
   const [transactions, setTransactions] = useState([]);
   const [evidenceStore, setEvidenceStore] = useState({});
   const [activeScenario, setActiveScenario] = useState(null);
-  const [phase, setPhase] = useState("landing");
+  const [phase, setPhase] = useState(initialPhase);
   const [activeView, setActiveView] = useState("hub");
   const [fading, setFading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -239,14 +238,16 @@ function AppProvider({ children }) {
         setUser(authSession.user);
         tryAcceptInvitationFromUrl(authSession.user.id);
         loadActiveSession(authSession.user.id);
+      } else {
+        setPhase(p => (p === "boot" ? "landing" : p));
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, authSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, authSession) => {
       setUser(authSession?.user ?? null);
       if (authSession?.user) {
         tryAcceptInvitationFromUrl(authSession.user.id);
-      } else {
+      } else if (event === "SIGNED_OUT") {
         setSession(null);
         setOrg(null);
         setPhase("landing");
@@ -756,8 +757,8 @@ const useApp = () => useContext(AppContext);
 
 const Badge = ({children,c="purple"}) => { const m={purple:"bg-purple-500/15 text-purple-400 border-purple-500/30",green:"bg-emerald-500/15 text-emerald-400 border-emerald-500/30",yellow:"bg-yellow-500/15 text-yellow-400 border-yellow-500/30",fuchsia:"bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30",red:"bg-red-500/15 text-red-400 border-red-500/30",indigo:"bg-indigo-500/15 text-indigo-400 border-indigo-500/30",blue:"bg-blue-500/15 text-blue-400 border-blue-500/30"}; return <span className={`fm text-xs px-2 py-0.5 border ${m[c]}`}>{children}</span>; };
 const GC = ({children,className="",hover,style={},onClick}) => <div className={`glass ${hover?"glass-h cursor-pointer":""} ${className}`} style={style} onClick={onClick}>{children}</div>;
-const SL = ({children}) => <div className="fm text-xs tracking-widest text-fuchsia-500 mb-4">[ {children} ]</div>;
-const Btn = ({children,v="primary",className="",onClick,disabled,full}) => { const base="fm font-bold text-sm px-5 py-2.5 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"; const vs={primary:"bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white hover:from-purple-500 hover:to-fuchsia-500 glow",secondary:"glass text-gray-300 hover:text-white",ghost:"text-gray-400 hover:text-purple-400 hover:bg-purple-500/10",danger:"bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"}; return <button className={`${base} ${vs[v]} ${full?"w-full":""} ${className}`} onClick={onClick} disabled={disabled}>{children}</button>; };
+const SL = ({children}) => <div className="fm text-[11px] tracking-[0.12em] uppercase text-purple-300 mb-4">{children}</div>;
+const Btn = ({children,v="primary",className="",onClick,disabled,full}) => { const base="fm font-bold text-sm px-5 py-2.5 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"; const vs={primary:"bg-purple-600 text-white hover:bg-purple-500",secondary:"glass text-gray-300 hover:text-white",ghost:"text-gray-400 hover:text-purple-400 hover:bg-purple-500/10",danger:"bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"}; return <button className={`${base} ${vs[v]} ${full?"w-full":""} ${className}`} onClick={onClick} disabled={disabled}>{children}</button>; };
 const InfoRow = ({label,value,badge}) => <div className="flex items-center justify-between py-2 border-b border-gray-800/50"><span className="fm text-xs text-gray-500">{label}</span>{badge?<Badge c={badge.c}>{badge.t}</Badge>:<span className="fm text-xs text-gray-300">{value}</span>}</div>;
 const Arr = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
 const Bk = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>;
@@ -834,15 +835,15 @@ const BoundaryPanel = ({ w, org }) => {
     </div>
   );
 
-  return (<GC className="p-5" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+  return (<GC className="p-5" style={{borderTop:"2px solid rgba(174,156,255,.5)"}}>
     <div className="flex items-center gap-2 mb-2">
       <SL>BOUNDARY · GOVERNED SMART ACCOUNT</SL>
       <span className="fm text-[9px] px-2 py-0.5 bg-yellow-400 text-black font-black tracking-wider">SCAFFOLD · MOCK</span>
     </div>
     <p className="fm text-xs text-gray-400 mb-4">Root EOA holds ownership and recovery. The Smart Account holds the institution's assets, governed by the active policy. <a href="/docs/governed-wallet-architecture.md" target="_blank" className="text-purple-300 hover:underline">Design doc</a>.</p>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {cell("ROOT EOA (RECOVERY)", w.address ? shortAddr(w.address) : "— not connected —", "#a855f7", !!w.address)}
-      {cell("SMART ACCOUNT (VAULT)", smartAccount ? `${smartAccount.slice(0,10)}…${smartAccount.slice(-4)}` : "— pending deploy —", "#d946ef", !!smartAccount)}
+      {cell("ROOT EOA (RECOVERY)", w.address ? shortAddr(w.address) : "— not connected —", "#8E78F6", !!w.address)}
+      {cell("SMART ACCOUNT (VAULT)", smartAccount ? `${smartAccount.slice(0,10)}…${smartAccount.slice(-4)}` : "— pending deploy —", "#AE9CFF", !!smartAccount)}
       {cell("POLICY STATUS", policyStatus.toUpperCase(), policyStatus==="Active"?"#22c55e":policyStatus==="Draft"?"#facc15":"#818cf8")}
       {cell("FUNDING STATUS", fundingLocked ? "LOCKED · awaiting activation" : "UNLOCKED", fundingLocked?"#ef4444":"#22c55e")}
       {cell("PROTECTION STATUS", protectionStatus, protectionStatus==="GOVERNED ACTIVE"?"#22c55e":"#ef4444")}
@@ -897,13 +898,13 @@ const PROTOCOL_APPS = [
   { id:"pendle", name:"Pendle", tagline:"Yield trading & tokenization",       url:"https://app.pendle.finance/trade/markets", color:"#5FCFB0" },
 ];
 // Fix 4 — QQ-owned connect modal. Clicking a dApp NEVER fires the injected
-// wallet (no eth_requestAccounts, no Rabby popup). Quantum Qustody brokers the
+// wallet (no eth_requestAccounts, no Rabby popup). Q² brokers the
 // connection over WalletConnect and hands off to the app; if a QQ wallet
 // session already exists it is surfaced so the app opens with that account.
 function AppConnectModal({ app, w, onClose, addLog }) {
   if (!app) return null;
   const openApp = () => {
-    addLog?.({ type: "success", message: `${app.name}: connecting via Quantum Qustody${w?.isConnected ? ` (session ${shortAddr(w.address)})` : ""} — no extension handoff` });
+    addLog?.({ type: "success", message: `${app.name}: connecting via Q²${w?.isConnected ? ` (session ${shortAddr(w.address)})` : ""} — no extension handoff` });
     window.open(app.url, "_blank", "noopener,noreferrer");
     onClose();
   };
@@ -915,17 +916,17 @@ function AppConnectModal({ app, w, onClose, addLog }) {
         <button onClick={onClose} aria-label="Close" className="ml-auto text-gray-500 hover:text-gray-300 cursor-pointer text-xl leading-none">×</button>
       </div>
       <div className="p-3 border border-purple-500/20 bg-purple-500/5 fm text-xs text-gray-300 leading-relaxed">
-        Quantum Qustody brokers this connection. Your browser wallet extension is <b className="text-purple-300">not</b> invoked directly — you connect {app.name} <b>through Quantum Qustody</b> over WalletConnect.
+        Q² brokers this connection. Your browser wallet extension is <b className="text-purple-300">not</b> invoked directly — you connect {app.name} <b>through Q²</b> over WalletConnect.
       </div>
       <div className="flex items-center justify-between p-3 border border-gray-800 bg-black/30 fm text-xs">
         <span className="text-gray-500">QQ WALLET SESSION</span>
         {w?.isConnected ? <span className="mono text-emerald-400">{shortAddr(w.address)}{w.isSepolia?" · SEPOLIA":""}</span> : <span className="text-yellow-300">not connected</span>}
       </div>
-      {!w?.isConnected && <div className="fm text-[10px] text-gray-500 -mt-1">Connect a wallet to Quantum Qustody (header wallet control) so {app.name} opens with your QQ session.</div>}
+      {!w?.isConnected && <div className="fm text-[10px] text-gray-500 -mt-1">Connect a wallet to Q² (header wallet control) so {app.name} opens with your QQ session.</div>}
       <button onClick={openApp} className="w-full fm text-sm px-4 py-3 border transition-all cursor-pointer flex items-center justify-center gap-2" style={{borderColor:`${app.color}66`, background:`${app.color}18`, color:app.color}}>
         OPEN {app.name.toUpperCase()} VIA WALLETCONNECT ↗
       </button>
-      <div className="fm text-[9px] text-gray-600 leading-snug">On {app.name}, choose <b className="text-gray-400">WalletConnect</b> as the connection method (not the browser extension) to keep Quantum Qustody in the loop.</div>
+      <div className="fm text-[9px] text-gray-600 leading-snug">On {app.name}, choose <b className="text-gray-400">WalletConnect</b> as the connection method (not the browser extension) to keep Q² in the loop.</div>
     </div>
   </div>);
 }
@@ -934,7 +935,7 @@ const ProtocolApps = ({ w, addLog }) => {
   return (<>
     <GC className="p-5" style={{borderLeft:"3px solid #818cf8"}}>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-1"><SL>CONNECT PROTOCOL APPS</SL></div>
-      <p className="fm text-xs text-gray-400 mb-4">Link institutional DeFi & custody protocols. Quantum Qustody brokers each connection over WalletConnect — your browser extension is never invoked directly. Position sync arrives in a later phase; the connection is mediated by QQ today.</p>
+      <p className="fm text-xs text-gray-400 mb-4">Link institutional DeFi & custody protocols. Q² brokers each connection over WalletConnect — your browser extension is never invoked directly. Position sync arrives in a later phase; the connection is mediated by QQ today.</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {PROTOCOL_APPS.map(app => (
           <div key={app.id} className="p-4 border border-gray-800 bg-black/30 flex flex-col gap-3" style={{borderTopColor:`${app.color}66`, borderTopWidth:2}}>
@@ -966,15 +967,15 @@ const ActionBar = ({ active, onPick }) => (<div className="flex flex-wrap gap-2"
 const QuantumSafetyAtom = ({ score, label }) => {
   const r = 14, c = 2 * Math.PI * r;
   const off = c - (score / 100) * c;
-  const tone = score >= 80 ? "#22c55e" : score >= 60 ? "#a855f7" : score >= 40 ? "#eab308" : "#ef4444";
+  const tone = score >= 80 ? "#22c55e" : score >= 60 ? "#8E78F6" : score >= 40 ? "#eab308" : "#ef4444";
   const tier = score >= 80 ? "STRONG" : score >= 60 ? "GUARDED" : score >= 40 ? "MODERATE" : "AT-RISK";
   return (<Tip text={`Quantum Safety Score: ${score}/100 — ${tier}. Computed live from PQC posture, control model, threshold settings, active team, connected wallets, and persisted settings. Higher score = stronger institutional posture.`}>
     <div className="flex items-center gap-2 px-3 py-1.5 glass cursor-help">
       <div className="relative w-10 h-10 flex items-center justify-center">
         <svg width="40" height="40" viewBox="0 0 40 40" className="absolute inset-0">
-          <circle cx="20" cy="20" r={r} stroke="rgba(168,85,247,.15)" strokeWidth="3" fill="none"/>
+          <circle cx="20" cy="20" r={r} stroke="rgba(142,120,246,.15)" strokeWidth="3" fill="none"/>
           <circle cx="20" cy="20" r={r} stroke={tone} strokeWidth="3" fill="none" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" transform="rotate(-90 20 20)" style={{transition:"stroke-dashoffset .6s ease, stroke .3s"}}/>
-          <ellipse cx="20" cy="20" rx="18" ry="6" stroke="rgba(217,70,239,.35)" strokeWidth="0.8" fill="none" className="qs-ring"/>
+          <ellipse cx="20" cy="20" rx="18" ry="6" stroke="rgba(174,156,255,.35)" strokeWidth="0.8" fill="none" className="qs-ring"/>
           <ellipse cx="20" cy="20" rx="6" ry="18" stroke="rgba(99,102,241,.35)" strokeWidth="0.8" fill="none" className="qs-ring-2"/>
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
@@ -1035,7 +1036,7 @@ const AuditLog = () => {
   return (<div className="w-72 flex-shrink-0 flex flex-col" style={{height:"calc(100vh - 56px)"}}>
     <div className="p-4 border-b border-purple-500/20 flex items-center gap-2">{sIcons.log}<span className="fm text-sm font-bold text-purple-400">EVALUATION_LOG</span><span className="ml-auto fm text-xs text-gray-600">{logs.length}</span></div>
     <div className="flex-1 overflow-y-auto p-3 space-y-2">{logs.map(l=>(
-      <div key={l.id} className="p-3 border-l-2 anim" style={{background:"rgba(10,5,25,.5)",borderLeftColor:l.log_type==="success"||l.type==="success"?"#22c55e":l.log_type==="warning"||l.type==="warning"?"#eab308":l.log_type==="error"||l.type==="error"?"#ef4444":l.log_type==="evidence"||l.type==="evidence"?"#3b82f6":"rgba(168,85,247,.4)"}}>
+      <div key={l.id} className="p-3 border-l-2 anim" style={{background:"rgba(23,19,44,.5)",borderLeftColor:l.log_type==="success"||l.type==="success"?"#22c55e":l.log_type==="warning"||l.type==="warning"?"#eab308":l.log_type==="error"||l.type==="error"?"#ef4444":l.log_type==="evidence"||l.type==="evidence"?"#3b82f6":"rgba(142,120,246,.4)"}}>
         <div className="fm text-xs text-gray-500 mb-1">{l.time}</div>
         <div className="text-xs text-gray-300 leading-relaxed">{l.message}</div>
         {l.scenario_id&&<div className="fm text-xs text-purple-400 mt-1">SCENARIO {l.scenario_id.replace("s","0")}</div>}
@@ -1051,7 +1052,7 @@ const AuditLog = () => {
 // AUTH SCREEN (REAL SUPABASE)
 // ═══════════════════════════════════════════════════════════════════
 const AuthScreen = () => {
-  const { signIn, sendPasswordReset, resendConfirmation, authError, loading } = useApp();
+  const { signIn, sendPasswordReset, resendConfirmation, authError, loading, go } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -1068,9 +1069,9 @@ const AuthScreen = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative">
-      <div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(168,85,247,.06) 0%,transparent 50%)"}}/>
       <div className="w-full max-w-md anim">
-        <div className="text-center mb-8"><div className="flex items-center justify-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-9 h-9" style={{filter:"drop-shadow(0 0 10px rgba(168,85,247,.4))"}}/><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span></div></div>
+        <button type="button" onClick={()=>go("landing")} className="fm text-xs text-gray-400 hover:text-purple-300 cursor-pointer mb-6">← Back to site</button>
+        <div className="text-center mb-8"><div className="flex items-center justify-center"><Lockup size={34} className="q-lockup--platform"/></div></div>
         <GC className="p-8">
           <SL>SIGN IN / SIGN UP</SL>
           {knownEmails.length > 0 && (
@@ -1101,213 +1102,6 @@ const AuthScreen = () => {
           <div className="mt-6 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-500"><span className="text-purple-400">NEW USERS:</span> Fill in all fields. <span className="text-purple-400">EXISTING USERS:</span> Email + password.</div>
         </GC>
       </div>
-    </div>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════════════
-// LANDING PAGE
-// ═══════════════════════════════════════════════════════════════════
-const LandingPage = () => {
-  const { go, addLog, scenarios } = useApp();
-  const enter = () => { addLog({ type:"info", message:"Entered sandbox" }); go("auth"); };
-  // Blog navigation — when a post is open, render the article instead of the scroll
-  const [activePost, setActivePost] = useState(null);
-  const [showDP, setShowDP] = useState(false);
-  const openPost = (p) => { setActivePost(p); addLog({ type:"info", message:`Opened article: ${p.title}` }); };
-  if (activePost) return <BlogArticle post={activePost} onBack={()=>setActivePost(null)} onOpen={openPost} />;
-  // Design Partner — gated discovery intake (footer entry point)
-  if (showDP) return <DesignPartnerPage onBack={()=>setShowDP(false)} onSandbox={()=>{ setShowDP(false); enter(); }} />;
-  const FAQ=({q,a})=>{const[o,setO]=useState(false);return<div className="glass cursor-pointer" onClick={()=>setO(!o)}><div className="p-6 fm text-purple-300 font-bold flex justify-between items-center text-sm">{q}<span className={`text-purple-500 transition-transform duration-300 ${o?"rotate-180":""}`}>▼</span></div>{o&&<div className="px-6 pb-6 text-gray-400 fm text-sm leading-relaxed border-t border-purple-500/10 pt-4 anim">{a}</div>}</div>};
-
-  const diffRows = [
-    { axis: "PRIMARY PROMISE", traditional: "Keep assets safe", qq: "Prove control under governance" },
-    { axis: "CORE ACTION", traditional: "Store & transfer", qq: "Governed movement with policy enforcement" },
-    { axis: "EVIDENCE MODEL", traditional: "Transaction history", qq: "Institutionally legible evidence packs" },
-    { axis: "POLICY LAYER", traditional: "Operational checklist", qq: "Programmatic enforcement at execution" },
-    { axis: "OVERSIGHT FIT", traditional: "Export CSV, reconcile", qq: "First-class oversight outputs" },
-    { axis: "DISCLOSURE", traditional: "All or nothing", qq: "Selective verification (ZKP)" },
-    { axis: "CRYPTO POSTURE", traditional: "Fixed primitives", qq: "Crypto-agility across current + PQC" },
-    { axis: "BUYER QUESTION", traditional: "Are my keys safe?", qq: "Can I defend every movement to an auditor?" },
-  ];
-
-  return (
-    <div className="min-h-screen">
-      <nav className="fixed top-0 w-full z-50 p-4"><div className="max-w-7xl mx-auto glass rounded-sm flex justify-between items-center px-6 py-3"><div className="flex items-center gap-3"><img src="/qq-logo.svg" alt="QQ" className="w-8 h-8" style={{filter:"drop-shadow(0 0 8px rgba(168,85,247,.3))"}}/><span className="font-bold text-lg tracking-tight">QUANTUM_QUSTODY</span></div><div className="hidden md:flex gap-6 text-sm text-gray-400 fm"><a href="#home" className="hover:text-purple-400 transition-colors">[ HOME ]</a><a href="#insights" className="hover:text-purple-400 transition-colors">[ INSIGHTS ]</a></div><button onClick={enter} className="bg-purple-500/10 border border-purple-500/50 text-purple-400 px-4 py-2 text-sm fm hover:bg-purple-500/20 transition-all cursor-pointer">ACCESS SANDBOX</button></div></nav>
-
-      {/* HERO */}
-      <section id="home" className="pt-32 md:pt-48 pb-16 md:pb-24 px-4 flex flex-col items-center justify-center text-center relative">
-        <div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(168,85,247,.1) 0%,transparent 50%)"}}/>
-        <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-tight anim">Institutional Control.<br/><span className="tg">Defensible Evidence.</span></h1>
-        <p className="text-gray-400 text-base sm:text-lg md:text-xl max-w-2xl fm mb-10 leading-relaxed anim-d1">A new institutional operating model built around governed movement, policy enforcement, selective verification, and crypto-agile evidence.</p>
-        <div className="flex flex-col sm:flex-row gap-4 anim-d2"><button onClick={enter} className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-8 py-4 fm font-bold hover:from-purple-500 hover:to-fuchsia-500 transition-colors glow cursor-pointer">ENTER SANDBOX</button><button onClick={()=>setShowDP(true)} className="px-8 py-4 fm font-bold border border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-300 hover:bg-fuchsia-500/20 transition-all cursor-pointer">DESIGN PARTNER PROGRAM →</button></div>
-
-        {/* Design Partner programme — hero-level entry point */}
-        <div className="w-full max-w-4xl mt-16 md:mt-20 anim-d3">
-          <div className="glass p-6 md:p-8 text-left relative overflow-hidden" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
-            <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full pointer-events-none" style={{background:"radial-gradient(circle, rgba(217,70,239,.14), transparent 70%)"}}/>
-            <div className="relative flex flex-col md:flex-row md:items-center gap-6">
-              <div className="flex-1 min-w-0">
-                <div className="fm text-[10px] text-fuchsia-500 tracking-widest mb-2">[ DESIGN PARTNER PROGRAM ]</div>
-                <h3 className="text-xl md:text-2xl font-bold mb-3 leading-tight">Build the governance layer with us.</h3>
-                <p className="fm text-sm text-gray-400 leading-relaxed mb-4">
-                  We work with a small number of institutional funds to shape Q² around real operations — how your assets actually move, who authorizes them, and how you prove control. Design partners get direct influence over the roadmap and early access to the platform.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {["Non-custodial by design","Sandbox on synthetic data","Zero touch on your systems"].map(t=>(
-                    <span key={t} className="fm text-[10px] px-2.5 py-1 border border-fuchsia-500/25 bg-fuchsia-500/5 text-fuchsia-200">{t}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex-shrink-0">
-                <button onClick={()=>setShowDP(true)} className="w-full md:w-auto bg-fuchsia-500/15 border border-fuchsia-500/50 text-fuchsia-200 px-6 py-3.5 fm text-sm font-bold hover:bg-fuchsia-500/25 transition-all cursor-pointer whitespace-nowrap">
-                  ENTER PROGRAM →
-                </button>
-                <div className="fm text-[10px] text-gray-600 mt-2 text-center md:text-right">Invitation only</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* APPROACH — tech section with orbit */}
-      <section id="approach" className="py-24 px-4 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
-        <div className="flex-1">
-          <h2 className="text-sm fm text-fuchsia-500 tracking-widest mb-4">[ INSTITUTIONAL OPERATING MODEL ]</h2>
-          <h3 className="text-4xl font-bold mb-6">Beyond Custody.<br/>Governed Movement.</h3>
-          <p className="text-gray-400 fm mb-6 leading-relaxed">Quantum Qustody turns custody into an institution-controlled, policy-governed, evidence-rich, selectively verifiable, crypto-agile operating model.</p>
-          <ul className="space-y-4 fm text-sm text-gray-300">
-            <li className="flex items-start gap-3"><span className="text-purple-500 mt-0.5">▹</span> <span>Policy-enforced movement with institutional accountability at every step</span></li>
-            <li className="flex items-start gap-3"><span className="text-purple-500 mt-0.5">▹</span> <span>Oversight-ready evidence as a first-class output, not an afterthought</span></li>
-            <li className="flex items-start gap-3"><span className="text-purple-500 mt-0.5">▹</span> <span>Selective verification without unnecessary disclosure of sensitive data</span></li>
-            <li className="flex items-start gap-3"><span className="text-purple-500 mt-0.5">▹</span> <span>PQC transition readiness at the operating-model level, not a future patch</span></li>
-          </ul>
-        </div>
-        <div className="flex-1 flex justify-center py-12">
-          <div className="relative w-64 h-64 flex items-center justify-center" style={{perspective:"1000px"}}>
-            <div className="absolute w-full h-full border-2 border-purple-500/30 rounded-full orb1" style={{boxShadow:"0 0 15px rgba(168,85,247,.2)"}}/>
-            <div className="absolute w-full h-full border-2 border-fuchsia-500/30 rounded-full orb2" style={{boxShadow:"0 0 15px rgba(217,70,239,.2)"}}/>
-            <div className="absolute w-full h-full border-2 border-indigo-500/30 rounded-full orb3" style={{boxShadow:"0 0 15px rgba(99,102,241,.2)"}}/>
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-fuchsia-600 rounded-full" style={{boxShadow:"0 0 30px #a855f7",animation:"pulse 2s infinite"}}/>
-          </div>
-        </div>
-      </section>
-
-      {/* DIFFERENCE — new section */}
-      <section id="difference" className="py-24 px-4" style={{background:"linear-gradient(to bottom,rgba(88,28,135,.05),transparent)"}}>
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-center text-sm fm text-fuchsia-500 tracking-widest mb-4">[ DIFFERENCE ]</h2>
-          <h3 className="text-center text-4xl font-bold mb-6">Not Another Custody Platform.</h3>
-          <p className="text-center text-gray-400 fm max-w-2xl mx-auto mb-14 leading-relaxed">Traditional custody protects keys. Quantum Qustody protects decisions. Here is how the operating model actually differs across the dimensions institutional buyers care about.</p>
-          <GC className="p-0 overflow-hidden"><div className="overflow-x-auto"><div className="min-w-[640px]">
-            <div className="grid grid-cols-12 border-b border-purple-500/20 fm text-xs text-gray-500 uppercase tracking-wider">
-              <div className="col-span-4 p-4 border-r border-purple-500/10">Dimension</div>
-              <div className="col-span-4 p-4 border-r border-purple-500/10">Traditional Custody</div>
-              <div className="col-span-4 p-4 text-purple-400">Quantum Qustody</div>
-            </div>
-            {diffRows.map((r, i) => (
-              <div key={i} className="grid grid-cols-12 border-b border-purple-500/5 hover:bg-purple-500/5 transition-colors">
-                <div className="col-span-4 p-4 border-r border-purple-500/10 fm text-xs text-fuchsia-500">{r.axis}</div>
-                <div className="col-span-4 p-4 border-r border-purple-500/10 fm text-sm text-gray-500">{r.traditional}</div>
-                <div className="col-span-4 p-4 fm text-sm text-gray-200">{r.qq}</div>
-              </div>
-            ))}
-          </div></div></GC>
-          <p className="text-center text-gray-500 fm text-xs mt-8 italic">The shift: from "are my keys safe" to "can I defend every movement to an auditor."</p>
-        </div>
-      </section>
-
-      {/* SCENARIOS */}
-      <section id="scenarios" className="py-24 px-4" style={{background:"linear-gradient(to bottom,transparent,rgba(88,28,135,.08))"}}>
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-center text-sm fm text-purple-500 tracking-widest mb-4">[ SANDBOX SCENARIOS ]</h2>
-          <h3 className="text-center text-3xl font-bold mb-4">Five Questions That Matter</h3>
-          <p className="text-center text-gray-500 fm text-sm mb-12 max-w-2xl mx-auto">Each scenario answers a specific institutional question. Run them in the sandbox, see the evidence, take it to your team.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {scenarios.map(s => (
-              <div key={s.id} className="glass p-6 hover:-translate-y-2 transition-transform duration-300" style={{borderTop:`2px solid ${s.color==="purple"?"rgba(168,85,247,.5)":s.color==="fuchsia"?"rgba(217,70,239,.5)":"rgba(99,102,241,.5)"}`}}>
-                <div className="flex items-center gap-2 mb-3"><Badge c={s.tier===1?"green":"yellow"}>TIER {s.tier}</Badge><span className="fm text-xs text-gray-600">{s.num}</span></div>
-                <h4 className="font-bold text-sm mb-3">{s.title}</h4>
-                <p className="text-xs fm text-gray-400 leading-relaxed">{s.question}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ENGAGEMENT PATH */}
-      <section id="engagement" className="py-24 px-4 max-w-7xl mx-auto">
-        <h2 className="text-center text-sm fm text-purple-500 tracking-widest mb-4">[ ENGAGEMENT PATH ]</h2>
-        <h3 className="text-center text-3xl font-bold mb-2">Sandbox → Workshop → Pilot</h3>
-        <p className="text-center text-gray-500 fm text-sm mb-16">A staged path from free evaluation to bounded production validation.</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="glass p-8 flex flex-col" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}>
-            <h3 className="text-purple-400 fm mb-4">[ SANDBOX ]</h3>
-            <div className="text-2xl font-bold mb-6">Guided Evaluation</div>
-            <ul className="space-y-4 mb-8 text-gray-400 text-sm fm flex-grow">
-              <li>✓ 5 Named Scenarios</li>
-              <li>✓ Structured Evidence Outputs</li>
-              <li>✓ Persistent Session State</li>
-              <li>✓ Self-Guided or Supported</li>
-            </ul>
-            <button onClick={enter} className="w-full py-3 bg-purple-600 text-white hover:bg-purple-500 fm font-bold transition-colors glow cursor-pointer">ENTER_SANDBOX</button>
-          </div>
-          <div className="glass p-8 flex flex-col" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
-            <h3 className="text-fuchsia-400 fm mb-4">[ WORKSHOP ]</h3>
-            <div className="text-2xl font-bold mb-6">Institutional Deep-Dive</div>
-            <ul className="space-y-4 mb-8 text-gray-300 text-sm fm flex-grow">
-              <li>✓ Custom Policy Mapping</li>
-              <li>✓ Evidence Review Session</li>
-              <li>✓ Integration Architecture</li>
-              <li>✓ Pilot Scoping</li>
-            </ul>
-            <button className="w-full py-3 border border-gray-600 text-gray-300 hover:bg-white hover:text-black fm transition-colors cursor-pointer">REQUEST_WORKSHOP</button>
-          </div>
-          <div className="glass p-8 flex flex-col" style={{borderTop:"2px solid rgba(99,102,241,.5)"}}>
-            <h3 className="text-indigo-400 fm mb-4">[ BOUNDED PILOT ]</h3>
-            <div className="text-2xl font-bold mb-6">Production Validation</div>
-            <ul className="space-y-4 mb-8 text-gray-400 text-sm fm flex-grow">
-              <li>✓ Real Asset Boundaries</li>
-              <li>✓ Live Policy Enforcement</li>
-              <li>✓ Full Evidence Generation</li>
-              <li>✓ Audit-Ready Outputs</li>
-            </ul>
-            <button className="w-full py-3 border border-gray-600 text-gray-300 hover:bg-white hover:text-black fm transition-colors cursor-pointer">DISCUSS_PILOT</button>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="py-24 px-4 max-w-3xl mx-auto">
-        <h2 className="text-2xl font-bold mb-8 text-center">Evaluation Questions</h2>
-        <div className="space-y-4">
-          <FAQ q="What is the sandbox?" a="A bounded institutional evaluation environment. It lets prospective clients experience named scenarios that demonstrate how Quantum Qustody governs movement, enforces policy, produces evidence, and supports selective verification and crypto-agility."/>
-          <FAQ q="How is this different from a regular custody platform?" a="Traditional custody protects keys and records transactions. Quantum Qustody protects decisions: every movement is policy-governed, every outcome produces institutionally legible evidence, and every control result can be selectively verified without exposing sensitive data. See the Difference section above for the full breakdown."/>
-          <FAQ q="What is live vs simulated?" a="Core governance workflows, policy application, evidence generation, audit logging, and persistent state are live in the sandbox — backed by a real Postgres database and edge functions. Cryptographic signing, on-chain execution, and certain PQC operations are simulated with realistic outputs."/>
-          <FAQ q="Is my data persistent?" a="Yes. Your sandbox session, scenario progress, audit logs, and evidence outputs are stored in Supabase and persist across browser sessions and re-logins. You can leave and come back."/>
-          <FAQ q="How does this lead to a workshop or pilot?" a="Each scenario is designed to trigger specific institutional questions. After evaluation, we map those questions to your context in a paid workshop, then validate with a bounded pilot against real assets and policies."/>
-        </div>
-      </section>
-
-      {/* BLOG / INSIGHTS */}
-      <BlogSection onOpen={openPost} />
-
-      {/* FOOTER */}
-      <footer className="border-t border-purple-500/20 bg-black py-12 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 fm text-xs text-gray-600">
-          <div className="flex items-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-6 h-6"/><span className="font-bold text-white text-sm">QUANTUM_QUSTODY</span></div>
-          <div className="flex items-center gap-3">
-            <a href="https://x.com/quantumqustody" target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/></svg></a>
-            <a href="https://www.instagram.com/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a>
-            <a href="https://www.linkedin.com/company/quantumqustody/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-purple-400 transition-colors glass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
-          </div>
-          <div className="flex items-center gap-4">
-            <button onClick={()=>setShowDP(true)} className="fm text-xs text-gray-500 hover:text-purple-400 transition-colors cursor-pointer">Design Partner</button>
-            <span className="text-gray-800">·</span>
-            <span>© 2026 QUANTUM QUSTODY</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
@@ -1358,8 +1152,8 @@ const SandboxSetup = () => {
   };
   const steps=[{l:"CONTEXT",n:"01"},{l:"ROLES",n:"02"},{l:"POSTURE",n:"03"},{l:"LAUNCH",n:"04"}];
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 relative"><div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(168,85,247,.06) 0%,transparent 50%)"}}/>
-      <div className="w-full max-w-2xl anim"><div className="text-center mb-10"><div className="flex items-center justify-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-9 h-9" style={{filter:"drop-shadow(0 0 10px rgba(168,85,247,.4))"}}/><span className="font-bold text-xl tracking-tight">QUANTUM_QUSTODY</span></div><h1 className="text-3xl font-bold mb-2 mt-4">Sandbox Setup</h1><p className="fm text-sm text-gray-500">CONFIGURE EVALUATION ENVIRONMENT</p></div>
+    <div className="min-h-screen flex items-center justify-center p-6 relative"><div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(142,120,246,.06) 0%,transparent 50%)"}}/>
+      <div className="w-full max-w-2xl anim"><div className="text-center mb-10"><div className="flex items-center justify-center"><Lockup size={34} className="q-lockup--platform"/></div><h1 className="text-3xl font-bold mb-2 mt-4">Sandbox Setup</h1><p className="fm text-sm text-gray-500">CONFIGURE EVALUATION ENVIRONMENT</p></div>
         <div className="flex items-center justify-center gap-1 mb-10">{steps.map((s,i)=><div key={i} className="flex items-center"><div className={`flex items-center gap-2 px-3 py-1.5 fm text-xs transition-all ${i===step?"text-purple-400 bg-purple-500/10 border border-purple-500/30":i<step?"text-emerald-400":"text-gray-600"}`}><span>{i<step?"✓":s.n}</span><span className="hidden sm:inline">{s.l}</span></div>{i<3&&<div className={`w-8 h-px mx-1 ${i<step?"bg-emerald-500/50":"bg-gray-800"}`}/>}</div>)}</div>
         <GC className="p-8">
           {step===0&&<div className="space-y-5 anim" key="s0">
@@ -1419,7 +1213,7 @@ const SideNav = ({ onSelect }) => {
     {id:"billing",l:"BILLING",i:sIcons.card},
     {id:"settings",l:"SETTINGS",i:sIcons.config},
   ];
-  return (<div className="w-56 flex-shrink-0 border-r border-purple-500/20 flex flex-col h-full" style={{background:"rgba(5,2,15,.95)"}}><div className="p-4 space-y-1 flex-1 overflow-y-auto">{nav.map(n=><button key={n.id} onClick={()=>pick(n.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 fm text-xs transition-all cursor-pointer ${activeView===n.id?"text-purple-400 bg-purple-500/10 border-l-2 border-purple-500":"text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"}`}>{n.i}<span className="flex-1 text-left">{n.l}</span>{n.soon&&<span className="fm text-[8px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 border border-yellow-400/40">SOON</span>}</button>)}</div><div className="p-4 border-t border-purple-500/10 space-y-2"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{(user?.email||"U")[0].toUpperCase()}</div><div className="fm text-xs text-gray-400 truncate">{user?.email}</div></div><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-purple-400 transition-colors cursor-pointer text-left px-1 py-1">⇄ SWITCH_ACCOUNT</button><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-red-400 transition-colors cursor-pointer text-left px-1 py-1">← EXIT_SANDBOX</button></div></div>);
+  return (<div className="w-56 flex-shrink-0 border-r border-purple-500/20 flex flex-col h-full" style={{background:"rgba(15,12,31,.95)"}}><div className="p-4 space-y-1 flex-1 overflow-y-auto">{nav.map(n=><button key={n.id} onClick={()=>pick(n.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 fm text-xs transition-all cursor-pointer ${activeView===n.id?"text-purple-400 bg-purple-500/10 border-l-2 border-purple-500":"text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"}`}>{n.i}<span className="flex-1 text-left">{n.l}</span>{n.soon&&<span className="fm text-[8px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 border border-yellow-400/40">SOON</span>}</button>)}</div><div className="p-4 border-t border-purple-500/10 space-y-2"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{(user?.email||"U")[0].toUpperCase()}</div><div className="fm text-xs text-gray-400 truncate">{user?.email}</div></div><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-purple-400 transition-colors cursor-pointer text-left px-1 py-1">⇄ SWITCH_ACCOUNT</button><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-red-400 transition-colors cursor-pointer text-left px-1 py-1">← EXIT_SANDBOX</button></div></div>);
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1442,8 +1236,8 @@ const EvaluationHub = () => {
   const qsScore = computeQSafety({ org, threshold, participants, wallets, settings, scenarios, progress });
   const goAction = (id) => { addLog({ type:"info", message:`${id.toUpperCase()} initiated from Dashboard` }); setActiveView("movement"); };
   const actions = [
-    { id:"send", l:"SEND", I:Send, d:"Move assets to a counterparty under policy and threshold approval.", tone:"#a855f7" },
-    { id:"swap", l:"SWAP", I:Swap, d:"Exchange assets within a wallet, evidence-recorded.", tone:"#d946ef" },
+    { id:"send", l:"SEND", I:Send, d:"Move assets to a counterparty under policy and threshold approval.", tone:"#8E78F6" },
+    { id:"swap", l:"SWAP", I:Swap, d:"Exchange assets within a wallet, evidence-recorded.", tone:"#AE9CFF" },
     { id:"bridge", l:"BRIDGE", I:Bridge, d:"Move assets across chains with continuity proofs.", tone:"#818cf8" },
   ];
   const setupCards = [
@@ -1464,7 +1258,7 @@ const EvaluationHub = () => {
 
     {/* Hero row — bento: total value (wide) + qsafety (square) */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <GC className="p-7 md:col-span-2 anim-d1 relative overflow-hidden" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}>
+      <GC className="p-7 md:col-span-2 anim-d1 relative overflow-hidden" style={{borderTop:"2px solid rgba(142,120,246,.5)"}}>
         <div className="fm text-xs text-purple-500 tracking-widest mb-3">[ TOTAL_VALUE ]</div>
         <div className="text-5xl md:text-6xl font-black tg leading-none mb-3">{money(totalUsd)}</div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 fm text-xs">
@@ -1476,9 +1270,9 @@ const EvaluationHub = () => {
         {w.isConnected
           ? <div className="fm text-[10px] text-gray-500 mt-2">ETH @ {money(tv.ethPriceUsd)}{tv.priceLive?" · live":" · indicative"} · testnet USDC/EURC pegged $1{(tv.usdc+tv.eurc)>0?` · ${tv.usdc.toFixed(2)} USDC · ${tv.eurc.toFixed(2)} EURC`:""}</div>
           : <div className="fm text-[10px] text-gray-500 mt-2">Connect a wallet to include live Sepolia balances in the total.</div>}
-        <div className="absolute -right-12 -bottom-12 w-48 h-48 rounded-full" style={{background:"radial-gradient(circle, rgba(168,85,247,.15), transparent 70%)"}}/>
+        <div className="absolute -right-12 -bottom-12 w-48 h-48 rounded-full" style={{background:"radial-gradient(circle, rgba(142,120,246,.15), transparent 70%)"}}/>
       </GC>
-      <GC className="p-7 anim-d2 flex flex-col items-center justify-center text-center" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+      <GC className="p-7 anim-d2 flex flex-col items-center justify-center text-center" style={{borderTop:"2px solid rgba(174,156,255,.5)"}}>
         <div className="fm text-xs text-fuchsia-500 tracking-widest mb-4">[ QSAFETY ]</div>
         <QuantumSafetyAtom score={qsScore}/>
         <div className="fm text-[10px] text-gray-500 mt-3 mb-4">Live institutional posture</div>
@@ -1614,7 +1408,7 @@ const AssetBoundary = () => {
 
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
     <div className="flex items-start justify-between gap-4 flex-wrap">
-      <div><h2 className="text-2xl font-bold mb-1">Digital Assets</h2><p className="fm text-sm text-gray-500 flex items-center gap-2">IN-SCOPE ASSETS <Tip text="Quantum Qustody never holds your private keys. Instead, write access is delegated through your governance EOA — the underlying signer remains with your custody provider while policy enforcement runs on every movement."/></p></div>
+      <div><h2 className="text-2xl font-bold mb-1">Digital Assets</h2><p className="fm text-sm text-gray-500 flex items-center gap-2">IN-SCOPE ASSETS <Tip text="Q² never holds your private keys. Instead, write access is delegated through your governance EOA — the underlying signer remains with your custody provider while policy enforcement runs on every movement."/></p></div>
       <div className="flex gap-2 flex-wrap"><Btn onClick={()=>{ setMode("wallet"); if (!w.isConnected && w.hasProvider) w.connect(); }} disabled={w.busy}><Wallet/> {w.busy?"CONNECTING...":w.isConnected?"WALLET CONNECTED":"IMPORT_CRYPTO"}</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div>
     </div>
 
@@ -1907,7 +1701,7 @@ const GovernedMovement = () => {
 
     {/* Scenario flow — only when an evaluation scenario is active */}
     {activeScenario && (<>
-      <GC className="p-4" style={{borderLeft:"3px solid #a855f7"}}><div className="flex items-center gap-3 fm text-xs flex-wrap"><Badge c="purple">SCENARIO {activeScenario.num}</Badge><span className="text-gray-400">{activeScenario.title}</span><span className="text-gray-600">|</span><span className="text-purple-400 font-bold">{step.toUpperCase()}</span>{isBlocked&&<Badge c="red">BLOCKED PATH</Badge>}</div>{(() => { const requester = participants.find(p=>p.scenario_role==="Requester"); const approver = participants.find(p=>p.scenario_role==="Approver"); const actor = step==="request"?(requester?.institution_fn||"Requester"):step==="policy"?"Policy Engine":(approver?.institution_fn||"Approver"); return (<div className="fm text-xs text-gray-600 mt-1">Policy: Movement Policy {threshold?.policy_version||"—"} · Actor: {actor}</div>); })()}</GC>
+      <GC className="p-4" style={{borderLeft:"3px solid #8E78F6"}}><div className="flex items-center gap-3 fm text-xs flex-wrap"><Badge c="purple">SCENARIO {activeScenario.num}</Badge><span className="text-gray-400">{activeScenario.title}</span><span className="text-gray-600">|</span><span className="text-purple-400 font-bold">{step.toUpperCase()}</span>{isBlocked&&<Badge c="red">BLOCKED PATH</Badge>}</div>{(() => { const requester = participants.find(p=>p.scenario_role==="Requester"); const approver = participants.find(p=>p.scenario_role==="Approver"); const actor = step==="request"?(requester?.institution_fn||"Requester"):step==="policy"?"Policy Engine":(approver?.institution_fn||"Approver"); return (<div className="fm text-xs text-gray-600 mt-1">Policy: Movement Policy {threshold?.policy_version||"—"} · Actor: {actor}</div>); })()}</GC>
       <div className="flex gap-2 flex-wrap">{["request","policy","approval","execution"].map((s,i)=><div key={s} className={`flex items-center gap-1 px-3 py-1.5 fm text-xs ${step===s?"text-purple-400 bg-purple-500/10 border border-purple-500/30":i<["request","policy","approval","execution"].indexOf(step)?"text-emerald-400":"text-gray-600"}`}>{i<["request","policy","approval","execution"].indexOf(step)?"✓":String(i+1).padStart(2,"0")} {s.toUpperCase()}</div>)}</div>
       {step==="policy"&&<GC className="p-6 max-w-xl"><SL>POLICY APPLICATION</SL><div className="space-y-4"><InfoRow label="POLICY_IN_FORCE" value={`Movement Policy ${threshold?.policy_version||"—"}`}/><InfoRow label="ACTING_FUNCTION" value={participants.find(p=>p.scenario_role==="Requester")?.institution_fn||"—"}/><InfoRow label="OUTCOME" badge={isBlocked?{t:"BLOCKED",c:"red"}:{t:"PASSED",c:"green"}}/>{isBlocked&&<div className="p-4 bg-red-500/5 border border-red-500/20 fm text-xs text-red-300">Policy conflict detected. Exception trail being generated.</div>}<Btn full onClick={()=>advance()}>{isBlocked?"VIEW_EXCEPTION":"VIEW_POLICY_PATH"} <Arr/></Btn></div></GC>}
       {step==="approval"&&<GC className="p-6 max-w-xl"><SL>THRESHOLD APPROVAL</SL><div className="space-y-4">{participants.filter(p=>["Approver","Reviewer"].includes(p.scenario_role)).map(p=><div key={p.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{p.initials}</div><div><div className="text-sm font-bold">{p.name}</div><div className="fm text-xs text-gray-500">{p.institution_fn}</div></div></div><Badge c="green">APPROVED</Badge></div>)}<InfoRow label="THRESHOLD" value={`${threshold?.required_approvals||1} of ${teamCount||1} — Met`}/><Btn full onClick={()=>advance()}>ADVANCE_TO_EXECUTION <Arr/></Btn></div></GC>}
@@ -1958,7 +1752,7 @@ const Team = () => {
       <Field label="POLICY_VERSION"><input value={t.policy_version} onChange={e=>setT(p=>({...p,policy_version:e.target.value}))}/></Field>
     </div><div className="mt-4"><Btn v="secondary" onClick={saveThresh}>SAVE_THRESHOLD <Chk/></Btn></div></GC>
 
-    {mode==="invite" && <GC className="p-5" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}><SL>SEND INVITATION</SL>
+    {mode==="invite" && <GC className="p-5" style={{borderTop:"2px solid rgba(142,120,246,.5)"}}><SL>SEND INVITATION</SL>
       <p className="fm text-xs text-gray-400 mb-4">An email is sent via Supabase Auth. The invitee clicks the link, signs up, and is automatically added to your org with the role you pick.</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="EMAIL *"><input type="email" placeholder="name@org.com" value={inv.email} onChange={e=>ui("email",e.target.value)}/></Field>
@@ -2008,7 +1802,7 @@ const Team = () => {
           const state = p.user_state || (p.status==="active"?"Active":"Pending");
           const counts = role === "Approver" && state === "Active";
           const stateColor = {Active:"green", Pending:"yellow", Disabled:"gray", Expired:"yellow", Revoked:"red"}[state] || "gray";
-          return (<GC key={p.id} className="p-5 flex flex-col" style={{borderTop:`2px solid ${role==="Approver"?"rgba(217,70,239,.5)":role==="Admin"?"rgba(168,85,247,.5)":"rgba(99,102,241,.4)"}`}}>
+          return (<GC key={p.id} className="p-5 flex flex-col" style={{borderTop:`2px solid ${role==="Approver"?"rgba(174,156,255,.5)":role==="Admin"?"rgba(142,120,246,.5)":"rgba(99,102,241,.4)"}`}}>
             <div className="flex items-center gap-3 mb-4"><div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center font-bold">{p.initials}</div><div className="min-w-0"><div className="font-bold truncate">{p.name}</div><div className="fm text-xs text-gray-500 truncate">{p.institution_fn||"—"}</div></div></div>
             <div className="space-y-1.5 mb-4 fm text-xs">
               <div className="flex justify-between"><span className="text-gray-500">EMAIL</span><span className="text-gray-300 truncate ml-2 max-w-[160px]">{p.email||"—"}</span></div>
@@ -2085,7 +1879,7 @@ const PolicyPanel = () => {
 
   return (<div className="space-y-4">
     {/* Policy state card */}
-    <GC className="p-5" style={{borderTop:"2px solid rgba(168,85,247,.5)"}}>
+    <GC className="p-5" style={{borderTop:"2px solid rgba(142,120,246,.5)"}}>
       <SL>POLICY · {policy.version.toUpperCase()}</SL>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 fm text-xs">
         <div><div className="text-gray-500 mb-1">STATUS</div><Badge c={policyColor}>{policy.status.toUpperCase()}</Badge></div>
@@ -2115,7 +1909,7 @@ const PolicyPanel = () => {
     </GC>
 
     {/* Policy-change proposals (spec §10) */}
-    {policy.status === "Active" && <GC className="p-5" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+    {policy.status === "Active" && <GC className="p-5" style={{borderTop:"2px solid rgba(174,156,255,.5)"}}>
       <SL>POLICY CHANGES · ANY MODIFICATION IS A GOVERNED ACTION</SL>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
         <Field label="CHANGE TYPE"><select value={propType} onChange={e=>setPropType(e.target.value)}>
@@ -2257,7 +2051,7 @@ const EvidenceViewer = () => {
 
       {/* Stream B — account-scoped platform-recorded movements (from movement_requests) */}
       <GC className="p-6 anim-d2"><div className="flex items-center justify-between flex-wrap gap-3 mb-4"><SL>PLATFORM-RECORDED MOVEMENTS · ACCOUNT-SCOPED</SL><div className="flex gap-2"><Btn v="secondary" onClick={()=>{exportCSV(txRows,`transactions-${today}.csv`);addLog({type:"evidence",message:`Exported ${txRows.length} transactions (CSV)`});}}><Dl/> EXPORT_CSV</Btn><Btn v="secondary" onClick={()=>{exportJSON(txRows,`transactions-${today}.json`);addLog({type:"evidence",message:`Exported ${txRows.length} transactions (JSON)`});}}><Dl/> EXPORT_JSON</Btn></div></div>
-      <div className="p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400 mb-4"><span className="text-purple-400 font-bold">{txRows.length}</span> movements initiated <em>through</em> Quantum Qustody — Send, Swap, Bridge — with policy outcome and approval state. Backed by <span className="text-purple-400">movement_requests</span> in Supabase; survives refresh and follows your account.</div>
+      <div className="p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400 mb-4"><span className="text-purple-400 font-bold">{txRows.length}</span> movements initiated <em>through</em> Q² — Send, Swap, Bridge — with policy outcome and approval state. Backed by <span className="text-purple-400">movement_requests</span> in Supabase; survives refresh and follows your account.</div>
       <div className="overflow-x-auto"><div className="max-h-[480px] overflow-y-auto fm text-xs"><table className="w-full"><thead className="sticky top-0 bg-black/80 backdrop-blur"><tr className="text-gray-500 border-b border-gray-800"><th className="text-left py-2 px-2">TIMESTAMP</th><th className="text-left">TYPE</th><th className="text-right">AMOUNT</th><th className="text-left">ASSET</th><th className="text-left">DESTINATION</th><th className="text-left">SCENARIO</th><th className="text-right">STATUS</th></tr></thead><tbody>{txRows.length===0&&<tr><td colSpan="7"><Empty>No transactions yet — submit a Send / Swap / Bridge from the Dashboard.</Empty></td></tr>}{txRows.map(r=>(<tr key={r.id} className="border-b border-gray-800/40"><td className="py-1.5 px-2 text-gray-600 whitespace-nowrap">{(r.timestamp||"").slice(0,19).replace("T"," ")}</td><td className="text-purple-400 uppercase">{r.type}</td><td className="text-right text-gray-300 font-bold">{r.amount||"—"}</td><td className="text-gray-400">{r.asset||"—"}</td><td className="text-gray-400 truncate max-w-[200px]">{r.destination||"—"}</td><td className="text-gray-600">{r.scenario||"—"}</td><td className="text-right"><Badge c={r.status==="completed"?"green":r.status==="blocked"?"red":r.status==="execution"?"fuchsia":"yellow"}>{(r.status||"").toUpperCase()}</Badge></td></tr>))}</tbody></table></div></div>
     </GC></>}
     {onAccounting && <GC className="p-6 anim-d2"><SL>ACCOUNTING · AUDIT LOG EXPORT</SL>
@@ -2400,7 +2194,7 @@ const ImportBank = () => {
       <Field label="ROUTING / SWIFT"><input placeholder="Routing or SWIFT/BIC" value={f.routing} onChange={e=>u("routing",e.target.value)}/></Field>
       <Field label="CURRENCY"><select value={f.currency} onChange={e=>u("currency",e.target.value)}><option>USD</option><option>EUR</option><option>GBP</option><option>SGD</option></select></Field>
       <Field label="OPENING BALANCE"><input type="number" placeholder="0" value={f.balance} onChange={e=>u("balance",e.target.value)}/></Field>
-    </div><div className="p-4 mt-4 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">Quantum Qustody supports Plaid, TrueLayer, and direct bank-API connectors. Production credentials are configured per-tenant in the Workshop phase.</div><div className="flex gap-3 mt-5"><Btn onClick={submit}>IMPORT_BANK <Chk/></Btn><Btn v="ghost" onClick={()=>setShow(false)}>CANCEL</Btn></div></GC>}
+    </div><div className="p-4 mt-4 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-400">Q² supports Plaid, TrueLayer, and direct bank-API connectors. Production credentials are configured per-tenant in the Workshop phase.</div><div className="flex gap-3 mt-5"><Btn onClick={submit}>IMPORT_BANK <Chk/></Btn><Btn v="ghost" onClick={()=>setShow(false)}>CANCEL</Btn></div></GC>}
     <div className="space-y-3">
       {banks.length===0 && <Empty>No bank accounts yet. Click ADD_BANK to import the first one.</Empty>}
       {banks.map(b=>(<GC key={b.id} className="p-5 flex items-center justify-between"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded bg-gradient-to-br from-blue-500/30 to-indigo-500/30 text-blue-300 flex items-center justify-center">{sIcons.bank}</div><div><div className="font-bold">{b.name}</div><div className="fm text-xs text-gray-500">{b.account_type} · ••••{b.account_number_last4||"0000"} · {b.currency}</div></div></div><div className="flex items-center gap-4"><div className="text-right"><div className="fm text-sm font-bold">${Number(b.balance||0).toLocaleString()}</div><div className="fm text-xs text-gray-500">{b.currency}</div></div><Badge c={b.status==="verified"?"green":"yellow"}>{(b.status||"pending").toUpperCase()}</Badge><button onClick={()=>removeBank(b.id, b.name)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></GC>))}
@@ -2421,7 +2215,7 @@ const UserGuide = () => (
     <GC className="p-6 max-w-3xl space-y-4">
       <SL>SUPPORTED WALLETS</SL>
       <p className="text-sm text-gray-300 leading-relaxed">
-        Quantum Qustody connects to any wallet that speaks the EIP-1193 standard — meaning any
+        Q² connects to any wallet that speaks the EIP-1193 standard — meaning any
         wallet that exposes the <code className="fm text-purple-300">window.ethereum</code> object
         in your browser, or that surfaces itself via the EIP-6963 multi-wallet discovery event.
         That covers the four wallets the team verified during testnet:
@@ -2468,7 +2262,7 @@ const UserGuide = () => (
       </p>
       <p className="text-sm text-gray-300 leading-relaxed">
         The <b>Evaluation Log</b> on the right of every screen is your <em>platform action log</em>.
-        It records what you do inside Quantum Qustody — invite a teammate, change a threshold,
+        It records what you do inside Q² — invite a teammate, change a threshold,
         run a scenario, generate an evidence pack. These events are bound to your <em>account</em>:
         they persist in Supabase, survive refreshes, survive logouts, and follow you across
         browsers. They have nothing to do with any particular wallet.
@@ -2477,10 +2271,10 @@ const UserGuide = () => (
         The <b>Transactions</b> tab inside Evidence Viewer holds two streams. The top one,
         <em>On-Chain History</em>, is bound to a <em>wallet</em>: it is read live from the Sepolia
         chain for whatever wallet you have connected, so it shows every transaction that wallet
-        signed — including ones made outside Quantum Qustody. Connect a different wallet and this
+        signed — including ones made outside Q². Connect a different wallet and this
         list changes entirely. Below it, <em>Platform-Recorded Movements</em> is bound to your
         <em>account</em>: it lists only the Send / Swap / Bridge actions you initiated through
-        Quantum Qustody, with their policy outcome, and it survives refresh and logout.
+        Q², with their policy outcome, and it survives refresh and logout.
       </p>
       <p className="text-sm text-gray-300 leading-relaxed">
         The practical implication: if you send a Sepolia transaction, log out, log back in and
@@ -2493,7 +2287,7 @@ const UserGuide = () => (
     <GC className="p-6 max-w-3xl space-y-4">
       <SL>GETTING TESTNET ETH</SL>
       <p className="text-sm text-gray-300 leading-relaxed">
-        Every on-chain action on Quantum Qustody runs against the Ethereum Sepolia testnet.
+        Every on-chain action on Q² runs against the Ethereum Sepolia testnet.
         Sepolia ETH has no real value, but you do need a small amount to pay gas. The
         Governed Movement page lists four faucets — Google Cloud, Alchemy, QuickNode, and
         Infura — and any one of them will fund a connected wallet with roughly 0.05 ETH per
@@ -2509,7 +2303,7 @@ const UserGuide = () => (
 // ═══════════════════════════════════════════════════════════════════
 const HowItWorks = () => {
   const steps = [
-    { n:"01", t:"Connect Accounts", d:"Import banks via open-banking connectors and import wallets across mainnets and testnets. Quantum Qustody never holds your private keys — instead, write access is delegated through your governance EOA." },
+    { n:"01", t:"Connect Accounts", d:"Import banks via open-banking connectors and import wallets across mainnets and testnets. Q² never holds your private keys — instead, write access is delegated through your governance EOA." },
     { n:"02", t:"Define Boundaries", d:"Place each asset and bank account in scope or out of scope. Set boundary tags (Primary Reserve, Operating, Liquidity Buffer) and a control type per asset." },
     { n:"03", t:"Configure Team & Threshold", d:"Add team members with roles — Requester, Approver, Reviewer, Oversight, Observer. Set the threshold required for any movement (e.g. 2 of 4 approvers)." },
     { n:"04", t:"Define Policy", d:"Policy rules (amount ceilings, destination whitelists, time-of-day windows, jurisdiction limits) are versioned and applied at request time. Every policy decision is recorded." },
@@ -2521,22 +2315,22 @@ const HowItWorks = () => {
     { n:"10", t:"Accounting & Oversight", d:"Export full audit logs (CSV / JSON) from the Evidence Viewer's Accounting tab. Send the Oversight Summary to Risk, Audit, Compliance, and Finance." },
   ];
   const safetySteps = [
-    { n:"A", t:"EOA Delegation", d:"Quantum Qustody never receives or stores your private key. Instead, your custody provider's signer (HSM, MPC cluster, or hardware wallet) retains the key, and you authorise an EOA that the policy engine controls. We sign nothing; we authorise nothing outside policy. The institution's signer remains the root of trust at every step.", color:"#a855f7" },
-    { n:"B", t:"ZK Selective Verification", d:"Every governance proof — threshold met, policy applied, control passed — is published as a zero-knowledge attestation. Auditors verify mathematically that conditions held without seeing balances, addresses, counterparties, or internal policy text. Disclosure is minimised; verifiability is maximised.", color:"#d946ef" },
+    { n:"A", t:"EOA Delegation", d:"Q² never receives or stores your private key. Instead, your custody provider's signer (HSM, MPC cluster, or hardware wallet) retains the key, and you authorise an EOA that the policy engine controls. We sign nothing; we authorise nothing outside policy. The institution's signer remains the root of trust at every step.", color:"#8E78F6" },
+    { n:"B", t:"ZK Selective Verification", d:"Every governance proof — threshold met, policy applied, control passed — is published as a zero-knowledge attestation. Auditors verify mathematically that conditions held without seeing balances, addresses, counterparties, or internal policy text. Disclosure is minimised; verifiability is maximised.", color:"#AE9CFF" },
     { n:"C", t:"PQC Key Regeneration", d:"On a configured cadence, the delegated EOA's signing context is rotated under a post-quantum scheme (ML-DSA-65 / ML-KEM-768). The rotation is itself proven via ZK so external observers verify continuity without learning the underlying material. Old keys retire; new keys come online; the policy chain never breaks.", color:"#818cf8" },
     { n:"D", t:"Delegation Loop", d:"Authorisation, execution, attestation, and re-keying form a continuous loop. After each movement: policy is re-evaluated, evidence is sealed with current keys, the next rotation is scheduled, and the threshold is re-verified. Every cycle leaves a defensible record. There is no static delegation — the delegation itself is governed.", color:"#22c55e" },
   ];
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
     <div><h2 className="text-2xl font-bold mb-1">How It Works</h2><p className="fm text-sm text-gray-500">CUSTOMER JOURNEY · BACKEND PIPELINE</p></div>
     <GC className="p-5"><SL>END-TO-END FLOW</SL><div className="fm text-xs text-gray-400 leading-relaxed">From account import to oversight-ready evidence. Each step writes a structured record so auditors and regulators can reconstruct the full decision chain.</div></GC>
-    <div className="space-y-3">{steps.map((s,i)=>(<GC key={s.n} className={`p-5 anim-d${Math.min(i,3)+1}`} style={{borderLeft:`3px solid ${i%3===0?"#a855f7":i%3===1?"#d946ef":"#818cf8"}`}}><div className="flex items-start gap-4"><div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/30 to-fuchsia-500/30 flex items-center justify-center fm text-sm font-bold text-purple-200">{s.n}</div><div className="flex-1"><div className="font-bold mb-2">{s.t}</div><p className="fm text-xs text-gray-400 leading-relaxed">{s.d}</p></div></div></GC>))}</div>
+    <div className="space-y-3">{steps.map((s,i)=>(<GC key={s.n} className={`p-5 anim-d${Math.min(i,3)+1}`} style={{borderLeft:`3px solid ${i%3===0?"#8E78F6":i%3===1?"#AE9CFF":"#818cf8"}`}}><div className="flex items-start gap-4"><div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/30 to-fuchsia-500/30 flex items-center justify-center fm text-sm font-bold text-purple-200">{s.n}</div><div className="flex-1"><div className="font-bold mb-2">{s.t}</div><p className="fm text-xs text-gray-400 leading-relaxed">{s.d}</p></div></div></GC>))}</div>
 
     {/* Quantum Safety module */}
     <div id="quantum-safety-module" className="pt-6">
       <div className="mb-4"><h3 className="text-2xl font-bold mb-1 tg">Why We Are Quantum Safe</h3><p className="fm text-xs text-gray-500">EOA DELEGATION · ZK SELECTIVE VERIFICATION · PQC KEY REGENERATION · DELEGATION LOOP</p></div>
-      <GC className="p-5 mb-4" style={{borderTop:"2px solid rgba(217,70,239,.5)"}}>
+      <GC className="p-5 mb-4" style={{borderTop:"2px solid rgba(174,156,255,.5)"}}>
         <SL>OPERATING-MODEL POSTURE</SL>
-        <p className="fm text-xs text-gray-400 leading-relaxed">Quantum Qustody is "quantum safe" not because of a single primitive, but because of the operating model around movement: <span className="text-purple-300">we never hold the key</span>, <span className="text-fuchsia-300">we prove conditions without disclosing data</span>, <span className="text-indigo-300">we rotate signing material under PQC schemes</span>, and <span className="text-emerald-300">we re-evaluate the entire chain on every movement</span>. The four moving parts below form one continuous loop.</p>
+        <p className="fm text-xs text-gray-400 leading-relaxed">Q² is "quantum safe" not because of a single primitive, but because of the operating model around movement: <span className="text-purple-300">we never hold the key</span>, <span className="text-fuchsia-300">we prove conditions without disclosing data</span>, <span className="text-indigo-300">we rotate signing material under PQC schemes</span>, and <span className="text-emerald-300">we re-evaluate the entire chain on every movement</span>. The four moving parts below form one continuous loop.</p>
       </GC>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">{safetySteps.map((s,i)=>(<GC key={s.n} className={`p-5 anim-d${Math.min(i,3)+1}`} style={{borderTop:`2px solid ${s.color}`}}>
         <div className="flex items-start gap-4 mb-3">
@@ -2551,9 +2345,9 @@ const HowItWorks = () => {
         <SL>THE LOOP</SL>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 fm text-xs">
           {["AUTHORISE","EXECUTE","ATTEST","RE-KEY"].map((step,i) => (<div key={step} className="flex items-center gap-2">
-            <div className="flex-1 p-4 border" style={{borderColor:i===0?"#a855f7":i===1?"#d946ef":i===2?"#818cf8":"#22c55e",background:`${i===0?"#a855f7":i===1?"#d946ef":i===2?"#818cf8":"#22c55e"}15`}}>
+            <div className="flex-1 p-4 border" style={{borderColor:i===0?"#8E78F6":i===1?"#AE9CFF":i===2?"#818cf8":"#22c55e",background:`${i===0?"#8E78F6":i===1?"#AE9CFF":i===2?"#818cf8":"#22c55e"}15`}}>
               <div className="text-[10px] text-gray-500 mb-1">STEP {String(i+1).padStart(2,"0")}</div>
-              <div className="font-bold" style={{color:i===0?"#c084fc":i===1?"#e879f9":i===2?"#a5b4fc":"#4ade80"}}>{step}</div>
+              <div className="font-bold" style={{color:i===0?"#c084fc":i===1?"#C9BDFF":i===2?"#a5b4fc":"#4ade80"}}>{step}</div>
               <div className="text-[10px] text-gray-500 mt-1">{i===0?"Policy + threshold":i===1?"EOA delegation":i===2?"ZK proof seal":"PQC rotation"}</div>
             </div>
             <div className="hidden md:block text-purple-500">→</div>
@@ -2720,24 +2514,26 @@ function WalletChip({ w }) {
 // ═══════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════
-function AppShell() {
+function AppShell({ onHome }) {
   const { phase, fading, activeView, activeScenario, user, org, threshold, participants, wallets, settings, scenarios, progress } = useApp();
   const qsScore = computeQSafety({ org, threshold, participants, wallets, settings, scenarios, progress });
   const hw = useSharedWallet();   // Fix 3 — shared wallet, so the header chip persists on every view
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  useEffect(() => { if (phase === "landing") onHome?.(); }, [phase]);
   const views = { hub:<EvaluationHub/>, "scenario-detail":<ScenarioDetail/>, overview:<EvalOverview/>, assets:<AssetBoundary/>, "import-bank":<ImportBank/>, movement:<GovernedMovement/>, team:<Team/>, evidence:<EvidenceViewer/>, "how-it-works":<HowItWorks/>, "user-guide":<UserGuide/>, support:<Support/>, billing:<Billing/>, settings:<SettingsPage/> };
 
   return (<div style={{opacity:fading?0:1,transition:"opacity 0.3s ease"}}>
-    {phase==="landing"&&<LandingPage/>}
+    {(phase==="landing"||phase==="boot")&&<div className="min-h-screen flex items-center justify-center fm text-xs text-gray-500" aria-busy="true">Loading sandbox…</div>}
     {phase==="auth"&&<AuthScreen/>}
-    {phase==="setup"&&<div className="flex h-screen"><div className="flex-1 overflow-y-auto"><SandboxSetup/></div><div className="hidden lg:block border-l border-purple-500/20" style={{background:"rgba(5,2,15,.5)"}}><AuditLog/></div></div>}
+    {phase==="setup"&&<div className="flex h-screen"><div className="flex-1 overflow-y-auto"><SandboxSetup/></div><div className="hidden lg:block border-l border-purple-500/20" style={{background:"rgba(15,12,31,.5)"}}><AuditLog/></div></div>}
     {phase==="app"&&<div className="flex flex-col h-screen">
-      <div className="h-14 border-b border-purple-500/20 flex items-center justify-between px-3 md:px-5 flex-shrink-0 gap-2" style={{background:"rgba(5,2,15,.8)"}}>
+      <div className="h-14 border-b border-purple-500/20 flex items-center justify-between px-3 md:px-5 flex-shrink-0 gap-2" style={{background:"rgba(15,12,31,.8)"}}>
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
           <button onClick={()=>setSidebarOpen(true)} className="md:hidden text-gray-300 hover:text-purple-400 cursor-pointer flex-shrink-0" aria-label="Open menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-          <img src="/qq-logo.svg" alt="QQ" className="w-7 h-7 flex-shrink-0" style={{filter:"drop-shadow(0 0 6px rgba(168,85,247,.35))"}}/>
-          <span className="font-bold tracking-tight text-sm md:text-base truncate">QUANTUM_QUSTODY</span>
+          <span className="text-purple-300 flex-shrink-0 inline-flex"><Mark size={26} title="Q²"/></span>
+          <span className="q-word truncate">Q Squared</span>
+          <span className="hidden sm:inline fm text-[10px] text-gray-500 border border-gray-700 px-1.5 py-0.5">SANDBOX</span>
           {activeScenario&&<><span className="hidden md:inline text-gray-700">|</span><span className="hidden md:inline fm text-xs text-gray-500">SCENARIO {activeScenario.num}</span></>}
         </div>
         <div className="flex items-center gap-2 md:gap-4 fm text-xs flex-shrink-0">
@@ -2760,16 +2556,16 @@ function AppShell() {
         </>)}
         <div className="flex-1 overflow-hidden flex flex-col min-w-0">{views[activeView]||views.hub}</div>
         {/* Audit log — desktop persistent, mobile drawer */}
-        <div className="hidden lg:block border-l border-purple-500/20" style={{background:"rgba(5,2,15,.5)"}}><AuditLog/></div>
+        <div className="hidden lg:block border-l border-purple-500/20" style={{background:"rgba(15,12,31,.5)"}}><AuditLog/></div>
         {auditOpen && (<>
           <div className="lg:hidden fixed inset-0 z-40 bg-black/70" onClick={()=>setAuditOpen(false)}/>
-          <div className="lg:hidden fixed right-0 top-14 bottom-0 z-50 border-l border-purple-500/20" style={{background:"rgba(5,2,15,.95)",animation:"slideInR .25s ease"}}><AuditLog/></div>
+          <div className="lg:hidden fixed right-0 top-14 bottom-0 z-50 border-l border-purple-500/20" style={{background:"rgba(15,12,31,.95)",animation:"slideInR .25s ease"}}><AuditLog/></div>
         </>)}
       </div>
     </div>}
   </div>);
 }
 
-export default function App() {
-  return (<AppProvider><WalletProvider><AppShell/></WalletProvider></AppProvider>);
+export default function App({ initialPhase = "auth", onHome }) {
+  return (<AppProvider initialPhase={initialPhase}><WalletProvider><AppShell onHome={onHome}/></WalletProvider></AppProvider>);
 }

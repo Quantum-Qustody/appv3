@@ -111,8 +111,8 @@ export const BLOG_POSTS = [
     body: [
       { h: "The question custody never answered" },
       { p: "For a decade, digital-asset custody has optimised one thing: keeping private keys out of the wrong hands. Multi-sig, MPC, HSMs, cold storage — all variations on the same promise. Your keys are safe. But ask a treasury officer, a risk lead, or an auditor what keeps them up at night, and key safety is rarely the first answer. The harder question is: can you prove that every movement of capital was authorised by the right people, under the right policy, with evidence you can hand to a regulator?" },
-      { p: "That is a governance question, not a storage question. And it is the gap Quantum Qustody was built to close." },
-      { q: "Custody protects keys. Quantum Qustody protects decisions." },
+      { p: "That is a governance question, not a storage question. And it is the gap Q² was built to close." },
+      { q: "Custody protects keys. Q² protects decisions." },
       { h: "Governed movement as a first-class object" },
       { p: "In our model, a movement is not just a signed transaction. It is a record: who requested it, which policy version was in force, which approvers cleared it under what threshold, and what the on-chain outcome was. Each of those becomes institutionally legible evidence, generated as a by-product of the workflow rather than reconstructed after the fact." },
       { p: "The shift sounds subtle. Operationally it is enormous. It turns the audit from an archaeology project into a query." },
@@ -132,9 +132,9 @@ export const BLOG_POSTS = [
     excerpt: "Being quantum-safe is not a single primitive. It is a continuous loop: we never hold the key, we prove conditions without disclosure, and we rotate signing material under PQC schemes.",
     body: [
       { h: "Not a primitive — a loop" },
-      { p: "When people ask whether Quantum Qustody is 'quantum-resistant', they usually expect a one-word answer about a signature scheme. The honest answer is more interesting: our resistance comes from the operating model around movement, not from any single algorithm. Four moving parts form one continuous loop." },
+      { p: "When people ask whether Q² is 'quantum-resistant', they usually expect a one-word answer about a signature scheme. The honest answer is more interesting: our resistance comes from the operating model around movement, not from any single algorithm. Four moving parts form one continuous loop." },
       { h: "A — EOA delegation" },
-      { p: "We never receive or store a private key. The institution's signer — an HSM, an MPC cluster, a hardware wallet — retains it. Quantum Qustody is authorised on an externally-owned account that the policy engine controls. We sign nothing, and authorise nothing, outside policy. The root of trust stays with the institution at every step." },
+      { p: "We never receive or store a private key. The institution's signer — an HSM, an MPC cluster, a hardware wallet — retains it. Q² is authorised on an externally-owned account that the policy engine controls. We sign nothing, and authorise nothing, outside policy. The root of trust stays with the institution at every step." },
       { h: "B — ZK selective verification" },
       { p: "Every governance proof — threshold met, policy applied, control passed — is published as a zero-knowledge attestation. An auditor verifies, mathematically, that the conditions held, without ever seeing balances, addresses, counterparties, or internal policy text. Disclosure is minimised; verifiability is maximised." },
       { h: "C — PQC key regeneration" },
@@ -278,7 +278,7 @@ export function BlogSection({ onOpen }) {
     <section id="insights" className="py-20 md:py-28 px-4">
       <div className="max-w-7xl mx-auto">
         <h2 className="text-center text-sm fm text-fuchsia-500 tracking-widest mb-3">[ INSIGHTS ]</h2>
-        <h3 className="text-center text-3xl md:text-4xl font-bold mb-4">From the Quantum Qustody team</h3>
+        <h3 className="text-center text-3xl md:text-4xl font-bold mb-4">From the Q Squared team</h3>
         <p className="text-center text-gray-400 fm text-sm max-w-2xl mx-auto mb-12 md:mb-16">Notes on governed movement, post-quantum architecture, and building institutional custody that proves itself.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {BLOG_POSTS.map((post, i) => (
@@ -327,7 +327,7 @@ export function BlogArticle({ post, onBack, onOpen }) {
       <div className="fixed top-0 w-full z-50 p-4">
         <div className="max-w-3xl mx-auto glass rounded-sm flex justify-between items-center px-5 py-3">
           <button onClick={onBack} className="fm text-xs text-gray-300 hover:text-purple-400 transition-colors cursor-pointer flex items-center gap-2">← BACK TO INSIGHTS</button>
-          <div className="flex items-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-6 h-6" /><span className="font-bold text-sm tracking-tight hidden sm:inline">QUANTUM_QUSTODY</span></div>
+          <div className="flex items-center gap-2"><img src="/qq-logo.svg" alt="QQ" className="w-6 h-6" /><span className="font-bold text-sm tracking-tight hidden sm:inline">Q SQUARED</span></div>
         </div>
       </div>
 

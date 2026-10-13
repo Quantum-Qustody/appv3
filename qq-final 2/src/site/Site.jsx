@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import "./site.css";
-import { Lockup } from "../brand/Logo.jsx";
+import { Mark } from "../brand/Logo.jsx";
 import Landing from "./Landing.jsx";
 import BrandPage from "./BrandPage.jsx";
 
@@ -57,7 +57,7 @@ function Nav({ path, go, enterPlatform }) {
     <header className="nav">
       <div className="nav__in">
         <a className="nav__brand" href="/" onClick={(e) => { e.preventDefault(); setOpen(false); go("/"); }} aria-label="Q Squared, home">
-          <Lockup size={28} />
+          <Mark size={34} />
         </a>
         <nav aria-label="Primary">
           <ul className="nav__links">
@@ -93,7 +93,7 @@ function Footer({ go, enterPlatform }) {
       <div className="wrap">
         <div className="foot__grid">
           <div>
-            <Lockup size={28} />
+            <span className="foot__mark"><Mark size={40} title="Q Squared" /></span>
             <p className="foot__lede">The decision assurance layer for agentic finance. Approve, record and seal every movement of digital assets.</p>
           </div>
           <div>

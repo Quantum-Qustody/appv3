@@ -13,11 +13,11 @@ Approval needed from Gianluca, Chee and Sohil.
 
 **Public site** (`src/site/`). Dark-first in every OS theme (the platform keeps its own toggle). The landing page is a scroll story:
 
-1. Hero: *Self-custody, built for regulated finance.* For vaults, funds and AI agents. Beside a minimal real-time 3D glass atom (hairline orbits, one amber electron) (three.js, transparent canvas) that turns with the pointer and with scroll.
+1. Hero: *Self-custody, built for regulated finance.* For vaults, funds and AI agents. Beside a real-time 3D scientific atom: hairline Bohr orbits, a proton and neutron nucleus, and a point cloud sampled from the hydrogen 2p orbital density, captioned as Fig. 1 (three.js, transparent canvas) that turns with the pointer and with scroll.
 2. One line whose words light up as you scroll: *You hold the keys. Q² proves every decision made with them.*
 3. The three sourced proof points, with counters.
-4. A gapless bento of five cards, the moat: keys stay yours, post-quantum seals, agents over MCP (propose only), one record across custodians, deploy where your keys live.
-5. How it works, pinned: Approve, Record, Seal. The object on the left changes with the step; a rail fills as you scroll; the live signed record sits in step 2.
+4. A gapless bento of five cards with mathematical figures, the moat: keys stay yours, post-quantum seals, agents over MCP (propose only), one record across custodians, deploy where your keys live.
+5. How it works, pinned: Approve, Record, Seal. The figure on the left changes with the step (quorum, hash chain, lattice); a rail fills as you scroll; the live signed record sits in step 2.
 6. Where Q² sits (agent rails above, your keys below, readers to the side).
 7. The rules as stacking cards (maps to, never compliant with).
 8. Pricing and a comparison with Fireblocks (see below).
@@ -25,13 +25,13 @@ Approval needed from Gianluca, Chee and Sohil.
 
 Also `/research`, `/research/:id`, `/brand` (with `/brand/explorations`) and `/design-partner` as real URLs. The nav is a floating pill with a full-screen menu on small screens.
 
-**Motion.** Reveals use IntersectionObserver. Scrubbed effects use GSAP ScrollTrigger, loaded after first paint. three.js (175 kB gzip) loads only when the browser is idle after load, renders only while the atom is on screen, and falls back to the photographed cut-out. With reduced motion, nothing animates and all content is visible.
+**Motion.** Reveals use IntersectionObserver. Scrubbed effects use GSAP ScrollTrigger, loaded after first paint. three.js (175 kB gzip) loads on the first interaction, renders only while the atom is on screen, and falls back to an SVG drawing of the same atom. With reduced motion, nothing animates and all content is visible.
 
 **Pricing.** At the CTO's instruction, Q² charges the same as Fireblocks' published prices: Sandbox free, Essentials $999 per month, Custom from $36,000 per year. Essentials mirrors Fireblocks Essentials: $1,000,000 quarterly volume, 0.20% per transaction above it, 5 users, 2 workspaces. The comparison table shows Fireblocks figures exactly as published at fireblocks.com/pricing on 13 October 2026, with the source linked. Where an item does not appear on that page, the table says "Not listed" and the footnote explains that it may still be available from Fireblocks on request.
 
 **Logo in the site chrome.** The nav and footer show the Q² mark alone, without the wordmark. The full lockups remain on `/brand`.
 
-**Objects.** Five objects carry the imagery: Nucleus (atom), Custody (a violet core inside glass), Quorum (three interlocked rings), Record (a stack of glass plates, one violet), Seal (a ceramic sphere with an amber seal). Generated with Higgsfield (GPT Image 2.5), on paper and on ink; the ink set had its background removed and ships as transparent WebP (`public/objects/cut-*`). The logo is still hand-drawn SVG; objects never appear in or with the mark. Documented on `/brand#objects`.
+**Figures.** Imagery is mathematics drawn by hand in SVG (`src/site/Figures.jsx`): key shares as a polynomial, f(x) = s + a₁x + a₂x², f(0) = s; the quorum rule Σ vᵢ ≥ k (2 of 3); a hash chain, hᵢ = H(hᵢ₋₁ ‖ rᵢ); and the ML-DSA module lattice, t = A·s₁ + s₂ (mod q). They draw themselves in on scroll. The earlier generated photographs were removed. Documented on `/brand#figures`.
 
 **Platform.** Every sandbox function is unchanged. It keeps its dark ink surface on the new tokens: new mark, Q Squared wordmark, solid purple buttons, no gradient text or glows, calmer labels. Tailwind's purple and fuchsia scales map to the brand purple, so all existing screens adopt the brand.
 
@@ -89,9 +89,8 @@ Platform variables (`--bg`, `--text`, `--panel`, `--border`) are in `src/index.c
 9. **Test data.** One enquiry labelled `[TEST] Rebrand preview check` was submitted to verify the form. Delete it with `delete from design_partner_responses where respondent_email = 'gdb@moodglobalservices.com' and partner = 'inbound';`
 10. **Platform light theme.** The sandbox stays dark-first; its existing light toggle is unchanged. A full light theme for the platform is a separate piece of work.
 11. **Self-custody positioning.** The page now says Q² "is not a custodian" and "never holds your keys or your assets", and that keys stay "in your own MPC or HSM". This follows the instruction to lead with self-custody. Please confirm it matches the product, including the managed cloud option.
-12. **Generated imagery.** The object photographs are AI-generated (Higgsfield, GPT Image 2.5) and post-processed. They are illustrations, not product photos. Confirm you are comfortable using generated imagery on the public site and check the Higgsfield licence terms for commercial use.
-13. **Pricing and the Fireblocks comparison.** Prices were set to match Fireblocks' published prices on instruction. Fireblocks' $999 is described on its page as "for up to 6 months"; Q²'s page does not limit it. Naming a competitor and its prices is comparative advertising: please have counsel review the table and footnote before this goes public, and re-check fireblocks.com/pricing on the day of launch.
-14. **MCP server.** The page describes an MCP server with three tools (propose_transfer, get_decision, get_record), labelled preview. Confirm the names and that it will exist at launch, or relabel it as planned.
+12. **Pricing and the Fireblocks comparison.** Prices were set to match Fireblocks' published prices on instruction. Fireblocks' $999 is described on its page as "for up to 6 months"; Q²'s page does not limit it. Naming a competitor and its prices is comparative advertising: please have counsel review the table and footnote before this goes public, and re-check fireblocks.com/pricing on the day of launch.
+13. **MCP server.** The page describes an MCP server with three tools (propose_transfer, get_decision, get_record), labelled preview. Confirm the names and that it will exist at launch, or relabel it as planned.
 
 ## Could not verify
 

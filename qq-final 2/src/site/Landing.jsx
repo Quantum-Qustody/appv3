@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import SignedRecord from "./SignedRecord.jsx";
 import Atom3D from "./Atom3D.jsx";
 import { initMotion, spotlight } from "./motion.js";
+import { FIGURES, FigShares, FigLattice, FigChain } from "./Figures.jsx";
 
 const Arrow = () => (
   <svg className="arrow" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -129,20 +130,7 @@ function EnquiryForm({ onPartnerSignIn }) {
 }
 
 // ── Landing ────────────────────────────────────────────────────────────────
-// Objects: generated with Higgsfield (GPT Image 2.5), background removed,
-// cropped and exported as transparent WebP in /public/objects (cut-*).
-const Cut = ({ name, className = "", alt = "", eager = false, ...rest }) => (
-  <img
-    className={`cut ${className}`}
-    src={`/objects/cut-${name}-720.webp`}
-    srcSet={`/objects/cut-${name}-360.webp 360w, /objects/cut-${name}-720.webp 720w`}
-    sizes="(max-width: 760px) 70vw, 420px"
-    width="720" height="720" alt={alt}
-    loading={eager ? "eager" : "lazy"} decoding="async"
-    {...rest}
-  />
-);
-
+// Figures are hand-written SVG (Figures.jsx): the maths behind each claim.
 const Pill = ({ children, href, onClick, variant = "primary" }) => (
   <a className={`pill pill--${variant}`} href={href} onClick={onClick}>
     <span>{children}</span>
@@ -285,7 +273,7 @@ function Story() {
             ))}
           </ol>
           <div className="story__stage" aria-hidden="true">
-            {STEPS.map((s, i) => <Cut key={s.object} name={s.object} className={i === active ? "is-on" : ""} />)}
+            {STEPS.map((s, i) => { const F = FIGURES[s.object]; return <F key={s.object} className={i === active ? "is-on" : ""} />; })}
           </div>
         </div>
         <div className="story__steps" id="story-steps">
@@ -295,7 +283,7 @@ function Story() {
               <p className="story__n mono">{s.n} · {s.title}</p>
               <h3 id={`${s.id}-h`}>{s.head}</h3>
               <p className="story__body">{s.body}</p>
-              <Cut name={s.object} className="story__inline" />
+              <div className="story__inline" data-reveal>{(() => { const F = FIGURES[s.object]; return <F />; })()}</div>
               {s.spec && (
                 <dl className="spec">
                   {s.spec.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
@@ -325,6 +313,7 @@ export default function Landing({ go, enterPlatform }) {
       <section className="hero" ref={hero} aria-labelledby="hero-title">
         <div className="hero__wash" aria-hidden="true" />
         <Atom3D className="hero__atom" scrollRef={hero} />
+        <p className="hero__fig" aria-hidden="true"><b>Fig. 1</b> · Bohr orbits over a sampled 2p orbital, |ψ|² ∝ z²e⁻ʳ</p>
         <div className="wrap hero__in" data-hero>
           <h1 id="hero-title"><span>Self-custody,</span> <span>built for regulated finance.</span></h1>
           <p className="hero__for">For vaults, funds and AI agents.</p>
@@ -387,14 +376,14 @@ export default function Landing({ go, enterPlatform }) {
                 <h3>Your keys stay yours.</h3>
                 <p>Q² works with the MPC, HSM or custodian you already run. It never holds a key share and never moves assets on its own.</p>
                 <ul className="tags"><li>MPC</li><li>HSM</li><li>Any custodian</li></ul>
-                <Cut name="custody" className="card__obj" data-scale-in />
+                <FigShares className="card__fig" />
               </div>
             </article>
             <article className="card card--b shell" onPointerMove={spotlight} data-reveal data-reveal-delay="80">
               <div className="shell__core">
                 <h3>Sealed past 2031.</h3>
                 <p>Every record is signed with ML-DSA-65 and re-sealed as algorithms retire.</p>
-                <Cut name="seal" className="card__obj card__obj--sm" />
+                <FigLattice className="card__fig card__fig--sm" />
               </div>
             </article>
             <article className="card card--c shell" onPointerMove={spotlight} data-reveal data-reveal-delay="160">
@@ -408,7 +397,7 @@ export default function Landing({ go, enterPlatform }) {
               <div className="shell__core">
                 <h3>One record, every custodian.</h3>
                 <p>The same signed authority record, whoever holds the asset.</p>
-                <Cut name="record" className="card__obj card__obj--sm" />
+                <FigChain className="card__fig card__fig--wide" />
               </div>
             </article>
             <article className="card card--e shell" onPointerMove={spotlight} data-reveal data-reveal-delay="80">
@@ -577,7 +566,7 @@ export default function Landing({ go, enterPlatform }) {
 
       {/* Closing: design partner */}
       <section className="closing" id="partner" aria-labelledby="partner-title">
-        <Atom3D className="closing__atom" compact label="A glass atom" poster={false} />
+        <Atom3D className="closing__atom" compact label="A diagram of an atom" />
         <div className="wrap">
           <div className="closing__head" data-reveal>
             <h2 id="partner-title">Keep the keys.<br />Keep the proof.</h2>

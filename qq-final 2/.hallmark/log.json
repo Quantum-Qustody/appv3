@@ -32,5 +32,16 @@
     "nav": "N-pill: floating glass pill with full-screen menu",
     "footer": "Ft3 (kept)",
     "brief": "Q Squared landing v3 \u00b7 self-custody, pricing at Fireblocks parity with sourced comparison"
+  },
+  {
+    "date": "2026-10-13",
+    "macrostructure": "Scroll Story",
+    "theme": "custom",
+    "theme_axes": "dark-first / grotesk-sans / cool",
+    "vibe": "dark lab, scientific line art",
+    "enrichment": "E-figures: hand-written SVG mathematics (Shamir shares, quorum, hash chain, ML-DSA lattice) with draw-in; three.js line-art atom with sampled 2p orbital",
+    "nav": "N-pill (mark only)",
+    "footer": "Ft3 (mark only)",
+    "brief": "Q Squared landing v3.2 \u00b7 replace photo objects with mathematical figures, scientific atom"
   }
 ]

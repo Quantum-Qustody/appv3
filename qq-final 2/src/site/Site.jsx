@@ -37,31 +37,51 @@ const usePath = () => {
 };
 
 function Nav({ path, go, enterPlatform }) {
+  const [open, setOpen] = useState(false);
   const onHome = path === "/";
   const anchor = (id) => (e) => {
     e.preventDefault();
+    setOpen(false);
     if (onHome) document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     else go(`/#${id}`);
   };
+  const toResearch = (e) => { e.preventDefault(); setOpen(false); go("/research"); };
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [open]);
   return (
     <header className="nav">
-      <div className="wrap nav__in">
-        <a className="nav__brand" href="/" onClick={(e) => { e.preventDefault(); go("/"); }} aria-label="Q Squared, home">
+      <div className="nav__in">
+        <a className="nav__brand" href="/" onClick={(e) => { e.preventDefault(); setOpen(false); go("/"); }} aria-label="Q Squared, home">
           <Lockup size={28} />
         </a>
         <nav aria-label="Primary">
           <ul className="nav__links">
             <li><a href="/#how" onClick={anchor("how")}>How it works</a></li>
-            <li><a href="/#rules" onClick={anchor("rules")}>Rules</a></li>
+            <li><a href="/#pricing" onClick={anchor("pricing")}>Pricing</a></li>
             <li><a href="/#developers" onClick={anchor("developers")}>Developers</a></li>
-            <li><a href="/research" onClick={(e) => { e.preventDefault(); go("/research"); }} aria-current={path.startsWith("/research") ? "page" : undefined}>Research</a></li>
+            <li><a href="/research" onClick={toResearch} aria-current={path.startsWith("/research") ? "page" : undefined}>Research</a></li>
           </ul>
         </nav>
         <div className="nav__cta">
           <button type="button" className="btn btn--quiet" onClick={() => enterPlatform("auth")}>Sandbox sign in</button>
           <a className="btn btn--primary" href="/#partner" onClick={anchor("partner")}><span className="lbl-long">Become a design partner</span><span className="lbl-short" aria-hidden="true">Design partner</span></a>
+          <button type="button" className="nav__menu" aria-expanded={open} aria-controls="site-menu" aria-label={open ? "Close menu" : "Open menu"} onClick={() => setOpen((v) => !v)}><i /><i /></button>
         </div>
       </div>
+      {open && (
+        <nav className="menu" id="site-menu" aria-label="Menu">
+          <a href="/#how" onClick={anchor("how")}>How it works</a>
+          <a href="/#pricing" onClick={anchor("pricing")}>Pricing</a>
+          <a href="/#developers" onClick={anchor("developers")}>Developers</a>
+          <a href="/research" onClick={toResearch}>Research</a>
+          <button type="button" onClick={() => { setOpen(false); enterPlatform("auth"); }}>Sandbox sign in</button>
+        </nav>
+      )}
     </header>
   );
 }
@@ -80,6 +100,7 @@ function Footer({ go, enterPlatform }) {
             <h2>Product</h2>
             <ul>
               <li><a href="/#how" onClick={to("/#how")}>How it works</a></li>
+              <li><a href="/#pricing" onClick={to("/#pricing")}>Pricing</a></li>
               <li><a href="/#developers" onClick={to("/#developers")}>Developers</a></li>
               <li><a href="/#partner" onClick={to("/#partner")}>Design partner programme</a></li>
               <li><button type="button" onClick={() => enterPlatform("auth")}>Sandbox sign in</button></li>

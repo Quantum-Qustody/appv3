@@ -85,6 +85,12 @@
   /* Object plates: the paper the generated objects were shot on */
   --q-plate: #F1EFF7;
 
+  /* Public site: dark-first. Wash is the violet behind the 3D atom. */
+  --q-site-bg: #0B0819;
+  --q-wash: #5B3BEA;
+  --q-white: #FFFFFF;
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+
   --measure: 66ch;
   --page-max: 1200px;
   --gutter: clamp(1rem, 0.6rem + 2vw, 2.5rem);
@@ -109,4 +115,25 @@
     --q-signal-soft: #2E2414;
     --q-danger: #FF8A80;
   }
+}
+
+/* Public site is dark-first in every OS theme. The platform keeps its own toggle. */
+.site {
+  --q-paper: #0B0819;
+  --q-paper-2: #141029;
+  --q-paper-3: #1D1838;
+  --q-ink: #F4F2FB;
+  --q-ink-2: #C6C1DA;
+  --q-ink-3: #A29CBA;
+  --q-rule: #251F3D;
+  --q-rule-strong: #372F5A;
+  --q-accent: #AE9CFF;
+  --q-accent-hover: #C3B6FF;
+  --q-accent-ink: #0B0819;
+  --q-accent-soft: #221C44;
+  --q-signal: #F2B04A;
+  --q-signal-ink: #1F1400;
+  --q-signal-soft: #2E2414;
+  --q-danger: #FF8A80;
+  color-scheme: dark;
 }

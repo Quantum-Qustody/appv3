@@ -11,11 +11,25 @@ Approval needed from Gianluca, Chee and Sohil.
 
 **Design system.** `src/styles/tokens.css` is the single source for colour, type, space, radius and motion, with light and dark themes. Purple and white carry the brand; ink carries text; a warm signal is reserved for approved and sealed moments.
 
-**Public site** (`src/site/`). The landing page is a run of diptychs: text on one side, a photographed object on the other, alternating. It leads with self-custody: *Keep your keys. Prove every decision.* Q² is positioned as the layer between your agents and your keys, not as a custodian.
+**Public site** (`src/site/`). Dark-first in every OS theme (the platform keeps its own toggle). The landing page is a scroll story:
 
-Order: hero with the nucleus object; a contents strip (01 Custody, 02 Approve, 03 Record, 04 Seal); Custody (what self-custody leaves open); the three sourced proof points; Approve (quorum before any key signs); Record (with the animated signed authority record); Seal (post-quantum, re-sealed); one dark chapter, *Self-custody, extended to the proof*, with the three deployment options; where Q² sits (agent rails above, your keys below, readers to the side); the rules (maps to, never compliant with); audiences; a preview API sample; the design partner programme with an enquiry form; the footer. Also `/research`, `/research/:id`, `/brand` (with `/brand/explorations`) and `/design-partner` as real URLs.
+1. Hero: *Keep your keys. Prove every decision.* beside a real-time 3D glass atom (three.js, transparent canvas) that turns with the pointer and with scroll.
+2. A statement whose words light up as you scroll.
+3. The three sourced proof points, with counters.
+4. A gapless bento of five cards, the moat: keys stay yours, post-quantum seals, agents over MCP (propose only), one record across custodians, deploy where your keys live.
+5. How it works, pinned: Approve, Record, Seal. The object on the left changes with the step; a rail fills as you scroll; the live signed record sits in step 2.
+6. Where Q² sits (agent rails above, your keys below, readers to the side).
+7. The rules as stacking cards (maps to, never compliant with).
+8. Pricing and a comparison with Fireblocks (see below).
+9. Audiences, developers (TypeScript and MCP tabs), and a closing section with a second atom, the design partner stages and the enquiry form.
 
-**Objects.** Five objects carry the imagery: Nucleus (atom), Custody (a violet core inside glass), Quorum (three interlocked rings), Record (a stack of glass plates, one violet), Seal (a ceramic sphere with an amber seal). Each was generated with Higgsfield (GPT Image 2.5) on a paper backdrop. A second set on an ink backdrop was generated from the first as reference, so dark mode shows dark photographs instead of white blocks. All were graded, given fine grain, cropped off-centre and exported as WebP (`public/objects/`, 7 to 35 kB each). The logo is still hand-drawn SVG; the objects never appear in or with the mark. They are documented on `/brand#objects`.
+Also `/research`, `/research/:id`, `/brand` (with `/brand/explorations`) and `/design-partner` as real URLs. The nav is a floating pill with a full-screen menu on small screens.
+
+**Motion.** Reveals use IntersectionObserver. Scrubbed effects use GSAP ScrollTrigger, loaded after first paint. three.js (175 kB gzip) loads only when the browser is idle after load, renders only while the atom is on screen, and falls back to the photographed cut-out. With reduced motion, nothing animates and all content is visible.
+
+**Pricing.** At the CTO's instruction, Q² charges the same as Fireblocks' published prices: Sandbox free, Essentials $999 per month, Custom from $36,000 per year. Essentials mirrors Fireblocks Essentials: $1,000,000 quarterly volume, 0.20% per transaction above it, 5 users, 2 workspaces. The comparison table shows Fireblocks figures exactly as published at fireblocks.com/pricing on 13 October 2026, with the source linked. Where an item does not appear on that page, the table says "Not listed" and the footnote explains that it may still be available from Fireblocks on request.
+
+**Objects.** Five objects carry the imagery: Nucleus (atom), Custody (a violet core inside glass), Quorum (three interlocked rings), Record (a stack of glass plates, one violet), Seal (a ceramic sphere with an amber seal). Generated with Higgsfield (GPT Image 2.5), on paper and on ink; the ink set had its background removed and ships as transparent WebP (`public/objects/cut-*`). The logo is still hand-drawn SVG; objects never appear in or with the mark. Documented on `/brand#objects`.
 
 **Platform.** Every sandbox function is unchanged. It keeps its dark ink surface on the new tokens: new mark, Q Squared wordmark, solid purple buttons, no gradient text or glows, calmer labels. Tailwind's purple and fuchsia scales map to the brand purple, so all existing screens adopt the brand.
 
@@ -74,6 +88,8 @@ Platform variables (`--bg`, `--text`, `--panel`, `--border`) are in `src/index.c
 10. **Platform light theme.** The sandbox stays dark-first; its existing light toggle is unchanged. A full light theme for the platform is a separate piece of work.
 11. **Self-custody positioning.** The page now says Q² "is not a custodian" and "never holds your keys or your assets", and that keys stay "in your own MPC or HSM". This follows the instruction to lead with self-custody. Please confirm it matches the product, including the managed cloud option.
 12. **Generated imagery.** The object photographs are AI-generated (Higgsfield, GPT Image 2.5) and post-processed. They are illustrations, not product photos. Confirm you are comfortable using generated imagery on the public site and check the Higgsfield licence terms for commercial use.
+13. **Pricing and the Fireblocks comparison.** Prices were set to match Fireblocks' published prices on instruction. Fireblocks' $999 is described on its page as "for up to 6 months"; Q²'s page does not limit it. Naming a competitor and its prices is comparative advertising: please have counsel review the table and footnote before this goes public, and re-check fireblocks.com/pricing on the day of launch.
+14. **MCP server.** The page describes an MCP server with three tools (propose_transfer, get_decision, get_record), labelled preview. Confirm the names and that it will exist at launch, or relabel it as planned.
 
 ## Could not verify
 

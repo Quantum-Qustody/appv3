@@ -18,7 +18,7 @@ body,#root{background-color:var(--bg);background-image:linear-gradient(var(--gri
 html{overflow-x:clip}
 
 /* Public site surface: paper, no grid, theme follows the OS. */
-html[data-surface="site"] body, html[data-surface="site"] #root{background:var(--q-paper);background-image:none;color:var(--q-ink);font-family:var(--font-body)}
+html[data-surface="site"], html[data-surface="site"] body, html[data-surface="site"] #root{background:var(--q-site-bg);background-image:none;color:var(--q-ink);font-family:var(--font-body)}
 /* The Design Partner intake keeps the ink surface inside the site. */
 .ink-surface{background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:32px 32px;color:var(--text);font-family:var(--qq-sans);min-height:100vh}
 

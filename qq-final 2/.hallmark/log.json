@@ -20,5 +20,17 @@
     "nav": "N1b (kept for continuity)",
     "footer": "Ft3 (kept for continuity)",
     "brief": "Q Squared landing v2 \u00b7 self-custody, abstract objects"
+  },
+  {
+    "date": "2026-10-13",
+    "macrostructure": "Scroll Story",
+    "theme": "custom",
+    "theme_axes": "dark-first / grotesk-sans / cool",
+    "vibe": "dark lab, glass atom, self-custody",
+    "enrichment": "E-3D: real-time three.js glass atom (hero + closing); generated objects with background removed (transparent WebP); live signed record",
+    "motion": "IO reveals, GSAP ScrollTrigger: scrubbed words, scale-in, hero lift, stacking cards, story progress rail; count-up",
+    "nav": "N-pill: floating glass pill with full-screen menu",
+    "footer": "Ft3 (kept)",
+    "brief": "Q Squared landing v3 \u00b7 self-custody, pricing at Fireblocks parity with sourced comparison"
   }
 ]

@@ -13,21 +13,21 @@ Approval needed from Gianluca, Chee and Sohil.
 
 **Public site** (`src/site/`). Dark-first in every OS theme (the platform keeps its own toggle). The landing page is a scroll story:
 
-1. Hero: *Self-custody, built for regulated finance.* For vaults, funds and AI agents. Beside a real-time 3D glass atom (three.js, transparent canvas) that turns with the pointer and with scroll.
+1. Hero: *Self-custody, built for regulated finance.* For vaults, funds and AI agents. Beside a minimal real-time 3D glass atom (hairline orbits, one amber electron) (three.js, transparent canvas) that turns with the pointer and with scroll.
 2. One line whose words light up as you scroll: *You hold the keys. Q² proves every decision made with them.*
 3. The three sourced proof points, with counters.
 4. A gapless bento of five cards, the moat: keys stay yours, post-quantum seals, agents over MCP (propose only), one record across custodians, deploy where your keys live.
 5. How it works, pinned: Approve, Record, Seal. The object on the left changes with the step; a rail fills as you scroll; the live signed record sits in step 2.
 6. Where Q² sits (agent rails above, your keys below, readers to the side).
 7. The rules as stacking cards (maps to, never compliant with).
-8. Pricing: Sandbox free, Essentials and Custom on quote, under *Competitive pricing*.
+8. Pricing and a comparison with Fireblocks (see below).
 9. Audiences, developers (TypeScript and MCP tabs), and a closing section with a second atom, the design partner stages and the enquiry form.
 
 Also `/research`, `/research/:id`, `/brand` (with `/brand/explorations`) and `/design-partner` as real URLs. The nav is a floating pill with a full-screen menu on small screens.
 
 **Motion.** Reveals use IntersectionObserver. Scrubbed effects use GSAP ScrollTrigger, loaded after first paint. three.js (175 kB gzip) loads only when the browser is idle after load, renders only while the atom is on screen, and falls back to the photographed cut-out. With reduced motion, nothing animates and all content is visible.
 
-**Pricing.** No prices or competitor comparisons are published. The section reads *Competitive pricing*: Sandbox is free; Essentials (monthly) and Custom (annual) are on quote.
+**Pricing.** At the CTO's instruction, Q² charges the same as Fireblocks' published prices: Sandbox free, Essentials $999 per month, Custom from $36,000 per year. Essentials mirrors Fireblocks Essentials: $1,000,000 quarterly volume, 0.20% per transaction above it, 5 users, 2 workspaces. The comparison table shows Fireblocks figures exactly as published at fireblocks.com/pricing on 13 October 2026, with the source linked. Where an item does not appear on that page, the table says "Not listed" and the footnote explains that it may still be available from Fireblocks on request.
 
 **Logo in the site chrome.** The nav and footer show the Q² mark alone, without the wordmark. The full lockups remain on `/brand`.
 
@@ -90,7 +90,8 @@ Platform variables (`--bg`, `--text`, `--panel`, `--border`) are in `src/index.c
 10. **Platform light theme.** The sandbox stays dark-first; its existing light toggle is unchanged. A full light theme for the platform is a separate piece of work.
 11. **Self-custody positioning.** The page now says Q² "is not a custodian" and "never holds your keys or your assets", and that keys stay "in your own MPC or HSM". This follows the instruction to lead with self-custody. Please confirm it matches the product, including the managed cloud option.
 12. **Generated imagery.** The object photographs are AI-generated (Higgsfield, GPT Image 2.5) and post-processed. They are illustrations, not product photos. Confirm you are comfortable using generated imagery on the public site and check the Higgsfield licence terms for commercial use.
-13. **MCP server.** The page describes an MCP server with three tools (propose_transfer, get_decision, get_record), labelled preview. Confirm the names and that it will exist at launch, or relabel it as planned.
+13. **Pricing and the Fireblocks comparison.** Prices were set to match Fireblocks' published prices on instruction. Fireblocks' $999 is described on its page as "for up to 6 months"; Q²'s page does not limit it. Naming a competitor and its prices is comparative advertising: please have counsel review the table and footnote before this goes public, and re-check fireblocks.com/pricing on the day of launch.
+14. **MCP server.** The page describes an MCP server with three tools (propose_transfer, get_decision, get_record), labelled preview. Confirm the names and that it will exist at launch, or relabel it as planned.
 
 ## Could not verify
 

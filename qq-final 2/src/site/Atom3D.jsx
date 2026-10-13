@@ -49,7 +49,7 @@ export default function Atom3D({ className = "", scrollRef, label = "A glass ato
       scene.environment = envTex;
 
       const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-      camera.position.set(0, 0, compact ? 8.4 : 9.2);
+      camera.position.set(0, 0, compact ? 9 : 10);
 
       const seg = small ? 48 : 96;
       const atom = new THREE.Group();
@@ -57,24 +57,24 @@ export default function Atom3D({ className = "", scrollRef, label = "A glass ato
 
       // Nucleus: violet core inside clear glass
       const core = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, seg, seg),
+        new THREE.SphereGeometry(0.4, seg, seg),
         new THREE.MeshPhysicalMaterial({ color: 0x5b3bea, roughness: 0.55, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.6, sheen: 0.6, sheenColor: new THREE.Color(0xae9cff) })
       );
       const glass = new THREE.Mesh(
-        new THREE.SphereGeometry(1.0, seg, seg),
+        new THREE.SphereGeometry(0.82, seg, seg),
         new THREE.MeshPhysicalMaterial({
           color: 0xffffff, roughness: 0.02, metalness: 0, transmission: 1, thickness: 0.45, ior: 1.22,
           attenuationColor: new THREE.Color(0xf1edff), attenuationDistance: 12,
           clearcoat: 1, clearcoatRoughness: 0.02, specularIntensity: 1, envMapIntensity: 1.6,
-          iridescence: 0.35, iridescenceIOR: 1.3, iridescenceThicknessRange: [120, 420],
+          iridescence: 0.15, iridescenceIOR: 1.3, iridescenceThicknessRange: [120, 420],
         })
       );
       atom.add(core, glass);
 
       // Orbits and electrons
-      const steel = new THREE.MeshStandardMaterial({ color: 0xcfcbe0, metalness: 1, roughness: 0.28, envMapIntensity: 1.1 });
-      const ringGeo = new THREE.TorusGeometry(2.25, 0.017, 12, small ? 160 : 260);
-      const electronGeo = new THREE.SphereGeometry(0.12, 32, 32);
+      const steel = new THREE.MeshStandardMaterial({ color: 0xbdb7d4, metalness: 1, roughness: 0.35, envMapIntensity: 0.9 });
+      const ringGeo = new THREE.TorusGeometry(2.25, 0.008, 8, small ? 160 : 260);
+      const electronGeo = new THREE.SphereGeometry(0.09, 32, 32);
       const amber = new THREE.MeshPhysicalMaterial({ color: 0xf2b04a, roughness: 0.08, transmission: 0.55, thickness: 0.4, ior: 1.5, clearcoat: 1, attenuationColor: new THREE.Color(0xc56a00), attenuationDistance: 0.4 });
       const pale = new THREE.MeshPhysicalMaterial({ color: 0xece8ff, roughness: 0.15, metalness: 0.1, clearcoat: 1 });
       const tilts = [
@@ -86,11 +86,12 @@ export default function Atom3D({ className = "", scrollRef, label = "A glass ato
         const g = new THREE.Group();
         g.rotation.set(x, y, z);
         g.add(new THREE.Mesh(ringGeo, steel));
+        // Minimal: one amber electron; the other orbits stay empty.
         const e = new THREE.Mesh(electronGeo, i === 0 ? amber : pale);
-        if (i !== 0) e.scale.setScalar(0.72);
+        e.visible = i === 0;
         g.add(e);
         atom.add(g);
-        return { g, e, speed: [0.55, -0.42, 0.34][i], phase: [0.4, 2.2, 4.1][i] };
+        return { g, e, speed: [0.32, -0.24, 0.2][i], phase: [0.4, 2.2, 4.1][i] };
       });
 
       // Light: env carries most of it; a key from upper left and a violet rim
@@ -142,7 +143,7 @@ export default function Atom3D({ className = "", scrollRef, label = "A glass ato
 
         tilt.x += (tilt.tx - tilt.x) * 0.06;
         tilt.y += (tilt.ty - tilt.y) * 0.06;
-        atom.rotation.y = t * 0.18 + tilt.x + p * 2.4;
+        atom.rotation.y = t * 0.1 + tilt.x + p * 1.6;
         atom.rotation.x = 0.18 + tilt.y + p * 0.6;
         const sc = 1 + p * 0.35;
         atom.scale.setScalar(sc);

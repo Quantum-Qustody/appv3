@@ -173,21 +173,42 @@ const STEPS = [
 
 const TIERS = [
   {
-    name: "Sandbox", price: "Free", lede: "Try the full governance flow on testnet.",
-    items: ["Ethereum Sepolia testnet", "Quorum approvals and signed records", "Agent proposals through the preview API"],
+    name: "Sandbox", price: "Free", unit: "", lede: "Evaluate the governance flow before you commit.",
+    items: ["Ethereum Sepolia testnet", "Quorum approvals and signed records", "Agent proposals through the preview API", "Self-serve sign in"],
     cta: "Open the sandbox", action: "sandbox",
   },
   {
-    name: "Essentials", price: "Monthly", lede: "Your first governed flow in production.", featured: true,
-    items: ["Production environment", "Quorum and signed-policy approvals", "Post-quantum sealed records", "MCP server and REST API for agents"],
-    cta: "Get a quote", action: "partner",
+    name: "Essentials", price: "$999", unit: "per month", lede: "Your first governed flow in production.", featured: true,
+    items: ["Production environment", "$1,000,000 governed volume per quarter", "0.20% per transaction above that", "5 users, 2 workspaces", "Quorum and signed-policy approvals", "Post-quantum sealed records", "MCP server and REST API for agents", "Support 8×5"],
+    cta: "Start with Essentials", action: "partner",
   },
   {
-    name: "Custom", price: "Annual", lede: "On-premise and enterprise.",
-    items: ["On-premise or in-region, next to your HSM or MPC", "Your own keys for the seal", "Premium SLA and 24/7 support"],
+    name: "Custom", from: true, price: "$36,000", unit: "per year", lede: "Pro, Enterprise and on-premise.",
+    items: ["Custom volume, users and workspaces", "On-premise or in-region, next to your HSM or MPC", "Your own keys for the seal", "Premium SLA and 24/7 support", "Personal onboarding"],
     cta: "Talk to us", action: "partner",
   },
 ];
+
+// Fireblocks column: exactly as published at fireblocks.com/pricing, checked 13 Oct 2026.
+const COMPARE = [
+  { k: "Entry plan", q: "$999 per month", f: "$999 per month, for up to 6 months" },
+  { k: "Custom plans", q: "From $36,000 per year", f: "From $36,000 per year" },
+  { k: "Included volume", q: "$1,000,000 per quarter", f: "$1,000,000 outbound per quarter" },
+  { k: "Above included volume", q: "0.20% per transaction", f: "0.20% per transaction" },
+  { k: "Users and workspaces", q: "5 users, 2 workspaces", f: "5 users, 2 workspaces" },
+  { k: "Approval policies", q: "Quorum or signed policy", f: "Policy Engine" },
+  { k: "Keys stay in your own MPC, HSM or custodian", q: "yes", qn: "Q² holds no key share", f: "no" },
+  { k: "Post-quantum signatures (ML-DSA)", q: "yes", f: "no" },
+  { k: "AI agents over MCP, propose only", q: "yes", qn: "Preview", f: "no" },
+  { k: "One signed record across custodians", q: "yes", f: "no" },
+  { k: "On-premise deployment", q: "yes", qn: "Custom plan", f: "no" },
+];
+
+const Mark = ({ v, note }) => {
+  if (v === "yes") return <span className="cmp__yes"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg>Included{note && <small>{note}</small>}</span>;
+  if (v === "no") return <span className="cmp__no">Not listed</span>;
+  return <span>{v}</span>;
+};
 
 function CodeTabs() {
   const [tab, setTab] = useState("ts");
@@ -470,8 +491,8 @@ export default function Landing({ go, enterPlatform }) {
       <section className="section-x pricing" id="pricing" aria-labelledby="pricing-title">
         <div className="wrap">
           <div className="head head--center" data-reveal>
-            <h2 id="pricing-title">Competitive pricing.</h2>
-            <p>Start free. Get a quote when you go live.</p>
+            <h2 id="pricing-title">Fireblocks prices. Self-custody built in.</h2>
+            <p>Q² charges what Fireblocks publishes for its plans, so the comparison comes down to what you get. Prices in US dollars, excluding tax.</p>
           </div>
           <div className="tiers">
             {TIERS.map((t, i) => (
@@ -479,7 +500,7 @@ export default function Landing({ go, enterPlatform }) {
                 <div className="shell__core">
                   {t.featured && <span className="tier-card__flag">Start here</span>}
                   <h3 id={`tier-${t.name}`}>{t.name}</h3>
-                  <p className="tier-card__price"><b>{t.price}</b></p>
+                  <p className="tier-card__price">{t.from && <span className="tier-card__from">From</span>}<b>{t.price}</b>{t.unit && <span> {t.unit}</span>}</p>
                   <p className="tier-card__lede">{t.lede}</p>
                   <ul>{t.items.map((it) => <li key={it}>{it}</li>)}</ul>
                   <Pill href={t.action === "sandbox" ? "/" : "#partner"} onClick={tierAction(t.action)} variant={t.featured ? "primary" : "ghost"}>{t.cta}</Pill>
@@ -488,6 +509,32 @@ export default function Landing({ go, enterPlatform }) {
             ))}
           </div>
 
+          <div className="cmp shell" data-reveal>
+            <div className="shell__core">
+              <h3 className="cmp__title">Q² Essentials and Fireblocks Essentials, side by side</h3>
+              <div className="cmp__scroll" tabIndex={0} role="region" aria-label="Comparison table">
+                <table>
+                  <thead>
+                    <tr><th scope="col"><span className="sr-only">Item</span></th><th scope="col" className="cmp__q">Q²</th><th scope="col">Fireblocks<sup className="fn">4</sup></th></tr>
+                  </thead>
+                  <tbody>
+                    {COMPARE.map((r) => (
+                      <tr key={r.k} className={r.q === "yes" ? "is-moat" : ""}>
+                        <th scope="row">{r.k}</th>
+                        <td className="cmp__q"><Mark v={r.q} note={r.qn} /></td>
+                        <td><Mark v={r.f} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="cmp__src">
+                <sup>4</sup> Fireblocks figures as published at <a href="https://www.fireblocks.com/pricing" target="_blank" rel="noopener noreferrer">fireblocks.com/pricing</a>, checked on 13 October 2026.
+                “Not listed” means the item does not appear on that page; it may be available from Fireblocks on request.
+                Fireblocks is a trademark of its owner. Q² is not affiliated with Fireblocks.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -7,31 +7,32 @@ Approval needed from Gianluca, Chee and Sohil.
 
 **Name.** The product is **Q Squared**, written **Q²** in running text. "Quantum Qustody" and "custody" are gone from the product name, the logo, the wordmark, page titles, meta, the platform chrome, the Design Partner intake and the research articles. The legal entity *Quantum Qustody Inc.* is kept only where a legal statement needs it (see open questions).
 
-**Logo.** A new hand-drawn SVG mark: a Q whose tail runs out as the line you sign on and ends in a seal. Three directions are in `public/brand/explorations/`; A was chosen (rationale on `/brand`). Delivered: mark, horizontal and stacked lockups, each light and dark; `favicon.svg` (adapts to OS scheme, drops the superscript below 24 px), `favicon-32.png`, `apple-touch-icon.png`, `icon-192/512.png`, `site.webmanifest`, `og.png` (1200x630).
+**Logo.** A new hand-drawn SVG mark: a Q whose tail runs out as the line you sign on and ends in a seal. Three directions were drawn; A was chosen. The explorations are kept off the public site in `docs/brand-explorations/`. Delivered: mark, horizontal and stacked lockups, each light and dark; `favicon.svg` (adapts to OS scheme, drops the superscript below 24 px), `favicon-32.png`, `apple-touch-icon.png`, `icon-192/512.png`, `site.webmanifest`, `og.png` (1200x630).
 
 **Design system.** `src/styles/tokens.css` is the single source for colour, type, space, radius and motion, with light and dark themes. Purple and white carry the brand; ink carries text; a warm signal is reserved for approved and sealed moments.
 
-**Public site** (`src/site/`). Dark-first in every OS theme (the platform keeps its own toggle). The landing page is a scroll story:
+**Public site** (`src/site/`). Dark-first in every OS theme (the platform keeps its own toggle). Reworked on 14 Oct 2026 to implement the website review of 13 Oct (Chee Yang). Category line, page title, meta and footer: *the independent authority record for digital assets*.
 
-1. Hero: *Self-custody, built for regulated finance.* For vaults, funds and AI agents. Beside a real-time 3D scientific atom: hairline Bohr orbits, a proton and neutron nucleus, and a point cloud sampled from the hydrogen 2p orbital density, captioned as Fig. 1 (three.js, transparent canvas) that turns with the pointer and with scroll.
-2. One line whose words light up as you scroll: *You hold the keys. Q² proves every decision made with them.*
-3. The three sourced proof points, with counters.
-4. A gapless bento of five cards with mathematical figures, the moat: keys stay yours, post-quantum seals, agents over MCP (propose only), one record across custodians, deploy where your keys live.
-5. How it works, pinned: Approve, Record, Seal. The figure on the left changes with the step (quorum, hash chain, lattice); a rail fills as you scroll; the live signed record sits in step 2.
-6. Where Q² sits (agent rails above, your keys below, readers to the side).
-7. The rules as stacking cards (maps to, never compliant with).
-8. Pricing and a comparison with Fireblocks (see below).
-9. Audiences, developers (TypeScript and MCP tabs), and a closing section with a second atom, the design partner stages and the enquiry form.
+Home, in the review's order:
+1. Hero: *You hold the keys. Q² proves every decision made with them.* Subhead as proposed; calls to action *Book a 30-minute diagnostic call* and *See how it works*; the live sample authority record is the visual.
+2. Why now: EY 61% (several custodians), the SEC custody proposal's two-person authorisation, the FSB "difficult or impossible" quote. Each sourced.
+3. Who it is for: fund managers, custodians/CASPs/EMIs, teams running agents; five rows each (who, problem, how they cope, why switch, success).
+4. How it works, pinned: Approve, Record, Seal, Disclose, each with a status label and a mathematical figure.
+5. Where Q² sits: proposers, Q², the executing stack (signers, custodians, smart accounts, venues, fund administrator) and six reader types. Names are labelled as examples.
+6. Capabilities: eight cards, each labelled Sandbox, In design or Roadmap.
+7. Regulation: four rules in their own words as stacking cards, linking to `/regulation`.
+8. Developers: preview API, sandbox only.
+9. Start: the ladder (diagnostic, pilot, subscription) with a link to pricing, and the enquiry form.
 
-Also `/research`, `/research/:id`, `/brand` (with `/brand/explorations`) and `/design-partner` as real URLs. The nav is a floating pill with a full-screen menu on small screens.
+`/pricing`: Sandbox free; Diagnostic from EUR 5,000; Pilot from USD 20,000, credited to year one; Subscription from USD 24,000 a year. `/regulation`: every rule in its own words with what Q² gives you, status and who it binds; on demand, not reconciled; what existing rules say about quantum; where the rules are heading. `/research`: four new pieces, one article retired, two rewritten, titles corrected. `/brand`: explorations and the notes reference removed.
 
-**Motion.** Reveals use IntersectionObserver. Scrubbed effects use GSAP ScrollTrigger, loaded after first paint. three.js (175 kB gzip) loads on the first interaction, renders only while the atom is on screen, and falls back to an SVG drawing of the same atom. With reduced motion, nothing animates and all content is visible.
+**Pricing.** The Fireblocks price match and comparison table were removed on review (category, price floor, per-transaction metering, comparative-advertising risk). The entry ladder replaces them.
 
-**Pricing.** At the CTO's instruction, Q² charges the same as Fireblocks' published prices: Sandbox free, Essentials $999 per month, Custom from $36,000 per year. Essentials mirrors Fireblocks Essentials: $1,000,000 quarterly volume, 0.20% per transaction above it, 5 users, 2 workspaces. The comparison table shows Fireblocks figures exactly as published at fireblocks.com/pricing on 13 October 2026, with the source linked. Where an item does not appear on that page, the table says "Not listed" and the footnote explains that it may still be available from Fireblocks on request.
+**Status labels.** Sandbox (try it on testnet): approve, record, evidence on demand, cloud deployment. In design: refusals on record, selective disclosure, programmable controls (ERC-4337 is mocked in the sandbox), the crypto-agile seal (post-quantum is a setting in the sandbox, not real signing). Roadmap: in-region and on-premise. Nothing is labelled live.
 
-**Logo in the site chrome.** The nav and footer show the Q² mark alone, without the wordmark. The full lockups remain on `/brand`.
+**Motion and figures.** Reveals use IntersectionObserver; scrubbed effects use GSAP ScrollTrigger after first paint. Figures are hand-written SVG (`src/site/Figures.jsx`): quorum, hash chain, lattice (FIPS 204) and selective disclosure. The three.js atom remains only in the closing section, starting on first interaction. With reduced motion nothing animates.
 
-**Figures.** Imagery is mathematics drawn by hand in SVG (`src/site/Figures.jsx`): key shares as a polynomial, f(x) = s + a₁x + a₂x², f(0) = s; the quorum rule Σ vᵢ ≥ k (2 of 3); a hash chain, hᵢ = H(hᵢ₋₁ ‖ rᵢ); and the ML-DSA module lattice, t = A·s₁ + s₂ (mod q). They draw themselves in on scroll. The earlier generated photographs were removed. Documented on `/brand#figures`.
+**Logo in the site chrome.** The nav and footer show the Q² mark alone. The full lockups remain on `/brand`.
 
 **Platform.** Every sandbox function is unchanged. It keeps its dark ink surface on the new tokens: new mark, Q Squared wordmark, solid purple buttons, no gradient text or glows, calmer labels. Tailwind's purple and fuchsia scales map to the brand purple, so all existing screens adopt the brand.
 
@@ -42,9 +43,9 @@ Also `/research`, `/research/:id`, `/brand` (with `/brand/explorations`) and `/d
 | Route | Performance | Accessibility | Best practices | SEO |
 | --- | --- | --- | --- | --- |
 | Before, `/` (production) | 70 | 93 | 100 | 91 |
-| After, `/` (with objects) | 99 | 100 | 100 | 100 |
-| After, `/research` | 100 | 100 | 100 | 100 |
-| After, `/brand` | 100 | 100 | 100 | 100 |
+| After, `/` | 95 | 100 | 100 | 100 |
+| After, `/pricing` | 97 | 100 | 100 | 100 |
+| After, `/regulation` | 98 | 100 | 100 | 100 |
 
 Lighthouse 12, mobile emulation, against the production build. Home LCP 2.0 s, CLS 0. No element exceeds the viewport at 360, 390, 768, 1440 or 1920 px on any public route (checked by script, not only by scroll width). Screenshots: `docs/rebrand/before/` and `docs/rebrand/after/`.
 
@@ -89,8 +90,11 @@ Platform variables (`--bg`, `--text`, `--panel`, `--border`) are in `src/index.c
 9. **Test data.** One enquiry labelled `[TEST] Rebrand preview check` was submitted to verify the form. Delete it with `delete from design_partner_responses where respondent_email = 'gdb@moodglobalservices.com' and partner = 'inbound';`
 10. **Platform light theme.** The sandbox stays dark-first; its existing light toggle is unchanged. A full light theme for the platform is a separate piece of work.
 11. **Self-custody positioning.** The page now says Q² "is not a custodian" and "never holds your keys or your assets", and that keys stay "in your own MPC or HSM". This follows the instruction to lead with self-custody. Please confirm it matches the product, including the managed cloud option.
-12. **Pricing and the Fireblocks comparison.** Prices were set to match Fireblocks' published prices on instruction. Fireblocks' $999 is described on its page as "for up to 6 months"; Q²'s page does not limit it. Naming a competitor and its prices is comparative advertising: please have counsel review the table and footnote before this goes public, and re-check fireblocks.com/pricing on the day of launch.
-13. **MCP server.** The page describes an MCP server with three tools (propose_transfer, get_decision, get_record), labelled preview. Confirm the names and that it will exist at launch, or relabel it as planned.
+
+12. **Research reviewers.** The review asks for a "Q² Research" byline plus a named reviewer. The bylines read "Q² Research"; add the reviewer names once someone has reviewed each piece.
+13. **Book a call.** "Book a 30-minute diagnostic call" opens the enquiry form. If you have a calendar link, it can point there instead.
+14. **Status labels.** Please confirm the Sandbox / In design / Roadmap assignments above against the product.
+15. **Research pipeline.** The weekly draft pipeline in the review needs input before it is set up.
 
 ## Could not verify
 

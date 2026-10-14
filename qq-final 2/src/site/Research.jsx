@@ -5,13 +5,14 @@ const fmt = (d, long) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: long ? "long" : "short", year: "numeric" });
 
 export function ResearchIndex({ go }) {
-  const posts = [...BLOG_POSTS].sort((a, b) => (a.date < b.date ? 1 : -1));
+  // Editorial order: the array in blog.jsx is curated (new pieces, then the lead piece).
+  const posts = BLOG_POSTS;
   return (
     <main id="main" className="section" style={{ borderTop: 0 }}>
       <div className="wrap">
         <div className="sh">
           <h1 style={{ fontSize: "var(--text-3xl)", fontWeight: 600 }}>Research</h1>
-          <p>Notes from the team on agent governance, evidence and the post-quantum transition.</p>
+          <p>Notes on evidence of authority, the rules that ask for it, and the post-quantum transition.</p>
         </div>
         <ul className="posts">
           {posts.map((p) => (
@@ -21,7 +22,7 @@ export function ResearchIndex({ go }) {
                 <span>
                   <h2>{p.title}</h2>
                   <p>{p.excerpt}</p>
-                  <p className="post__meta" style={{ marginTop: "var(--space-2)" }}>{p.author}, {p.role}</p>
+                  <p className="post__meta" style={{ marginTop: "var(--space-2)" }}>{p.role ? `${p.author}, ${p.role}` : p.author}</p>
                 </span>
                 <span className="post__tag">{p.tag}</span>
               </a>
@@ -54,7 +55,7 @@ export function ResearchArticle({ id, go }) {
           <span>{post.tag}</span><span>{fmt(post.date, true)}</span><span>{post.readMins} min read</span>
         </div>
         <h1>{post.title}</h1>
-        <p className="article__meta" style={{ marginBottom: "var(--space-10)" }}>{post.author}, {post.role}</p>
+        <p className="article__meta" style={{ marginBottom: "var(--space-10)" }}>{post.role ? `${post.author}, ${post.role}` : post.author}</p>
         <div className="article__body">
           {post.body.map((b, i) =>
             b.h ? <h2 key={i}>{b.h}</h2> : b.q ? <blockquote key={i}>{b.q}</blockquote> : <p key={i}>{b.p}</p>

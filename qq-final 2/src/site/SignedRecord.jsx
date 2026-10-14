@@ -9,7 +9,7 @@ const RECORD = {
   policy: "pol-v3.2 · effective 2026-09-30",
   quorum: "2 of 3 · Treasury, Risk",
   timestamp: "2026-10-12T14:32:07Z",
-  algorithm: "ML-DSA-65 (FIPS 204)",
+  algorithm: "Hybrid post-quantum (FIPS 204)",
   hash: "sha3-256 9c4e1a07b2f58d3e6a1c0b94f7d2e8a5",
 };
 
@@ -64,7 +64,7 @@ export default function SignedRecord() {
           <div className="record__row"><dt>Quorum</dt><dd className={stage < 1 ? "is-pending" : ""}>{quorumText}</dd></div>
           <div className="record__row"><dt>Decision</dt><dd className={stage < 2 ? "is-pending" : ""}>{stage >= 2 ? <span className="ok">Approved</span> : "Pending"}</dd></div>
           <div className="record__row"><dt>Timestamp</dt><dd className={stage < 3 ? "is-pending" : ""}>{stage >= 3 ? RECORD.timestamp : "not yet recorded"}</dd></div>
-          <div className="record__row"><dt>Signature</dt><dd className={stage < 4 ? "is-pending" : ""}>{RECORD.algorithm}</dd></div>
+          <div className="record__row"><dt>Seal</dt><dd className={stage < 4 ? "is-pending" : ""}>{RECORD.algorithm}</dd></div>
         </dl>
         <div className="record__foot">
           <span className="record__hash">{stage >= 3 ? RECORD.hash : "hash computed on record"}</span>

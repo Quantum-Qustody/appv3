@@ -3,6 +3,8 @@ import "./site.css";
 import { Mark } from "../brand/Logo.jsx";
 import Landing from "./Landing.jsx";
 import BrandPage from "./BrandPage.jsx";
+import PricingPage from "./Pricing.jsx";
+import RegulationPage from "./Regulation.jsx";
 
 // Heavier or rarely visited views load on demand.
 const ResearchIndex = lazy(() => import("./Research.jsx").then((m) => ({ default: m.ResearchIndex })));
@@ -10,7 +12,9 @@ const ResearchArticle = lazy(() => import("./Research.jsx").then((m) => ({ defau
 const DesignPartnerPage = lazy(() => import("../designPartner.jsx"));
 
 const TITLES = {
-  "/": "Q² · Decision assurance for agentic finance",
+  "/": "Q² · Independent authority record for digital assets",
+  "/pricing": "Pricing · Q²",
+  "/regulation": "Regulation · Q²",
   "/research": "Research · Q²",
   "/brand": "Brand · Q²",
   "/design-partner": "Design partner intake · Q²",
@@ -45,7 +49,8 @@ function Nav({ path, go, enterPlatform }) {
     if (onHome) document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     else go(`/#${id}`);
   };
-  const toResearch = (e) => { e.preventDefault(); setOpen(false); go("/research"); };
+  const toPage = (to) => (e) => { e.preventDefault(); setOpen(false); go(to); };
+  const toResearch = toPage("/research");
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
@@ -62,22 +67,22 @@ function Nav({ path, go, enterPlatform }) {
         <nav aria-label="Primary">
           <ul className="nav__links">
             <li><a href="/#how" onClick={anchor("how")}>How it works</a></li>
-            <li><a href="/#pricing" onClick={anchor("pricing")}>Pricing</a></li>
-            <li><a href="/#developers" onClick={anchor("developers")}>Developers</a></li>
+            <li><a href="/regulation" onClick={toPage("/regulation")} aria-current={path === "/regulation" ? "page" : undefined}>Regulation</a></li>
+            <li><a href="/pricing" onClick={toPage("/pricing")} aria-current={path === "/pricing" ? "page" : undefined}>Pricing</a></li>
             <li><a href="/research" onClick={toResearch} aria-current={path.startsWith("/research") ? "page" : undefined}>Research</a></li>
           </ul>
         </nav>
         <div className="nav__cta">
           <button type="button" className="btn btn--quiet" onClick={() => enterPlatform("auth")}>Sandbox sign in</button>
-          <a className="btn btn--primary" href="/#partner" onClick={anchor("partner")}><span className="lbl-long">Become a design partner</span><span className="lbl-short" aria-hidden="true">Design partner</span></a>
+          <a className="btn btn--primary" href="/#start" onClick={anchor("start")}><span className="lbl-long">Book a diagnostic call</span><span className="lbl-short" aria-hidden="true">Book a call</span></a>
           <button type="button" className="nav__menu" aria-expanded={open} aria-controls="site-menu" aria-label={open ? "Close menu" : "Open menu"} onClick={() => setOpen((v) => !v)}><i /><i /></button>
         </div>
       </div>
       {open && (
         <nav className="menu" id="site-menu" aria-label="Menu">
           <a href="/#how" onClick={anchor("how")}>How it works</a>
-          <a href="/#pricing" onClick={anchor("pricing")}>Pricing</a>
-          <a href="/#developers" onClick={anchor("developers")}>Developers</a>
+          <a href="/regulation" onClick={toPage("/regulation")}>Regulation</a>
+          <a href="/pricing" onClick={toPage("/pricing")}>Pricing</a>
           <a href="/research" onClick={toResearch}>Research</a>
           <button type="button" onClick={() => { setOpen(false); enterPlatform("auth"); }}>Sandbox sign in</button>
         </nav>
@@ -94,15 +99,16 @@ function Footer({ go, enterPlatform }) {
         <div className="foot__grid">
           <div>
             <span className="foot__mark"><Mark size={40} title="Q Squared" /></span>
-            <p className="foot__lede">The decision assurance layer for agentic finance. Approve, record and seal every movement of digital assets.</p>
+            <p className="foot__lede">The independent authority record for digital assets. Proof of who approved every movement, across every custodian, signer and agent.</p>
           </div>
           <div>
             <h2>Product</h2>
             <ul>
               <li><a href="/#how" onClick={to("/#how")}>How it works</a></li>
-              <li><a href="/#pricing" onClick={to("/#pricing")}>Pricing</a></li>
+              <li><a href="/regulation" onClick={to("/regulation")}>Regulation</a></li>
+              <li><a href="/pricing" onClick={to("/pricing")}>Pricing</a></li>
               <li><a href="/#developers" onClick={to("/#developers")}>Developers</a></li>
-              <li><a href="/#partner" onClick={to("/#partner")}>Design partner programme</a></li>
+              <li><a href="/#start" onClick={to("/#start")}>Design partner programme</a></li>
               <li><button type="button" onClick={() => enterPlatform("auth")}>Sandbox sign in</button></li>
             </ul>
           </div>
@@ -165,6 +171,8 @@ export default function Site({ enterPlatform }) {
   if (path === "/") view = <Landing go={go} enterPlatform={enterPlatform} />;
   else if (path === "/research") view = <Suspense fallback={<Fallback />}><ResearchIndex go={go} /></Suspense>;
   else if (path.startsWith("/research/")) view = <Suspense fallback={<Fallback />}><ResearchArticle id={path.split("/")[2]} go={go} /></Suspense>;
+  else if (path === "/pricing") view = <PricingPage go={go} enterPlatform={enterPlatform} />;
+  else if (path === "/regulation") view = <RegulationPage go={go} />;
   else if (path === "/brand" || path.startsWith("/brand/")) view = <BrandPage />;
   else view = (
     <main id="main" className="section" style={{ borderTop: 0 }}>

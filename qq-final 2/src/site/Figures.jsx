@@ -43,7 +43,7 @@ export function FigShares({ className = "" }) {
   );
 }
 
-// Module lattice behind ML-DSA: public key t = A s1 + s2 (mod q). Basis b1, b2; a target t; small error s2.
+// Module lattice behind FIPS 204 signatures: public key t = A s1 + s2 (mod q). Basis b1, b2; a target t; small error s2.
 const O = [150, 150], B1 = [44, 12], B2 = [16, 40];
 const lat = [];
 for (let i = -5; i <= 5; i++) for (let j = -5; j <= 5; j++) {
@@ -143,4 +143,46 @@ export function FigQuorum({ className = "" }) {
   );
 }
 
-export const FIGURES = { quorum: FigQuorum, record: FigChain, seal: FigLattice, custody: FigShares };
+
+// Selective disclosure: a zero-knowledge proof that a statement holds over the
+// records (every movement in the quarter had at least two approvals) while the
+// amounts and counterparties stay hidden.
+export function FigDisclose({ className = "" }) {
+  const aid = `arr-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const rows = [["m₁", "2"], ["m₂", "3"], ["m₃", "2"], ["m₄", "2"]];
+  return (
+    <Fig className={className} viewBox="0 0 360 280" label="Four records with amounts and counterparties hidden. A proof shows only that each one had at least two approvals.">
+      <text className="fig__eq" x="352" y="22" textAnchor="end">π ⊢ ∀m ∈ Q₃: approvals(m) ≥ 2</text>
+      <text className="fig__lbl fig__lbl--dim" x="44" y="54">amount</text>
+      <text className="fig__lbl fig__lbl--dim" x="112" y="54">counterparty</text>
+      <text className="fig__lbl fig__lbl--dim" x="200" y="54">approvals</text>
+      {rows.map(([m, a], i) => {
+        const y = 66 + i * 40;
+        return (
+          <g key={m} className="fig__pt" style={{ "--d": `${0.2 + i * 0.12}s` }}>
+            <rect className="fig__box" x="10" y={y} width="230" height="30" rx="7" />
+            <text className="fig__lbl" x="22" y={y + 20}>{m}</text>
+            <rect className="fig__mask" x="44" y={y + 10} width="56" height="10" rx="3" />
+            <rect className="fig__mask" x="112" y={y + 10} width="74" height="10" rx="3" />
+            <text className="fig__lbl fig__lbl--acc" x="212" y={y + 20} textAnchor="middle">{a}</text>
+          </g>
+        );
+      })}
+      <path className="fig__line draw" pathLength="1" d="M240 81 C270 81 270 140 292 140 M240 201 C270 201 270 140 292 140" />
+      <g className="fig__pt" style={{ "--d": "0.9s" }}>
+        <circle className="fig__node fig__node--on" cx="312" cy="140" r="20" />
+        <text className="fig__lbl" x="312" y="145" textAnchor="middle">π</text>
+        <path className="fig__guide" d="M312 162 V196" markerEnd={`url(#${aid})`} />
+        <text className="fig__lbl fig__lbl--key" x="312" y="216" textAnchor="middle">true</text>
+      </g>
+      <text className="fig__lbl fig__lbl--dim" x="10" y="266">the reader learns the statement, not the positions</text>
+      <defs>
+        <marker id={aid} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 L8 4 L0 8 z" className="fig__head" />
+        </marker>
+      </defs>
+    </Fig>
+  );
+}
+
+export const FIGURES = { quorum: FigQuorum, record: FigChain, seal: FigLattice, custody: FigShares, disclose: FigDisclose };

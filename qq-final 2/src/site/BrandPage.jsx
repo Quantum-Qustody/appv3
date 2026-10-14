@@ -1,6 +1,5 @@
-import { useEffect } from "react";
 import { Mark } from "../brand/Logo.jsx";
-import { FigShares, FigQuorum, FigChain, FigLattice } from "./Figures.jsx";
+import { FigShares, FigQuorum, FigChain, FigLattice, FigDisclose } from "./Figures.jsx";
 
 const ASSETS = [
   { file: "q2-mark.svg", name: "Mark", bg: "paper", w: 120, h: 120 },
@@ -22,14 +21,10 @@ const FIGS = [
   { C: FigShares, name: "Key shares", note: "f(x) = s + a₁x + a₂x². Shares are points on f; f(0) = s is the key." },
   { C: FigQuorum, name: "Quorum", note: "Approve when Σ vᵢ ≥ k. The agent proposes, it never votes." },
   { C: FigChain, name: "Record", note: "hᵢ = H(hᵢ₋₁ ‖ rᵢ). Each record commits to the one before it." },
-  { C: FigLattice, name: "Seal", note: "t = A·s₁ + s₂ (mod q). The module lattice behind ML-DSA." },
+  { C: FigLattice, name: "Seal", note: "t = A·s₁ + s₂ (mod q). The module lattice behind FIPS 204 signatures." },
+  { C: FigDisclose, name: "Disclose", note: "π ⊢ ∀m ∈ Q₃: approvals(m) ≥ 2. Prove a fact without showing the positions." },
 ];
 
-const EXPLORATIONS = [
-  { file: "a-signature-seal.svg", name: "A · Signature seal", note: "The tail runs out as a signature line and ends in a seal.", picked: true },
-  { file: "b-nib.svg", name: "B · Nib", note: "A tapered pen stroke. Rejected: it reads as a speech bubble or a map pin." },
-  { file: "c-stamp.svg", name: "C · Stamp", note: "A Q inside a document stamp. Rejected: it reads as a search icon." },
-];
 
 function Section({ id, title, lede, children }) {
   return (
@@ -43,12 +38,6 @@ function Section({ id, title, lede, children }) {
 }
 
 export default function BrandPage() {
-  useEffect(() => {
-    if (window.location.pathname.startsWith("/brand/explorations")) {
-      document.getElementById("explorations")?.scrollIntoView();
-    }
-  }, []);
-
   return (
     <main id="main">
       <section className="hero" aria-labelledby="brand-title">
@@ -97,15 +86,15 @@ export default function BrandPage() {
           ))}
         </div>
         <p style={{ marginTop: "var(--space-6)", fontSize: "var(--text-sm)", color: "var(--q-ink-3)" }}>
-          On dark surfaces the mark uses #C9BDFF and interface purple shifts to #AE9CFF to keep AA contrast. The full token list is in REBRAND_NOTES.md.
+          On dark surfaces the mark uses #C9BDFF and interface purple shifts to #AE9CFF to keep AA contrast.
         </p>
       </Section>
 
       <Section id="type" title="Typography" lede="A grotesk for headings, a readable sans for text, a mono for record IDs and hashes.">
         <div className="type-specimen">
-          <div><span className="mono">Schibsted Grotesk 600 · headings</span><span style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "var(--text-2xl)", letterSpacing: "-0.02em" }}>Agents move assets. Prove every decision.</span></div>
+          <div><span className="mono">Schibsted Grotesk 600 · headings</span><span style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "var(--text-2xl)", letterSpacing: "-0.02em" }}>You hold the keys. Q² proves every decision.</span></div>
           <div><span className="mono">IBM Plex Sans 400 · body</span><span style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-lg)", color: "var(--q-ink-2)" }}>Q² records who decided what, under which mandate, against which policy version.</span></div>
-          <div><span className="mono">IBM Plex Mono 400 · data</span><span className="mono" style={{ fontSize: "var(--text-md)" }}>rec_7Q2KF9M4ZP · ML-DSA-65 · sha3-256 9c4e1a07</span></div>
+          <div><span className="mono">IBM Plex Mono 400 · data</span><span className="mono" style={{ fontSize: "var(--text-md)" }}>rec_7Q2KF9M4ZP · hybrid PQ (FIPS 204) · sha3-256 9c4e1a07</span></div>
         </div>
       </Section>
 
@@ -127,23 +116,6 @@ export default function BrandPage() {
         </div>
       </Section>
 
-      <Section id="explorations" title="Explorations" lede="Three directions were drawn. Direction A was chosen.">
-        <div className="explore">
-          {EXPLORATIONS.map((x) => (
-            <figure key={x.file} className={x.picked ? "is-picked" : ""}>
-              <div className="art"><img src={`/brand/explorations/${x.file}`} alt={x.name} width="140" height="140" /></div>
-              <figcaption><b>{x.name}{x.picked ? " · chosen" : ""}</b><span>{x.note}</span></figcaption>
-            </figure>
-          ))}
-        </div>
-        <p style={{ marginTop: "var(--space-8)", maxWidth: "var(--measure)", color: "var(--q-ink-2)" }}>
-          Direction A is the only one that says what Q² does without borrowing another icon's meaning. The ring is the Q.
-          The line along its base is the line a decision is signed on, and the solid disc that closes it is the seal.
-          It holds at 16 px as three shapes, it works in one colour, and the mark itself avoids the crypto and quantum
-          clichés: no padlocks, circuits, chain cubes or atoms. The atom appears only as a scientific diagram on the site, never in the mark. B was rejected because at small sizes it reads as a speech bubble,
-          and C because it reads as a magnifying glass, which is the wrong message for a product about proof.
-        </p>
-      </Section>
     </main>
   );
 }

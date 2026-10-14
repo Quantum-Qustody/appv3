@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-labelledby="t">
+  <title id="t">Direction A · Signature seal: the Q's tail runs out as a signature line and ends in a seal.</title>
+  <!-- Ring: centre (26,27), r 17, stroke 7 -->
+  <circle cx="26" cy="27" r="17" fill="none" stroke="#5B3BEA" stroke-width="7"/>
+  <!-- Tail: a signature line tangent to the ring's base -->
+  <rect x="26" y="40.5" width="26" height="7" fill="#5B3BEA"/>
+  <!-- Seal: the line resolves into a solid disc -->
+  <circle cx="52" cy="44" r="7" fill="#5B3BEA"/>
+  <!-- Superscript 2 -->
+  <path d="M50.5 9.5a4.25 4.25 0 1 1 7.5 2.7L50.5 19.5H59" fill="none" stroke="#5B3BEA" stroke-width="3"/>
+</svg>

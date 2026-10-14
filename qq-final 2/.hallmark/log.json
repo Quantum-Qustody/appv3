@@ -1,0 +1,58 @@
+[
+  {
+    "date": "2026-10-12",
+    "macrostructure": "Workbench",
+    "theme": "custom",
+    "theme_axes": "light / grotesk-sans / cool",
+    "vibe": "central bank meets security lab, purple on paper",
+    "enrichment": "E-live: animated signed authority record (hand-built)",
+    "nav": "N1b",
+    "footer": "Ft3",
+    "brief": "Q Squared rebrand \u00b7 decision assurance layer for agentic finance"
+  },
+  {
+    "date": "2026-10-12",
+    "macrostructure": "Split Studio",
+    "theme": "custom",
+    "theme_axes": "light+dark / grotesk-sans / cool",
+    "vibe": "museum catalogue of objects, self-custody, purple on paper with one ink chapter",
+    "enrichment": "E-photo: generated object family (higgsfield gpt_image_2_5, paper + ink sets) \u00b7 post-processed; live signed record retained",
+    "nav": "N1b (kept for continuity)",
+    "footer": "Ft3 (kept for continuity)",
+    "brief": "Q Squared landing v2 \u00b7 self-custody, abstract objects"
+  },
+  {
+    "date": "2026-10-13",
+    "macrostructure": "Scroll Story",
+    "theme": "custom",
+    "theme_axes": "dark-first / grotesk-sans / cool",
+    "vibe": "dark lab, glass atom, self-custody",
+    "enrichment": "E-3D: real-time three.js glass atom (hero + closing); generated objects with background removed (transparent WebP); live signed record",
+    "motion": "IO reveals, GSAP ScrollTrigger: scrubbed words, scale-in, hero lift, stacking cards, story progress rail; count-up",
+    "nav": "N-pill: floating glass pill with full-screen menu",
+    "footer": "Ft3 (kept)",
+    "brief": "Q Squared landing v3 \u00b7 self-custody, pricing at Fireblocks parity with sourced comparison"
+  },
+  {
+    "date": "2026-10-13",
+    "macrostructure": "Scroll Story",
+    "theme": "custom",
+    "theme_axes": "dark-first / grotesk-sans / cool",
+    "vibe": "dark lab, scientific line art",
+    "enrichment": "E-figures: hand-written SVG mathematics (Shamir shares, quorum, hash chain, ML-DSA lattice) with draw-in; three.js line-art atom with sampled 2p orbital",
+    "nav": "N-pill (mark only)",
+    "footer": "Ft3 (mark only)",
+    "brief": "Q Squared landing v3.2 \u00b7 replace photo objects with mathematical figures, scientific atom"
+  },
+  {
+    "date": "2026-10-14",
+    "macrostructure": "Scroll Story",
+    "theme": "custom",
+    "theme_axes": "dark-first / grotesk-sans / cool",
+    "vibe": "proof first: record as hero visual",
+    "enrichment": "live authority record (hero), SVG mathematical figures incl. selective disclosure, regulation timeline lanes",
+    "nav": "N-pill (mark only)",
+    "footer": "Ft3 (mark only)",
+    "brief": "Implement website review of 13 Oct 2026"
+  }
+]

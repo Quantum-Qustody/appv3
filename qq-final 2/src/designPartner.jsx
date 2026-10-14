@@ -6,6 +6,7 @@
 // ╚═══════════════════════════════════════════════════════════════════╝
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "./supabaseClient.js";
+import { Mark } from "./brand/Logo.jsx";
 
 const DRAFT_KEY = "qq_dp_chayne_v1";
 const CONSENT_KEY = "qq_dp_chayne_consent_v1";
@@ -223,7 +224,7 @@ async function buildPdf(answers, meta) {
   // Cover
   doc.setFillColor(124, 58, 237); doc.rect(0, 0, W, 118, "F");
   doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(19);
-  doc.text("Quantum Qustody", M, 52);
+  doc.text("Q Squared", M, 52);
   doc.setFont("helvetica", "normal"); doc.setFontSize(11);
   doc.text("Design Partner Discovery — completed intake", M, 74);
   doc.setFontSize(9);
@@ -289,16 +290,16 @@ function Gate({ onIn }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-16">
-      <form onSubmit={submit} className="glass w-full max-w-sm p-7 space-y-5" style={{ background: "rgba(10,5,25,.75)" }}>
+      <form onSubmit={submit} className="glass w-full max-w-sm p-7 space-y-5" style={{ background: "rgba(23,19,44,.75)" }}>
         <div className="flex items-center gap-3">
-          <img src="/qq-logo.svg" alt="QQ" className="w-8 h-8" />
+          <span className="text-purple-300 inline-flex"><Mark size={32} title="Q²" /></span>
           <div>
             <div className="font-bold text-sm tracking-tight">DESIGN PARTNER</div>
             <div className="fm text-[10px] text-gray-500">PRIVATE ACCESS</div>
           </div>
         </div>
         <p className="fm text-xs text-gray-400 leading-relaxed">
-          This area is issued to named design partners. Use the credentials provided by Quantum Qustody.
+          This area is issued to named design partners. Use the credentials provided by Q².
         </p>
         <div className="space-y-3">
           <div>
@@ -513,7 +514,7 @@ export default function DesignPartnerPage({ onBack, onSandbox }) {
       <div className="min-h-screen">
         <TopBar onBack={onBack} user={user} onOut={async () => { await supabase.auth.signOut(); setUser(null); }} />
         <div className="max-w-2xl mx-auto px-4 pt-28 pb-20">
-          <div className="glass p-6 md:p-8 space-y-5" style={{ background: "rgba(10,5,25,.7)" }}>
+          <div className="glass p-6 md:p-8 space-y-5" style={{ background: "rgba(23,19,44,.7)" }}>
             <div>
               <div className="fm text-[10px] text-fuchsia-500 tracking-widest mb-2">[ BEFORE YOU BEGIN ]</div>
               <h1 className="text-2xl font-bold mb-1">Confidentiality</h1>
@@ -546,7 +547,7 @@ export default function DesignPartnerPage({ onBack, onSandbox }) {
       <div className="min-h-screen">
         <TopBar onBack={onBack} />
         <div className="max-w-2xl mx-auto px-4 pt-28 pb-20">
-          <div className="glass p-8 text-center space-y-4" style={{ background: "rgba(10,5,25,.7)" }}>
+          <div className="glass p-8 text-center space-y-4" style={{ background: "rgba(23,19,44,.7)" }}>
             <div className="inline-flex w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 items-center justify-center text-emerald-400 text-2xl">✓</div>
             <h2 className="text-2xl font-bold">Discovery submitted</h2>
             <p className="fm text-sm text-gray-400 leading-relaxed">
@@ -554,7 +555,7 @@ export default function DesignPartnerPage({ onBack, onSandbox }) {
             </p>
             <div className="space-y-2 pt-2 text-left">
               <Row label="Stored securely" ok={result.stored} />
-              <Row label="Delivered to Quantum Qustody" ok={result.emailed} />
+              <Row label="Delivered to Q Squared" ok={result.emailed} />
             </div>
             {result.msg && <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 fm text-xs text-yellow-200 text-left">{result.msg}</div>}
             <button onClick={onBack} className="fm text-xs px-4 py-2.5 border border-purple-500/40 text-purple-300 hover:bg-purple-500/10 transition-all cursor-pointer">
@@ -563,8 +564,8 @@ export default function DesignPartnerPage({ onBack, onSandbox }) {
           </div>
 
           {/* Next step — take the sandbox for a drive */}
-          <div className="glass mt-5 p-7 md:p-8 relative overflow-hidden" style={{ background: "rgba(10,5,25,.7)", borderTop: "2px solid rgba(217,70,239,.5)" }}>
-            <div className="absolute -right-16 -top-16 w-52 h-52 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(217,70,239,.16), transparent 70%)" }} />
+          <div className="glass mt-5 p-7 md:p-8 relative overflow-hidden" style={{ background: "rgba(23,19,44,.7)", borderTop: "2px solid rgba(174,156,255,.5)" }}>
+            <div className="absolute -right-16 -top-16 w-52 h-52 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(174,156,255,.16), transparent 70%)" }} />
             <div className="relative">
               <div className="fm text-[10px] text-fuchsia-500 tracking-widest mb-3">[ NEXT STEP ]</div>
               <h3 className="text-xl md:text-2xl font-bold mb-3 leading-tight">Ready to try the sandbox?</h3>
@@ -626,13 +627,13 @@ export default function DesignPartnerPage({ onBack, onSandbox }) {
 
       {/* Progress */}
       <div className="max-w-6xl mx-auto px-4 pb-6">
-        <div className="glass p-4" style={{ background: "rgba(10,5,25,.6)" }}>
+        <div className="glass p-4" style={{ background: "rgba(23,19,44,.6)" }}>
           <div className="flex items-center justify-between fm text-[10px] text-gray-500 mb-2">
             <span>{answeredCount} of {ALL_QS.length} answered</span>
             <span className={saved ? "text-emerald-400" : "text-gray-600"}>{saved ? "DRAFT SAVED" : "AUTOSAVE ON"}</span>
           </div>
           <div className="h-1.5 bg-black/50 overflow-hidden">
-            <div className="h-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(to right,#a855f7,#e879f9)" }} />
+            <div className="h-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(to right,#8E78F6,#C9BDFF)" }} />
           </div>
         </div>
       </div>
@@ -666,7 +667,7 @@ export default function DesignPartnerPage({ onBack, onSandbox }) {
         {/* Panel */}
         <div>
           {!onReview && (
-            <div className="glass p-6 md:p-8" style={{ background: "rgba(10,5,25,.6)" }}>
+            <div className="glass p-6 md:p-8" style={{ background: "rgba(23,19,44,.6)" }}>
               <div className="mb-5 pb-5 border-b border-purple-500/15">
                 <div className="fm text-[10px] text-purple-400 tracking-widest mb-1.5">SECTION {sec.n} OF {SECTIONS.length}</div>
                 <h2 className="text-xl font-bold mb-2">{sec.title}</h2>
@@ -691,11 +692,11 @@ export default function DesignPartnerPage({ onBack, onSandbox }) {
 
           {onReview && (
             <div className="space-y-4">
-              <div className="glass p-6 md:p-8" style={{ background: "rgba(10,5,25,.6)" }}>
+              <div className="glass p-6 md:p-8" style={{ background: "rgba(23,19,44,.6)" }}>
                 <div className="fm text-[10px] text-fuchsia-400 tracking-widest mb-1.5">FINAL</div>
                 <h2 className="text-xl font-bold mb-2">Review & submit</h2>
                 <p className="fm text-xs text-gray-500 leading-relaxed mb-5">
-                  {answeredCount} of {ALL_QS.length} answered. Blank answers are fine — submit at whatever fidelity your security policy allows. On submit we store your responses and send a PDF of this intake to Quantum Qustody; a copy downloads to your device.
+                  {answeredCount} of {ALL_QS.length} answered. Blank answers are fine — submit at whatever fidelity your security policy allows. On submit we store your responses and send a PDF of this intake to Q²; a copy downloads to your device.
                 </p>
                 {missingRequired.length > 0 && (
                   <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 fm text-xs text-yellow-200 mb-5">
@@ -705,7 +706,7 @@ export default function DesignPartnerPage({ onBack, onSandbox }) {
                 <div className="space-y-5 max-h-[46vh] overflow-y-auto pr-2">
                   {SECTIONS.map(s => (
                     <div key={s.n}>
-                      <div className="fm text-[10px] text-purple-400 mb-2 sticky top-0 py-1" style={{ background: "rgba(10,5,25,.95)" }}>
+                      <div className="fm text-[10px] text-purple-400 mb-2 sticky top-0 py-1" style={{ background: "rgba(23,19,44,.95)" }}>
                         SECTION {s.n} — {s.title.toUpperCase()}
                       </div>
                       {s.qs.map((q, i) => (
@@ -771,7 +772,7 @@ function Row({ label, ok }) {
 function TopBar({ onBack, user, onOut }) {
   return (
     <div className="fixed top-0 w-full z-50 p-4">
-      <div className="max-w-6xl mx-auto glass rounded-sm flex justify-between items-center px-5 py-3" style={{ background: "rgba(5,2,15,.85)" }}>
+      <div className="max-w-6xl mx-auto glass rounded-sm flex justify-between items-center px-5 py-3" style={{ background: "rgba(15,12,31,.85)" }}>
         <button onClick={onBack} className="fm text-xs text-gray-300 hover:text-purple-400 transition-colors cursor-pointer">← BACK TO SITE</button>
         <div className="flex items-center gap-3">
           {user && (
@@ -781,8 +782,8 @@ function TopBar({ onBack, user, onOut }) {
             </>
           )}
           <div className="flex items-center gap-2">
-            <img src="/qq-logo.svg" alt="QQ" className="w-6 h-6" />
-            <span className="font-bold text-sm tracking-tight hidden sm:inline">QUANTUM_QUSTODY</span>
+            <span className="text-purple-300 inline-flex"><Mark size={24} /></span>
+            <span className="q-word hidden sm:inline">Q Squared</span>
           </div>
         </div>
       </div>

@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<style>body{margin:0}</style>
+<title>Movement Evidence Chain</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: an evidence document. A ledger-style vertical chain of facets, each linked to the one before by its hash, with a verification panel. */
+:root {
+  --bg: #FBFAFD; --panel: #F3F1FA; --panel-2: #E9E6F4;
+  --fg: #15112B; --fg-2: #4A4562; --fg-3: #615B7A;
+  --rule: #E2DEEF; --rule-2: #CBC5E0;
+  --accent: #5B3BEA; --accent-soft: #EEEAFE;
+  --ok: #17734A; --ok-soft: #E3F4EC; --bad: #B42318; --bad-soft: #FDECEA; --amber: #9A5B00; --amber-soft: #FDF2DE;
+  --display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E0B1D; --panel: #151129; --panel-2: #1E1938; --fg: #F2F0FA; --fg-2: #C6C1DA; --fg-3: #A29CBA;
+  --rule: #2A2445; --rule-2: #3B3460; --accent: #AE9CFF; --accent-soft: #221C44;
+  --ok: #6FD3A2; --ok-soft: #13291F; --bad: #FF8A80; --bad-soft: #2E1414; --amber: #F2B04A; --amber-soft: #2E2414; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0E0B1D; --panel: #151129; --panel-2: #1E1938; --fg: #F2F0FA; --fg-2: #C6C1DA; --fg-3: #A29CBA;
+  --rule: #2A2445; --rule-2: #3B3460; --accent: #AE9CFF; --accent-soft: #221C44;
+  --ok: #6FD3A2; --ok-soft: #13291F; --bad: #FF8A80; --bad-soft: #2E1414; --amber: #F2B04A; --amber-soft: #2E2414; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 72px; }
+.kicker { font: 500 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); }
+h1 { font: 600 clamp(1.8rem, 1.3rem + 2vw, 2.6rem)/1.08 var(--display); letter-spacing: -0.03em; margin: 10px 0 10px; text-wrap: balance; }
+.lede { color: var(--fg-2); max-width: 68ch; margin: 0 0 22px; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 22px; }
+.seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--panel-2); gap: 4px; }
+.seg button { font: 500 13px/1 var(--body); padding: 9px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--fg-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+.btn { font: 500 13px/1 var(--body); padding: 10px 14px; border-radius: 999px; border: 1px solid var(--rule-2); background: var(--bg); color: var(--fg); cursor: pointer; }
+.btn:hover { border-color: var(--fg-3); }
+.btn.danger { color: var(--bad); border-color: var(--bad); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.syn { font: 500 11.5px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--amber); border: 1px solid var(--amber); padding: 6px 9px; border-radius: 999px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.head { border: 1px solid var(--rule-2); border-radius: 14px; padding: 16px 18px; background: var(--panel); margin-bottom: 14px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.head div { min-width: 0; }
+.head dt { font: 500 11px/1.3 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3); }
+.head dd { margin: 3px 0 0; font: 500 13.5px/1.4 var(--mono); overflow-wrap: anywhere; }
+.status-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; font: 600 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: 0.04em; }
+.status-pill.ok { background: var(--ok-soft); color: var(--ok); } .status-pill.bad { background: var(--bad-soft); color: var(--bad); }
+ol.chain { list-style: none; margin: 0; padding: 0; position: relative; }
+ol.chain::before { content: ""; position: absolute; left: 15px; top: 14px; bottom: 14px; width: 2px; background: var(--rule-2); }
+.facet { position: relative; padding: 0 0 14px 44px; }
+.facet .dot { position: absolute; left: 7px; top: 14px; width: 18px; height: 18px; border-radius: 50%; background: var(--bg); border: 2px solid var(--accent); display: grid; place-items: center; }
+.facet.refused .dot { border-color: var(--bad); }
+.facet.broken .dot { border-color: var(--bad); background: var(--bad-soft); }
+.card { border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px; background: var(--bg); }
+.facet.broken .card { border-color: var(--bad); }
+.card .top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.card h3 { margin: 0; font: 600 15px/1.3 var(--display); }
+.src { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-3); }
+.card p { margin: 6px 0 8px; color: var(--fg-2); font-size: 14px; }
+.kv { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 2px 12px; font: 12.5px/1.5 var(--mono); }
+.kv span:nth-child(odd) { color: var(--fg-3); }
+.kv span:nth-child(even) { overflow-wrap: anywhere; color: var(--fg); }
+.hash { margin-top: 8px; font: 11.5px/1.4 var(--mono); color: var(--fg-3); overflow-wrap: anywhere; }
+.hash b { color: var(--accent); font-weight: 500; }
+.facet.broken .hash b { color: var(--bad); }
+aside { position: sticky; top: env(safe-area-inset-top, 0px); display: grid; gap: 14px; }
+.panel { border: 1px solid var(--rule-2); border-radius: 14px; padding: 16px; background: var(--panel); }
+.panel h2 { margin: 0 0 8px; font: 600 16px/1.3 var(--display); }
+.verdict { padding: 10px 12px; border-radius: 10px; font: 500 13.5px/1.45 var(--body); }
+.verdict.ok { background: var(--ok-soft); color: var(--ok); } .verdict.bad { background: var(--bad-soft); color: var(--bad); } .verdict.idle { background: var(--panel-2); color: var(--fg-2); }
+.panel ul { margin: 8px 0 0; padding-left: 18px; color: var(--fg-2); font-size: 13.5px; }
+pre.json { margin: 0; max-height: 360px; overflow: auto; background: var(--panel-2); border-radius: 10px; padding: 12px; font: 11.5px/1.55 var(--mono); color: var(--fg); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+footer { margin-top: 36px; font-size: 13px; color: var(--fg-3); max-width: 80ch; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } aside { position: static; } .head { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 440px) { .kv { grid-template-columns: minmax(0, 1fr); } .head { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<div class="wrap">
+  <div class="kicker">Q² · Movement Evidence Chain · sample export</div>
+  <h1>One movement, one record, one export</h1>
+  <p class="lede">What the Phase 1 pilot produces for Chayne: the complete evidence chain for a single movement, from proposal to ledger entry, with no manual stitching. Every fact links to the one before it by hash, so changing any of them is detectable. Try it below.</p>
+
+  <div class="bar">
+    <div class="seg" role="group" aria-label="Choose a movement">
+      <button type="button" id="b-ok" aria-pressed="true">Approved movement</button>
+      <button type="button" id="b-ref" aria-pressed="false">Refused movement</button>
+    </div>
+    <span class="syn">Synthetic data · illustrative</span>
+  </div>
+
+  <div class="grid">
+    <section aria-label="Evidence chain">
+      <dl class="head" id="head"></dl>
+      <ol class="chain" id="chain"></ol>
+    </section>
+    <aside>
+      <div class="panel">
+        <h2>Verify the chain</h2>
+        <div class="verdict idle" id="verdict" role="status" aria-live="polite">Checking…</div>
+        <div class="actions">
+          <button type="button" class="btn" id="verify">Verify again</button>
+          <button type="button" class="btn danger" id="tamper">Alter one fact</button>
+          <button type="button" class="btn" id="reset">Restore</button>
+        </div>
+        <ul>
+          <li>Each facet stores the hash of the one before it.</li>
+          <li>“Alter one fact” changes the approved amount after the event, the way a hand-edited spreadsheet would.</li>
+          <li>This demo hashes with SHA-256 in your browser. The production design uses SHA3-256 and a hybrid post-quantum seal (FIPS 204).</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h2>Export (JSON)</h2>
+        <pre class="json" id="json" tabindex="0" aria-label="JSON export"></pre>
+        <div class="actions"><button type="button" class="btn" id="copy">Copy JSON</button></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>Illustrative record built on synthetic data for internal review and for the Q² × Salt × Chayne session. Field names follow the developer docs draft v0.1. Salt values mirror the shape of Salt's AccountTransaction and PolicyCheck types. Not live data; nothing here has been signed by Salt or settled on chain.</footer>
+</div>
+
+<script>
+const BASE = {
+  approved: {
+    mrid: "mr_01JB8Q2KF9M4ZP7W3T", entity: "fund:chayne-master", status: "settled",
+    action: "250,000.00 USDC to allowlisted platform B",
+    facets: [
+      { type: "proposal", src: "Chayne platform", at: "2026-10-20T13:02:11Z", title: "Proposed",
+        text: "The GP proposes a deployment from the operating vault under the investment policy.",
+        data: { proposer: "person:gp-1", account: "salt:acc_7f2 (operating vault)", to: "0x8a3f…be41 (platform B)", amount: "250000.00 USDC", mandate: "IPS-2026.2", policy_version: "pol-v3.2" } },
+      { type: "eligibility", src: "Q²", at: "2026-10-20T13:02:12Z", title: "Eligible against fund context",
+        text: "Checked against live NAV from the administrator, the limits a transaction-level engine cannot see.",
+        data: { nav_ref: "parsera:nav/2026-10-17", obligor_after: "3.1% of NAV (limit 5%)", platform_after: "11.8% of NAV (limit 15%)", result: "eligible", expires_at: "2026-10-20T15:02:12Z" } },
+      { type: "approval", src: "Q²", at: "2026-10-20T13:09:40Z", title: "Approved, quorum met",
+        text: "Requested out of band; the operating partner approved with a passkey. The proposer cannot approve.",
+        data: { approvers: "person:gp-1 (proposer), person:op-partner", quorum: "2 of 3", credential: "passkey:opp-02", separation_of_duties: "pass" } },
+      { type: "salt.policy_check", src: "Salt", at: "2026-10-20T13:09:43Z", title: "Salt policies passed",
+        text: "Salt's own transaction-level check, recorded exactly as returned.",
+        data: { policyBreach: "false", validatedPolicies: "allowed_recipients, transaction_limit_token_denominated", rejectedPolicies: "none", salt_timestamp: "Mon, 20 Oct 2026 13:09:43 GMT" } },
+      { type: "salt.state", src: "Salt", at: "2026-10-20T13:10:05Z", title: "Signed and broadcast",
+        text: "Salt's transaction id is bound to the MRID at submission. The unsigned hash proves the signed transaction is the approved one.",
+        data: { transaction_id: "6714a9…c2", states: "propose → sign → broadcast", unsignedTxHash: "0x5c1e…9e07", params_match: "yes" } },
+      { type: "chain.receipt", src: "Chain", at: "2026-10-20T13:10:31Z", title: "Settled on chain",
+        text: "Read from the network by transaction hash.",
+        data: { tx_hash: "0xa19d…3f07", block: "21 044 812", status: "success" } },
+      { type: "ledger.entry", src: "Parsera", at: "2026-10-20T14:00:02Z", title: "Booked in the ledger",
+        text: "The administrator's journal entry, matched by MRID reference.",
+        data: { journal: "je_88213", reference: "mr_01JB8Q2KF9M4ZP7W3T", amount: "250000.00 USDC", book: "operating" } }
+    ]
+  },
+  refused: {
+    mrid: "mr_01JB8R7XD3H2QN5V0A", entity: "fund:chayne-master", status: "refused",
+    action: "900,000.00 USDC to allowlisted platform B",
+    facets: [
+      { type: "proposal", src: "Chayne platform", at: "2026-10-20T15:41:07Z", title: "Proposed",
+        text: "A larger deployment to the same platform, proposed the same afternoon.",
+        data: { proposer: "person:gp-1", account: "salt:acc_7f2 (operating vault)", to: "0x8a3f…be41 (platform B)", amount: "900000.00 USDC", mandate: "IPS-2026.2", policy_version: "pol-v3.2" } },
+      { type: "refusal", src: "Q²", at: "2026-10-20T15:41:08Z", title: "Refused: platform limit", refused: true,
+        text: "Would take platform B to 19.9% of NAV against a 15% limit. Salt would have passed it: the address is allowlisted and under the per-transfer cap. Nothing downstream happens; there is no override path.",
+        data: { reason_code: "ELIG_CONCENTRATION_PLATFORM", nav_ref: "parsera:nav/2026-10-17", platform_after: "19.9% of NAV (limit 15%)", salt_called: "no", downstream_facets: "none" } }
+    ]
+  }
+};
+
+let mode = "approved";
+let doc = structuredClone(BASE[mode]);
+let hashes = [];
+
+const enc = new TextEncoder();
+const canon = (o) => JSON.stringify(o, Object.keys(o).sort());
+// Small SHA-256 fallback for frames without Web Crypto (non-secure contexts).
+function sha256js(bytes) {
+  const K = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+  const H = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+  const l = bytes.length, n = ((l + 9 + 63) >> 6) << 6, m = new Uint8Array(n);
+  m.set(bytes); m[l] = 0x80; const bits = l * 8;
+  m[n - 4] = bits >>> 24; m[n - 3] = (bits >>> 16) & 255; m[n - 2] = (bits >>> 8) & 255; m[n - 1] = bits & 255;
+  const w = new Uint32Array(64), r = (x, s) => (x >>> s) | (x << (32 - s));
+  for (let o = 0; o < n; o += 64) {
+    for (let i = 0; i < 16; i++) w[i] = (m[o + i * 4] << 24) | (m[o + i * 4 + 1] << 16) | (m[o + i * 4 + 2] << 8) | m[o + i * 4 + 3];
+    for (let i = 16; i < 64; i++) { const a = w[i - 15], b = w[i - 2]; w[i] = (w[i - 16] + (r(a, 7) ^ r(a, 18) ^ (a >>> 3)) + w[i - 7] + (r(b, 17) ^ r(b, 19) ^ (b >>> 10))) | 0; }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) | 0;
+      const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    H[0] += a; H[1] += b; H[2] += c; H[3] += d; H[4] += e; H[5] += f; H[6] += g; H[7] += h;
+  }
+  return Array.from(H).map((x) => x.toString(16).padStart(8, "0")).join("");
+}
+async function sha256(s) {
+  const bytes = enc.encode(s);
+  if (globalThis.crypto && crypto.subtle) {
+    const buf = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return sha256js(bytes);
+}
+async function chainHashes(facets) {
+  const out = []; let prev = null;
+  for (const f of facets) {
+    const h = await sha256(canon({ type: f.type, at: f.at, data: canon(f.data), prev }));
+    out.push({ prev, h }); prev = h;
+  }
+  return out;
+}
+
+// The stored hashes are computed once from the original record; verification recomputes from current facets.
+async function seal() { hashes = await chainHashes(BASE[mode].facets); }
+
+function render(broken = -1) {
+  const head = document.getElementById("head");
+  const ok = doc.status !== "refused";
+  head.innerHTML = `
+    <div><dt>MRID</dt><dd>${doc.mrid}</dd></div>
+    <div><dt>Entity</dt><dd>${doc.entity}</dd></div>
+    <div><dt>Movement</dt><dd>${doc.action}</dd></div>
+    <div><dt>Status</dt><dd><span class="status-pill ${ok ? "ok" : "bad"}">${doc.status}</span></dd></div>`;
+  const ol = document.getElementById("chain");
+  ol.innerHTML = "";
+  doc.facets.forEach((f, i) => {
+    const li = document.createElement("li");
+    li.className = "facet" + (f.refused ? " refused" : "") + (broken >= 0 && i >= broken ? " broken" : "");
+    const kv = Object.entries(f.data).map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
+    const hs = hashes[i] || {};
+    li.innerHTML = `<span class="dot" aria-hidden="true"></span>
+      <div class="card">
+        <div class="top"><h3>${f.title}</h3><span class="src">${f.src} · ${f.at.replace("T", " ").replace("Z", " UTC")}</span></div>
+        <p>${f.text}</p>
+        <div class="kv">${kv}</div>
+        <div class="hash">prev <b>${hs.prev ? hs.prev.slice(0, 16) + "…" : "none (first fact)"}</b> · this <b>${hs.h ? hs.h.slice(0, 16) + "…" : ""}</b></div>
+      </div>`;
+    ol.appendChild(li);
+  });
+  const json = { mrid: doc.mrid, entity: doc.entity, status: doc.status,
+    facets: doc.facets.map((f, i) => ({ type: f.type, source: f.src, at: f.at, ...f.data, prev_hash: hashes[i] ? hashes[i].prev : null })),
+    seal: { head_hash: hashes.length ? "sha256:" + hashes[hashes.length - 1].h : null, suite_in_production: "hybrid classical + post-quantum (FIPS 204)" } };
+  document.getElementById("json").textContent = JSON.stringify(json, null, 2);
+}
+
+async function verify() {
+  const v = document.getElementById("verdict");
+  const now = await chainHashes(doc.facets);
+  let broken = -1;
+  for (let i = 0; i < now.length; i++) { if (now[i].h !== hashes[i].h) { broken = i; break; } }
+  render(broken);
+  if (broken < 0) {
+    v.className = "verdict ok";
+    v.textContent = `Chain intact. ${doc.facets.length} facets, every hash matches. Head ${hashes[hashes.length - 1].h.slice(0, 12)}…`;
+  } else {
+    v.className = "verdict bad";
+    v.textContent = `Tampering detected at facet ${broken + 1} (“${doc.facets[broken].title}”). Its hash no longer matches, so every later link breaks too.`;
+  }
+}
+
+async function load(m) {
+  mode = m; doc = structuredClone(BASE[m]);
+  document.getElementById("b-ok").setAttribute("aria-pressed", String(m === "approved"));
+  document.getElementById("b-ref").setAttribute("aria-pressed", String(m === "refused"));
+  await seal(); await verify();
+}
+
+document.getElementById("b-ok").addEventListener("click", () => load("approved"));
+document.getElementById("b-ref").addEventListener("click", () => load("refused"));
+document.getElementById("verify").addEventListener("click", verify);
+document.getElementById("reset").addEventListener("click", () => { doc = structuredClone(BASE[mode]); verify(); });
+document.getElementById("tamper").addEventListener("click", () => {
+  const f = doc.facets[0];
+  f.data = { ...f.data, amount: mode === "approved" ? "25000.00 USDC" : "90000.00 USDC" };
+  verify();
+});
+document.getElementById("copy").addEventListener("click", (e) => {
+  const t = document.getElementById("json").textContent; const b = e.currentTarget;
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy JSON"), 1400); }, () => {});
+});
+load("approved");
+</script>
+
+</html>

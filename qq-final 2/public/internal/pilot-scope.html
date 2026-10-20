@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<style>body{margin:0}</style>
+<title>Chayne Pilot Scope</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: an internal scoping memo. One reading column, decision blocks up front, tables for scope, plan and money. */
+:root {
+  --bg: #FBFAFD; --panel: #F3F1FA; --panel-2: #E9E6F4;
+  --fg: #15112B; --fg-2: #4A4562; --fg-3: #615B7A;
+  --rule: #E2DEEF; --rule-2: #CBC5E0;
+  --accent: #5B3BEA; --accent-soft: #EEEAFE;
+  --red: #B42318; --red-soft: #FDECEA; --amber: #9A5B00; --amber-soft: #FDF2DE; --green: #17734A; --green-soft: #E3F4EC;
+  --display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E0B1D; --panel: #151129; --panel-2: #1E1938; --fg: #F2F0FA; --fg-2: #C6C1DA; --fg-3: #A29CBA;
+  --rule: #2A2445; --rule-2: #3B3460; --accent: #AE9CFF; --accent-soft: #221C44;
+  --red: #FF8A80; --red-soft: #2E1414; --amber: #F2B04A; --amber-soft: #2E2414; --green: #6FD3A2; --green-soft: #13291F; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0E0B1D; --panel: #151129; --panel-2: #1E1938; --fg: #F2F0FA; --fg-2: #C6C1DA; --fg-3: #A29CBA;
+  --rule: #2A2445; --rule-2: #3B3460; --accent: #AE9CFF; --accent-soft: #221C44;
+  --red: #FF8A80; --red-soft: #2E1414; --amber: #F2B04A; --amber-soft: #2E2414; --green: #6FD3A2; --green-soft: #13291F; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15.5px/1.65 var(--body); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 920px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 80px; }
+.internal { display: inline-flex; gap: 8px; align-items: center; font: 600 12px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--red); border: 1px solid var(--red); background: var(--red-soft); padding: 7px 10px; border-radius: 999px; }
+h1 { font: 600 clamp(1.9rem, 1.4rem + 2vw, 2.7rem)/1.08 var(--display); letter-spacing: -0.03em; margin: 16px 0 8px; text-wrap: balance; }
+.sub { color: var(--fg-2); margin: 0 0 24px; max-width: 68ch; }
+h2 { font: 600 1.35rem/1.2 var(--display); letter-spacing: -0.02em; margin: 44px 0 10px; text-wrap: balance; }
+p { margin: 0 0 12px; color: var(--fg-2); max-width: 72ch; }
+strong { color: var(--fg); font-weight: 600; }
+ul { margin: 0 0 12px; padding-left: 20px; color: var(--fg-2); }
+li { margin-bottom: 5px; max-width: 70ch; }
+.keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 8px 0 8px; }
+.key { border: 1px solid var(--rule-2); border-radius: 12px; padding: 14px; background: var(--panel); }
+.key dt { font: 500 11px/1.3 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3); }
+.key dd { margin: 4px 0 0; font: 600 1.25rem/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.key dd small { display: block; font: 400 12.5px/1.4 var(--body); color: var(--fg-2); margin-top: 3px; }
+.callout { border: 1px solid var(--rule-2); border-left: 3px solid var(--amber); background: var(--amber-soft); border-radius: 10px; padding: 12px 14px; margin: 14px 0; }
+.callout p { margin: 0; color: var(--fg); }
+.tbl { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; margin: 12px 0 18px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th { background: var(--panel); font: 500 11.5px/1.3 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-3); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tfoot td { font-weight: 600; background: var(--panel); }
+.st { font: 600 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 7px; border-radius: 999px; white-space: nowrap; }
+.st.sb { color: var(--accent); background: var(--accent-soft); } .st.ds { color: var(--amber); background: var(--amber-soft); } .st.out { color: var(--fg-3); background: var(--panel-2); }
+.bar { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; min-width: 80px; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.box { border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; background: var(--bg); }
+.box h3 { margin: 0 0 6px; font: 600 1rem/1.3 var(--display); }
+footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--fg-3); }
+@media (max-width: 760px) { .keys { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cols { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 420px) { .keys { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<div class="wrap">
+  <span class="internal">Internal · not for Chayne, Salt or Parsera</span>
+  <h1>Chayne pilot: scope, plan and budget</h1>
+  <p class="sub">What Travis asked for on 15 October, turned into a build we can price, staff and reuse for the next funds in his network. Numbers are indicative until Salt and Parsera answer the open integration questions.</p>
+
+  <dl class="keys">
+    <div class="key"><dt>Charge to Chayne</dt><dd>~USD 30,000<small>Indicative, from the 16 Oct chat</small></dd></div>
+    <div class="key"><dt>Development</dt><dd>USD 10–15k<small>Allocated to the build</small></dd></div>
+    <div class="key"><dt>Contribution</dt><dd>USD 15–20k<small>Charge less development</small></dd></div>
+    <div class="key"><dt>Testing target</dt><dd>Fri 13 Nov<small>Sandbox testing with sample subscriptions</small></dd></div>
+  </dl>
+
+  <div class="callout"><p><strong>Call it sandbox pilot testing.</strong> Mid-November matches the Phase 1 sandbox gate in the agreed architecture (synthetic data, zero touch on Chayne systems), not the later pilot on a live shadow feed. Say “pilot testing in the sandbox” to Travis so nobody expects production data by then.</p></div>
+
+  <h2>What Travis asked for</h2>
+  <ul>
+    <li><strong>Phase one is the base layer:</strong> the Movement Record ID (MRID) and the evidence it carries. One movement's complete evidence chain as one exportable artifact, in minutes, with no manual stitching (his Q10.2).</li>
+    <li><strong>Add-ons later:</strong> zero-knowledge selective disclosure and the agent layer, once the base layer works.</li>
+    <li><strong>Architecture that travels:</strong> built with Salt and Parsera in mind, so the same design rolls into Salt's and Parsera's portfolios.</li>
+    <li><strong>Timing:</strong> flexible launch, but first testing by about mid-November, with a few small subscriptions he can activate.</li>
+  </ul>
+
+  <h2>Scope</h2>
+  <p>Everything below runs in the Q² sandbox on synthetic data, with the Salt adapter tested against a Salt test tenant. The first corridor is LP subscriptions, built negative path first.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Deliverable</th><th>What it does</th><th>Status today</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Movement Record service</strong></td><td>Mints the MRID at decision time; append-only facets, hash-chained; JSON and PDF evidence-chain export.</td><td><span class="st ds">Design</span> on <span class="st sb">Sandbox</span> evidence services</td></tr>
+      <tr><td><strong>Refusal Records</strong></td><td>Every refused movement recorded with a reason code and no downstream facets.</td><td><span class="st sb">Sandbox</span> base, extended</td></tr>
+      <tr><td><strong>Eligibility engine v0</strong></td><td>Checks NAV-relative limits and subscription acceptance state on a synthetic context model; fails closed.</td><td><span class="st ds">Design</span></td></tr>
+      <tr><td><strong>Negative-path library</strong></td><td>Eight refusal scenarios on the LP subscription corridor; this gates the phase.</td><td><span class="st ds">Design</span> (baseline scenarios exist)</td></tr>
+      <tr><td><strong>Salt wrapper adapter</strong></td><td>TypeScript client the Chayne platform calls around the Salt SDK: decide, attach the Salt transaction, relay state.</td><td><span class="st ds">Design</span></td></tr>
+      <tr><td><strong>Approvals and alerts</strong></td><td>Quorum recorded in Q²; out-of-band approval requests; stalled approvals alert.</td><td><span class="st sb">Sandbox</span> approvals, alerts new</td></tr>
+      <tr><td><strong>Parsera read adapter</strong></td><td>Interface only, against synthetic data until the read API is scoped.</td><td><span class="st ds">Design</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="cols">
+    <div class="box"><h3>Out of scope for this price</h3>
+      <ul>
+        <li>Selective disclosure (ZK proofs). Phase 2 or later, priced separately.</li>
+        <li>Agent layer and smart-account (ERC-4337) build.</li>
+        <li>Live Chayne, Salt mainnet or Parsera production data.</li>
+        <li>LP and NAV reporting, KYB and accreditation files.</li>
+        <li>Any key material, origination or bypass path. Never.</li>
+      </ul>
+    </div>
+    <div class="box"><h3>Reusable for the next fund</h3>
+      <ul>
+        <li>Movement Record service, export and seal: generic core.</li>
+        <li>Eligibility engine: rules are configuration, not code.</li>
+        <li>Salt adapter: works for any Salt customer with a wrapper.</li>
+        <li>Negative-path library: Chayne's scenarios become templates.</li>
+        <li>Chayne-specific: limit values, corridor definitions, report shapes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Development budget, proposed split</h2>
+  <p>A starting split for Gianluca to adjust. Shown at the midpoint of USD 12,500; the range scales each line.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Module</th><th class="num">Share</th><th>Weight</th><th class="num">At USD 10k</th><th class="num">At USD 12.5k</th><th class="num">At USD 15k</th></tr></thead>
+    <tbody>
+      <tr><td>Movement Record service and export</td><td class="num">30%</td><td><div class="bar"><i style="width:30%"></i></div></td><td class="num">3,000</td><td class="num">3,750</td><td class="num">4,500</td></tr>
+      <tr><td>Eligibility engine v0</td><td class="num">25%</td><td><div class="bar"><i style="width:25%"></i></div></td><td class="num">2,500</td><td class="num">3,125</td><td class="num">3,750</td></tr>
+      <tr><td>Negative-path library and Refusal Records</td><td class="num">15%</td><td><div class="bar"><i style="width:15%"></i></div></td><td class="num">1,500</td><td class="num">1,875</td><td class="num">2,250</td></tr>
+      <tr><td>Salt wrapper adapter</td><td class="num">15%</td><td><div class="bar"><i style="width:15%"></i></div></td><td class="num">1,500</td><td class="num">1,875</td><td class="num">2,250</td></tr>
+      <tr><td>Approvals, alerts and webhooks</td><td class="num">10%</td><td><div class="bar"><i style="width:10%"></i></div></td><td class="num">1,000</td><td class="num">1,250</td><td class="num">1,500</td></tr>
+      <tr><td>Parsera adapter interface</td><td class="num">5%</td><td><div class="bar"><i style="width:5%"></i></div></td><td class="num">500</td><td class="num">625</td><td class="num">750</td></tr>
+    </tbody>
+    <tfoot><tr><td>Total</td><td class="num">100%</td><td></td><td class="num">10,000</td><td class="num">12,500</td><td class="num">15,000</td></tr></tfoot>
+  </table></div>
+  <p>Against the public ladder, USD 30k sits inside the pilot tier (“from USD 20,000, credited to year one”). If Chayne converts, decide whether the full 30k or 20k is credited to the first subscription year.</p>
+
+  <h2>Plan to 13 November</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Week</th><th>Work</th><th>Exit check</th></tr></thead>
+    <tbody>
+      <tr><td><strong>20–23 Oct</strong></td><td>Send developer docs and the sample evidence chain to Salt. Three-way Salt session Thu 22 Oct. Send Salt the sandbox domain for a test tenant. Confirm scope with Chee, then price with Travis.</td><td>S-1, S-2, S-3 answered; scope agreed internally</td></tr>
+      <tr><td><strong>26–30 Oct</strong></td><td>Movement Record service, hash chain, Refusal Records. Eligibility engine v0 on synthetic NAV. Scenarios 1–4.</td><td>Four refusals fail closed with reason codes</td></tr>
+      <tr><td><strong>2–6 Nov</strong></td><td>Salt wrapper adapter on the test tenant; state relay. JSON and PDF export. Scenarios 5–8. Alerts.</td><td>One approved movement exports end to end</td></tr>
+      <tr><td><strong>9–13 Nov</strong></td><td>End-to-end runs with sample subscriptions. Fix list. Demo to Travis on Fri 13 Nov.</td><td>Phase 1 gate: library fails closed; one chain exports in minutes</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Acceptance criteria for the 13 November test</h2>
+  <ul>
+    <li>All eight negative-path scenarios refuse, visibly, with the right reason code, and none can be overridden.</li>
+    <li>One approved subscription movement produces a complete Movement Evidence Chain export in minutes, with no manual step.</li>
+    <li>Tampering with any recorded fact is detected by chain verification.</li>
+    <li>The Salt transaction id is bound to the MRID at submission, and every Salt state change is recorded.</li>
+    <li>No key material, credentials or investor PII ever reach Q².</li>
+  </ul>
+
+  <h2>Dependencies and risks</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Item</th><th>Impact</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>Salt MRID carriage (S-1)</td><td>If the wrapper cannot persist the mapping, correlation falls back to hash and time matching.</td><td>Wrapper mapping is the default; ask about native carriage Thursday.</td></tr>
+      <tr><td>Salt event delivery (S-2)</td><td>No webhooks; state comes over Salt's socket.</td><td>The wrapper relays state; poll <code>getTransaction</code> as a fallback.</td></tr>
+      <tr><td>Parsera read API</td><td>Fund context granularity unknown.</td><td>Synthetic context model; nothing in the sandbox waits for it.</td></tr>
+      <tr><td>Three and a half weeks</td><td>The original Phase 1 plan was six weeks.</td><td>One corridor only; adapters thin; demo on synthetic data.</td></tr>
+      <tr><td>Single person at Chayne</td><td>Travis's time is the bottleneck through first close.</td><td>One 30-minute weekly call, questions batched.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Decisions needed this week</h2>
+  <ul>
+    <li><strong>Gianluca:</strong> confirm the module split and whether USD 10k or 15k is the build budget.</li>
+    <li><strong>Chee:</strong> confirm the price to put to Travis (around USD 30k) and what is credited if Chayne subscribes.</li>
+    <li><strong>Both:</strong> agree the sandbox domain to send Salt for the test tenant.</li>
+  </ul>
+
+  <footer>Internal working document, 20 Oct 2026. Sources: Chee's update of 15 Oct, the 16 Oct pricing chat, “Q² x Chayne – Value Proposition and Architecture” v1.0, and Salt's reply in the Salt + Q² + Chayne group. Figures are indicative and not a quote.</footer>
+</div>
+
+</html>

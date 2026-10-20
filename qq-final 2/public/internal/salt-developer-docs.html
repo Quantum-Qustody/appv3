@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<style>body{margin:0}</style>
+<title>Q² Developer Docs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a reference manual. Fixed left index on desktop, one reading column, wide code and tables scroll in place. */
+:root {
+  --bg: #FBFAFD; --bg-2: #F3F1FA; --bg-3: #E9E6F4;
+  --fg: #15112B; --fg-2: #4A4562; --fg-3: #615B7A;
+  --rule: #E2DEEF; --rule-2: #CBC5E0;
+  --accent: #5B3BEA; --accent-soft: #EEEAFE;
+  --amber: #9A5B00; --amber-soft: #FDF2DE;
+  --green: #17734A; --green-soft: #E3F4EC;
+  --code-bg: #15112B; --code-fg: #E9E6F4; --code-k: #C3B6FF; --code-s: #F2C986; --code-c: #8D86A8;
+  --display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E0B1D; --bg-2: #151129; --bg-3: #1E1938; --fg: #F2F0FA; --fg-2: #C6C1DA; --fg-3: #A29CBA;
+  --rule: #2A2445; --rule-2: #3B3460; --accent: #AE9CFF; --accent-soft: #221C44;
+  --amber: #F2B04A; --amber-soft: #2E2414; --green: #6FD3A2; --green-soft: #13291F;
+  --code-bg: #08061A; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0E0B1D; --bg-2: #151129; --bg-3: #1E1938; --fg: #F2F0FA; --fg-2: #C6C1DA; --fg-3: #A29CBA;
+  --rule: #2A2445; --rule-2: #3B3460; --accent: #AE9CFF; --accent-soft: #221C44;
+  --amber: #F2B04A; --amber-soft: #2E2414; --green: #6FD3A2; --green-soft: #13291F;
+  --code-bg: #08061A; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 16px/1.65 var(--body); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); gap: 48px; }
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; max-height: 100vh; overflow-y: auto; padding-block: 32px; font-size: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--accent); margin-bottom: 6px; }
+.brand b { font: 600 17px/1 var(--display); color: var(--fg); letter-spacing: -0.01em; }
+.toc .ver { font: 12px/1.4 var(--mono); color: var(--fg-3); margin-bottom: 24px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc li a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--fg-2); text-decoration: none; }
+.toc li a:hover { background: var(--bg-2); color: var(--fg); }
+.toc li.sub a { padding-left: 22px; font-size: 13px; color: var(--fg-3); }
+.toc .grp { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-3); margin: 18px 10px 6px; }
+main { padding-block: 40px 96px; min-width: 0; }
+header.top { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 8px; }
+.kicker { font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-3); }
+h1 { font: 600 clamp(2rem, 1.4rem + 2.4vw, 3rem)/1.05 var(--display); letter-spacing: -0.03em; margin: 12px 0 14px; text-wrap: balance; }
+h2 { font: 600 1.6rem/1.15 var(--display); letter-spacing: -0.02em; margin: 56px 0 12px; padding-top: 16px; text-wrap: balance; scroll-margin-top: 16px; }
+h3 { font: 600 1.15rem/1.3 var(--display); letter-spacing: -0.01em; margin: 32px 0 8px; scroll-margin-top: 16px; }
+p, li { max-width: 72ch; }
+p { margin: 0 0 14px; color: var(--fg-2); }
+p strong, li strong { color: var(--fg); font-weight: 600; }
+.lede { font-size: 1.1rem; color: var(--fg-2); }
+ul.plain { padding-left: 20px; color: var(--fg-2); margin: 0 0 14px; }
+ul.plain li { margin-bottom: 6px; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.tag { display: inline-flex; align-items: center; gap: 6px; font: 500 11.5px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 6px 9px; border-radius: 999px; border: 1px solid var(--rule-2); color: var(--fg-2); white-space: nowrap; }
+.tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.tag.design { color: var(--amber); border-color: var(--amber); }
+.tag.sandbox { color: var(--accent); border-color: var(--accent); }
+.tag.live { color: var(--green); border-color: var(--green); }
+.tag.plain::before { display: none; }
+.note { border: 1px solid var(--rule-2); border-left: 3px solid var(--accent); background: var(--bg-2); border-radius: 8px; padding: 14px 16px; margin: 18px 0; }
+.note p:last-child { margin: 0; }
+.note.warn { border-left-color: var(--amber); background: var(--amber-soft); }
+.boundary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 18px 0 8px; }
+.boundary div { border: 1px solid var(--rule-2); border-radius: 10px; padding: 14px; background: var(--bg-2); }
+.boundary b { display: block; font: 600 1.05rem/1.2 var(--display); }
+.boundary span { font-size: 14px; color: var(--fg-2); }
+.boundary .q { border-color: var(--accent); background: var(--accent-soft); }
+.tbl { overflow-x: auto; margin: 14px 0 20px; border: 1px solid var(--rule); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th { background: var(--bg-2); font: 500 12px/1.3 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-3); }
+tr:last-child td { border-bottom: 0; }
+td code, p code, li code { font: 0.86em var(--mono); background: var(--bg-3); padding: 1px 5px; border-radius: 4px; color: var(--fg); }
+pre.code { position: relative; background: var(--code-bg); color: var(--code-fg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font: 13px/1.65 var(--mono); margin: 14px 0 20px; tab-size: 2; }
+pre.code .k { color: var(--code-k); } pre.code .s { color: var(--code-s); } pre.code .c { color: var(--code-c); }
+.copy { position: absolute; top: 8px; right: 8px; font: 500 11px/1 var(--mono); padding: 6px 8px; border-radius: 6px; border: 1px solid #3B3460; background: #1E1938; color: #E9E6F4; cursor: pointer; }
+.endpoint { border: 1px solid var(--rule-2); border-radius: 12px; padding: 16px 18px; margin: 16px 0; background: var(--bg); }
+.endpoint .sig { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+.verb { font: 600 12px/1 var(--mono); padding: 6px 8px; border-radius: 6px; background: var(--accent); color: var(--bg); }
+.verb.get { background: var(--green); }
+.path { font: 500 14px var(--mono); color: var(--fg); overflow-wrap: anywhere; }
+pre.mermaid { background: var(--bg-2); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; overflow-x: auto; }
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 10px; }
+.steps li { counter-increment: s; position: relative; padding: 12px 14px 12px 50px; border: 1px solid var(--rule); border-radius: 10px; background: var(--bg-2); color: var(--fg-2); }
+.steps li::before { content: counter(s); position: absolute; left: 14px; top: 12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 600 12px/1 var(--mono); background: var(--accent); color: var(--bg); }
+footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--fg-3); }
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  nav.toc { position: static; max-height: none; padding-bottom: 0; border-bottom: 1px solid var(--rule); }
+  .toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .boundary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) { .toc ol { grid-template-columns: minmax(0, 1fr); } .boundary { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="shell">
+<nav class="toc" aria-label="Contents">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true"><circle cx="26" cy="27" r="17" fill="none" stroke="currentColor" stroke-width="7"/><rect x="26" y="42" width="25" height="5.5" fill="currentColor"/><circle cx="51.5" cy="44.75" r="6.5" fill="currentColor"/><path d="M50.3 9.6a4.4 4.4 0 1 1 7.8 2.8L50.3 19.8h9" fill="none" stroke="currentColor" stroke-width="3.2"/></svg><b>Developer Docs</b></div>
+  <div class="ver">Draft v0.1 · 20 Oct 2026</div>
+  <div class="grp">Start</div>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#status">Status of this document</a></li>
+    <li><a href="#boundary">Who does what</a></li>
+  </ol>
+  <div class="grp">Concepts</div>
+  <ol>
+    <li><a href="#movement-record">Movement Record and MRID</a></li>
+    <li><a href="#evidence-chain">Movement Evidence Chain</a></li>
+    <li><a href="#refusals">Refusal Records</a></li>
+    <li><a href="#seal">The seal</a></li>
+  </ol>
+  <div class="grp">Integrate</div>
+  <ol>
+    <li><a href="#flow">End-to-end flow</a></li>
+    <li><a href="#salt">With the Salt SDK</a></li>
+    <li class="sub"><a href="#salt-wrap">The wrapper pattern</a></li>
+    <li class="sub"><a href="#salt-mapping">Field mapping</a></li>
+    <li class="sub"><a href="#salt-carriage">Carrying the MRID</a></li>
+    <li><a href="#parsera">With Parsera</a></li>
+  </ol>
+  <div class="grp">Reference</div>
+  <ol>
+    <li><a href="#api">API (draft)</a></li>
+    <li><a href="#webhooks">Webhooks</a></li>
+    <li><a href="#schema">Evidence chain schema</a></li>
+    <li><a href="#reasons">Reason codes</a></li>
+    <li><a href="#sandbox">Sandbox and tenants</a></li>
+    <li><a href="#security">Security boundaries</a></li>
+    <li><a href="#open">Open questions for Salt</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="top">
+  <div class="kicker">Q² × Salt × Chayne · technical session pre-read</div>
+  <h1>Integrating Q² with a Salt-signed fund estate</h1>
+  <p class="lede">Q² produces one exportable evidence chain per movement: who proposed it, which policy and fund context it was decided against, who approved it, what Salt checked and signed, what settled on chain and how it was booked. This document shows how a fund platform that already wraps the Salt SDK feeds that chain, and what the Q² API looks like.</p>
+  <div class="meta-row"><span class="tag design">API: design</span><span class="tag sandbox">Evidence services: sandbox</span><span class="tag plain">Audience: Salt engineering, Chayne platform</span></div>
+</header>
+
+<h2 id="overview">Overview</h2>
+<p>Every party in a fund's movement path already keeps its own truth. Salt is the source of signing truth. The chain is the source of settlement truth. Parsera is the source of ledger truth. None of them is the source of <strong>correlated</strong> truth, which is what an auditor, an LP in diligence or an examiner asks for. Today that join is assembled by hand.</p>
+<p>Q² mints one identifier, the <strong>Movement Record ID (MRID)</strong>, at the moment a movement is decided, before any signature exists. Every later fact attaches to it. The output is the <strong>Movement Evidence Chain</strong>: one artifact, exported in minutes, with no manual stitching.</p>
+<div class="note"><p><strong>Short version for Salt.</strong> Nothing changes in how Salt signs or enforces policy. The fund platform that wraps the Salt SDK makes two extra calls (one to Q² before <code>runPoliciesCheck</code>, one after <code>submitTx</code>) and relays transaction state as it changes. Q² never holds key material and never calls Salt to sign.</p></div>
+
+<h2 id="status">Status of this document</h2>
+<p>This is a draft specification for discussion, not a published API. Every capability carries one label:</p>
+<div class="tbl"><table>
+<thead><tr><th>Label</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><span class="tag live">Live</span></td><td>In production. Nothing in this document is live.</td></tr>
+<tr><td><span class="tag sandbox">Sandbox</span></td><td>Demonstrated in the Q² evaluation sandbox, not in production: evidence and audit-log services, policy-change attestation, the governance data model, the scenario engine.</td></tr>
+<tr><td><span class="tag design">Design</span></td><td>Specified, not yet built: the public API below, MRID issuance, the evidence-chain export, the eligibility engine, the Salt and Parsera adapters, webhooks.</td></tr>
+</tbody></table></div>
+<p>Paths, field names and payloads may change after the Thursday session. Versioned under <code>/v0</code> until then.</p>
+
+<h2 id="boundary">Who does what</h2>
+<div class="boundary">
+  <div><b>Chayne</b><span>Originates and authorises every movement. Owns root and recovery authority.</span></div>
+  <div class="q"><b>Q²</b><span>Decides eligibility against fund context, mints the MRID, records and seals the evidence.</span></div>
+  <div><b>Salt</b><span>Enforces transaction-level policy, holds key shares, runs signing ceremonies.</span></div>
+  <div><b>Parsera</b><span>Records, reconciles and reports. The source of ledger truth.</span></div>
+</div>
+<p>No automation, including Q²'s, crosses from validation into origination. There is no bypass lane: a failed check never completes.</p>
+
+<h2 id="movement-record">Movement Record and MRID</h2>
+<p>A Movement Record is created when the fund platform asks Q² to decide a proposed movement. It is append-only: facets are added as each party reports, never edited.</p>
+<div class="tbl"><table>
+<thead><tr><th>Field</th><th>Example</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>mrid</code></td><td><code>mr_01JB8Q2KF9M4ZP7W3T</code></td><td>Sortable by time (ULID). Minted before any signature exists.</td></tr>
+<tr><td><code>entity</code></td><td><code>fund:chayne-master</code></td><td>Exports carry their own entity context.</td></tr>
+<tr><td><code>proposer</code></td><td><code>person:gp-1</code> or <code>system:sub-sweeper</code></td><td>A person, system or agent. Proposers never approve their own movement.</td></tr>
+<tr><td><code>mandate</code>, <code>policy_version</code></td><td><code>IPS-2026.2</code>, <code>pol-v3.2</code></td><td>The policy state the decision was made against, pinned by version.</td></tr>
+<tr><td><code>decision</code></td><td><code>eligible</code> / <code>refused</code></td><td>With reason codes and an expiry. Salt is called only for an eligible, unexpired decision.</td></tr>
+<tr><td><code>facets[]</code></td><td>approval, salt.policy_check, salt.state, chain.receipt, ledger.entry</td><td>Each facet is timestamped at receipt and hash-chained to the previous one.</td></tr>
+</tbody></table></div>
+
+<h2 id="evidence-chain">Movement Evidence Chain</h2>
+<p>The export for one MRID. It answers, in one document, the question every reviewer asks: <strong>was this movement authorised, under which policy, and did what happened match what was approved?</strong></p>
+<ol class="steps">
+  <li><strong>Proposal.</strong> Who proposed what, from which account, to which destination, under which mandate.</li>
+  <li><strong>Eligibility decision.</strong> The fund context used (for example NAV-relative concentration limits Salt cannot see), the policy version and the result.</li>
+  <li><strong>Approvals.</strong> Each approver, the credential used, the time, and the quorum rule met. Separation of duties is checked: the credential that changed a policy cannot immediately execute under it.</li>
+  <li><strong>Salt policy check.</strong> Salt's <code>PolicyCheck</code> as returned: validated and rejected policies, with Salt's own timestamp.</li>
+  <li><strong>Signing and broadcast.</strong> Salt transaction id, state transitions, <code>unsignedTxHash</code> and the broadcast receipt.</li>
+  <li><strong>Settlement and ledger.</strong> The on-chain receipt and the Parsera ledger entry that booked it.</li>
+  <li><strong>Seal.</strong> The chain's head hash, sealed by Q², so tampering with any facet is detectable.</li>
+</ol>
+<p>Formats: JSON (canonical, for machines and auditors' tooling) and PDF (for people). Both carry the same head hash.</p>
+
+<h2 id="refusals">Refusal Records</h2>
+<p>A refused movement is a first-class record with a reason code and no downstream facets. It proves a control fired, which a successful movement cannot. Refusals come from three places, and all three land in the same record type:</p>
+<ul class="plain">
+  <li><strong>Q² eligibility</strong>, for example a concentration limit breached against live NAV (<code>ELIG_CONCENTRATION_OBLIGOR</code>).</li>
+  <li><strong>Salt policy</strong>, when <code>PolicyCheck.policyBreach</code> is <code>true</code>; Salt's <code>rejectedPolicies</code> are copied in as returned (<code>SALT_POLICY_BREACH</code>).</li>
+  <li><strong>Approval</strong>, when a quorum is not met before the decision expires (<code>APPROVAL_EXPIRED</code>), or an approver rejects it.</li>
+</ul>
+
+<h2 id="seal">The seal</h2>
+<p>Each facet carries <code>prev_hash</code> (SHA3-256 over the canonical JSON of the previous facet), so the chain is tamper-evident. The head is sealed with hybrid classical and post-quantum signatures (NIST FIPS 204) and re-sealed as algorithms retire. The seal covers Q²'s records only. On-chain signatures produced by Salt remain classical, and nothing in this document changes them.</p>
+
+<h2 id="flow">End-to-end flow</h2>
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant P as Chayne platform (wraps Salt SDK)
+  participant Q as Q²
+  participant S as Salt
+  participant C as Chain
+  participant L as Parsera
+  P->>Q: POST /v0/movements (proposal + fund context ref)
+  Q-->>P: mrid, decision (eligible / refused), expires_at
+  Note over Q: refused: Refusal Record, stop
+  Q-->>P: webhook approval.requested (out of band)
+  P->>Q: POST /v0/movements/{mrid}/approvals
+  Q-->>P: decision approved (quorum met)
+  P->>S: runPoliciesCheck(accountId, params)
+  S-->>P: PolicyCheck
+  P->>S: submitTx(...)
+  S-->>P: AccountTransaction (id, state, policyCheck, unsignedTxHash)
+  P->>Q: POST /v0/movements/{mrid}/salt (AccountTransaction)
+  S-->>P: state changes (sign, broadcast, success / failure)
+  P->>Q: POST /v0/movements/{mrid}/salt/state
+  C-->>Q: receipt (by tx hash, read only)
+  L-->>Q: ledger entry (read API, by MRID or tx hash)
+  P->>Q: GET /v0/movements/{mrid}/evidence-chain
+</pre>
+
+<h2 id="salt">With the Salt SDK</h2>
+<p>Salt is an SDK. As Salt describes it, fund platforms wrap the SDK in their own API calls to record extra information or run additional approval flows before requesting signing. Q² attaches at exactly that point, inside the fund's wrapper, so Salt's code and policies do not change.</p>
+<div class="note warn"><p><strong>Why the approval step sits in Q².</strong> Salt's <code>nominated_approvers</code> policy type exists on the API but is documented as not yet implemented: approval is not enforced and <code>createAccountPolicy</code> refuses to create one. Until Salt enforces approvals natively, the quorum is enforced in the wrapper and evidenced by Q², before <code>submitTx</code>.</p></div>
+
+<h3 id="salt-wrap">The wrapper pattern</h3>
+<p>Below, the Chayne wrapper around the Salt SDK. Salt method names are from the public SDK reference; check the Salt docs for exact parameters of <code>submitTx</code>. The Q² client is illustrative and follows the draft API.</p>
+<pre class="code"><code><span class="k">import</span> { Salt } <span class="k">from</span> <span class="s">"@kagamidigital/salt-sdk-mirror"</span>;
+<span class="k">import</span> { Q2 } <span class="k">from</span> <span class="s">"./q2-client"</span>;            <span class="c">// draft client for the API below</span>
+
+<span class="k">const</span> salt = <span class="k">new</span> Salt({ environment: <span class="s">"TESTNET"</span>, domain: <span class="s">"sandbox.chayne.example"</span> });
+<span class="k">const</span> q2 = <span class="k">new</span> Q2({ apiKey: process.env.Q2_SANDBOX_KEY });
+
+<span class="k">export async function</span> moveFunds(req) {
+  <span class="c">// 1. Decide before anything is signed. Q² mints the MRID here.</span>
+  <span class="k">const</span> mv = <span class="k">await</span> q2.movements.create({
+    entity: <span class="s">"fund:chayne-master"</span>,
+    proposer: req.proposer,
+    mandate: req.mandate,
+    policyVersion: req.policyVersion,
+    action: { accountId: req.accountId, chainId: req.chainId, to: req.to, asset: req.asset, amount: req.amount },
+    context: { navSnapshotRef: req.navSnapshotRef },   <span class="c">// a reference, never investor PII</span>
+  });
+  <span class="k">if</span> (mv.decision.status === <span class="s">"refused"</span>) <span class="k">return</span> mv;  <span class="c">// Refusal Record already written</span>
+
+  <span class="c">// 2. Wait for the quorum (people, or a policy they signed). Fails closed on expiry.</span>
+  <span class="k">const</span> approved = <span class="k">await</span> q2.movements.waitForApproval(mv.mrid);
+  <span class="k">if</span> (approved.decision.status !== <span class="s">"approved"</span>) <span class="k">return</span> approved;
+
+  <span class="c">// 3. Salt checks its own transaction-level policies, unchanged.</span>
+  <span class="k">const</span> check = <span class="k">await</span> salt.runPoliciesCheck(req.accountId, req.txParams);
+  <span class="k">if</span> (check.policyBreach) <span class="k">return</span> q2.movements.refuse(mv.mrid, { code: <span class="s">"SALT_POLICY_BREACH"</span>, saltPolicyCheck: check });
+
+  <span class="c">// 4. Submit to Salt and bind Salt's transaction id to the MRID.</span>
+  <span class="k">const</span> tx = <span class="k">await</span> salt.submitTx(<span class="c">/* see Salt docs */</span>);
+  <span class="k">await</span> q2.movements.attachSalt(mv.mrid, tx);          <span class="c">// id, state, policyCheck, unsignedTxHash, metadata</span>
+  <span class="k">await</span> db.mridBySaltTx.put(tx.id, mv.mrid);          <span class="c">// the wrapper keeps the mapping</span>
+  <span class="k">return</span> { mrid: mv.mrid, saltTransactionId: tx.id };
+}
+
+<span class="c">// 5. Relay Salt state changes as they happen (Salt pushes events over its socket).</span>
+salt.subscribeToUserEvent(<span class="s">"transaction"</span>, <span class="k">async</span> (evt) => {   <span class="c">// event name to confirm with Salt</span>
+  <span class="k">const</span> mrid = <span class="k">await</span> db.mridBySaltTx.get(evt.id);
+  <span class="k">if</span> (mrid) <span class="k">await</span> q2.movements.saltState(mrid, <span class="k">await</span> salt.getTransaction(evt.id));
+});</code></pre>
+
+<h3 id="salt-mapping">Field mapping</h3>
+<p>What Q² records from Salt's <code>AccountTransaction</code> (the API form of <code>TransactionObject</code>). Nothing is transformed; Q² stores Salt's values as received and timestamps receipt.</p>
+<div class="tbl"><table>
+<thead><tr><th>Salt field</th><th>Q² facet</th><th>Why it matters</th></tr></thead>
+<tbody>
+<tr><td><code>id</code></td><td><code>salt.transaction_id</code></td><td>The join key to Salt. Bound to the MRID in the wrapper.</td></tr>
+<tr><td><code>accountId</code>, <code>organisationId</code></td><td><code>salt.account</code></td><td>Which vault and tenant signed.</td></tr>
+<tr><td><code>params</code></td><td><code>salt.params</code></td><td>Compared with the approved action. A mismatch refuses the movement.</td></tr>
+<tr><td><code>policyCheck</code></td><td><code>salt.policy_check</code></td><td><code>validatedPolicies</code>, <code>rejectedPolicies</code>, <code>policyBreach</code>, Salt's <code>timestamp</code>.</td></tr>
+<tr><td><code>state</code></td><td><code>salt.state[]</code></td><td>Every transition of <code>propose</code>, <code>sign</code>, <code>broadcast</code>, <code>success</code>, <code>failure</code>.</td></tr>
+<tr><td><code>unsignedTxHash</code></td><td><code>salt.unsigned_tx_hash</code></td><td>Proves the signed transaction is the one that was approved.</td></tr>
+<tr><td><code>broadcastReceipt</code></td><td><code>chain.receipt</code></td><td>Settlement fact: hash, block, status.</td></tr>
+<tr><td><code>metadata</code></td><td><code>salt.metadata</code></td><td>Server-derived context, including the proposer as Salt saw it.</td></tr>
+</tbody></table></div>
+
+<h3 id="salt-carriage">Carrying the MRID</h3>
+<p>The single most important integration question. Three options, best first:</p>
+<div class="tbl"><table>
+<thead><tr><th>Option</th><th>How</th><th>Evidence strength</th></tr></thead>
+<tbody>
+<tr><td><strong>A. Wrapper mapping</strong> (proposed default)</td><td>The Chayne wrapper stores <code>salt.id ↔ mrid</code> at <code>submitTx</code> and reports both to Q². No Salt change. Matches Salt's note that the object can be extended inside the Chayne platform code.</td><td>Strong. Binding is recorded at submission, before signing.</td></tr>
+<tr><td><strong>B. Native reference</strong></td><td>Salt carries an external reference on the transaction and returns it on its events.</td><td>Strongest. The MRID appears in Salt's own record.</td></tr>
+<tr><td><strong>C. Fallback match</strong></td><td>Correlate by <code>unsignedTxHash</code>, broadcast hash, address, amount and time window.</td><td>Workable, weaker and heavier to build.</td></tr>
+</tbody></table></div>
+
+<h2 id="parsera">With Parsera</h2>
+<p>Read only, no investor PII at any point. Q² needs two things from Parsera: fund context for eligibility (NAV and obligor identity at the needed granularity) and the ledger entry that booked a movement, ideally indexed by an external reference (the MRID) or else by transaction hash. Scope to be agreed in the Parsera read-API session. Until then the sandbox runs on a synthetic context model.</p>
+
+<h2 id="api">API (draft)</h2>
+<p>REST over HTTPS, JSON bodies, base URL <code>https://api.sandbox.q2.example/v0</code> (placeholder). Bearer API keys, one per environment and tenant. Every write is idempotent with an <code>Idempotency-Key</code> header. <span class="tag design">Design</span></p>
+
+<div class="endpoint">
+  <div class="sig"><span class="verb">POST</span><span class="path">/v0/movements</span></div>
+  <p>Propose a movement and get an eligibility decision. Mints the MRID. Returns <code>201</code> for both eligible and refused decisions; a refusal is a result, not an error.</p>
+<pre class="code"><code>{
+  <span class="s">"entity"</span>: <span class="s">"fund:chayne-master"</span>,
+  <span class="s">"proposer"</span>: <span class="s">"person:gp-1"</span>,
+  <span class="s">"mandate"</span>: <span class="s">"IPS-2026.2"</span>,
+  <span class="s">"policy_version"</span>: <span class="s">"pol-v3.2"</span>,
+  <span class="s">"action"</span>: { <span class="s">"account_id"</span>: <span class="s">"salt:acc_7f2"</span>, <span class="s">"chain_id"</span>: 1, <span class="s">"to"</span>: <span class="s">"0x8a…41"</span>, <span class="s">"asset"</span>: <span class="s">"USDC"</span>, <span class="s">"amount"</span>: <span class="s">"250000.00"</span> },
+  <span class="s">"context"</span>: { <span class="s">"nav_snapshot_ref"</span>: <span class="s">"parsera:nav/2026-10-17"</span> }
+}
+<span class="c">// 201</span>
+{ <span class="s">"mrid"</span>: <span class="s">"mr_01JB8Q2KF9M4ZP7W3T"</span>, <span class="s">"decision"</span>: { <span class="s">"status"</span>: <span class="s">"eligible"</span>, <span class="s">"requires"</span>: <span class="s">"quorum 2 of 3"</span>, <span class="s">"expires_at"</span>: <span class="s">"2026-10-20T15:00:00Z"</span> } }</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="sig"><span class="verb">POST</span><span class="path">/v0/movements/{mrid}/approvals</span></div>
+  <p>Record an approval or rejection by a named approver. The proposer cannot approve. When the quorum is met, the decision moves to <code>approved</code>.</p>
+<pre class="code"><code>{ <span class="s">"approver"</span>: <span class="s">"person:op-partner"</span>, <span class="s">"verdict"</span>: <span class="s">"approve"</span>, <span class="s">"credential"</span>: <span class="s">"passkey:opp-02"</span> }</code></pre>
+</div>
+
+<div class="endpoint">
+  <div class="sig"><span class="verb">POST</span><span class="path">/v0/movements/{mrid}/salt</span></div>
+  <p>Attach the Salt <code>AccountTransaction</code> returned by <code>submitTx</code>, unmodified. Q² checks <code>params</code> against the approved action and refuses on mismatch (<code>PARAMS_MISMATCH</code>).</p>
+</div>
+
+<div class="endpoint">
+  <div class="sig"><span class="verb">POST</span><span class="path">/v0/movements/{mrid}/salt/state</span></div>
+  <p>Report a Salt state change (the latest <code>AccountTransaction</code> from <code>getTransaction</code>). Appends a <code>salt.state</code> facet.</p>
+</div>
+
+<div class="endpoint">
+  <div class="sig"><span class="verb">POST</span><span class="path">/v0/movements/{mrid}/refusal</span></div>
+  <p>Record a refusal raised outside Q², for example a Salt policy breach. Closes the record with a reason code.</p>
+</div>
+
+<div class="endpoint">
+  <div class="sig"><span class="verb get">GET</span><span class="path">/v0/movements/{mrid}</span></div>
+  <p>Current state of a Movement Record and its facets.</p>
+</div>
+
+<div class="endpoint">
+  <div class="sig"><span class="verb get">GET</span><span class="path">/v0/movements/{mrid}/evidence-chain?format=json|pdf</span></div>
+  <p>Export the Movement Evidence Chain. Target: available within minutes of the last facet, no manual step.</p>
+</div>
+
+<div class="endpoint">
+  <div class="sig"><span class="verb get">GET</span><span class="path">/v0/movements?entity=…&amp;from=…&amp;to=…&amp;status=refused</span></div>
+  <p>List records for a period, for example every refusal last quarter, for an auditor or examiner.</p>
+</div>
+
+<h2 id="webhooks">Webhooks</h2>
+<p>Signed with HMAC-SHA256 in <code>Q2-Signature</code>, retried with backoff, delivered at least once (deduplicate on <code>event_id</code>). <span class="tag design">Design</span></p>
+<div class="tbl"><table>
+<thead><tr><th>Event</th><th>When</th></tr></thead>
+<tbody>
+<tr><td><code>movement.decided</code></td><td>An eligibility decision was made (eligible or refused).</td></tr>
+<tr><td><code>approval.requested</code></td><td>An approver must act. Delivered out of band to reach the GP immediately.</td></tr>
+<tr><td><code>approval.stalled</code></td><td>No quorum within the alert window. An alert, never a silent queue.</td></tr>
+<tr><td><code>movement.refused</code></td><td>A Refusal Record was written, with its reason code.</td></tr>
+<tr><td><code>chain.completed</code></td><td>Settlement and ledger facets are in; the evidence chain is ready to export.</td></tr>
+</tbody></table></div>
+
+<h2 id="schema">Evidence chain schema</h2>
+<p>Abridged JSON export for one approved movement. Synthetic values.</p>
+<pre class="code"><code>{
+  <span class="s">"mrid"</span>: <span class="s">"mr_01JB8Q2KF9M4ZP7W3T"</span>,
+  <span class="s">"entity"</span>: <span class="s">"fund:chayne-master"</span>,
+  <span class="s">"status"</span>: <span class="s">"settled"</span>,
+  <span class="s">"facets"</span>: [
+    { <span class="s">"type"</span>: <span class="s">"proposal"</span>,          <span class="s">"at"</span>: <span class="s">"2026-10-20T13:02:11Z"</span>, <span class="s">"proposer"</span>: <span class="s">"person:gp-1"</span>, <span class="s">"prev_hash"</span>: <span class="k">null</span> },
+    { <span class="s">"type"</span>: <span class="s">"eligibility"</span>,       <span class="s">"at"</span>: <span class="s">"2026-10-20T13:02:12Z"</span>, <span class="s">"result"</span>: <span class="s">"eligible"</span>, <span class="s">"checks"</span>: [<span class="s">"obligor ≤ 5% NAV"</span>, <span class="s">"platform ≤ 15% NAV"</span>], <span class="s">"prev_hash"</span>: <span class="s">"…"</span> },
+    { <span class="s">"type"</span>: <span class="s">"approval"</span>,          <span class="s">"at"</span>: <span class="s">"2026-10-20T13:09:40Z"</span>, <span class="s">"approver"</span>: <span class="s">"person:op-partner"</span>, <span class="s">"quorum"</span>: <span class="s">"2 of 3"</span>, <span class="s">"prev_hash"</span>: <span class="s">"…"</span> },
+    { <span class="s">"type"</span>: <span class="s">"salt.policy_check"</span>, <span class="s">"at"</span>: <span class="s">"2026-10-20T13:09:43Z"</span>, <span class="s">"policyBreach"</span>: <span class="k">false</span>, <span class="s">"validatedPolicies"</span>: [<span class="s">"allowed_recipients"</span>, <span class="s">"transaction_limit_token_denominated"</span>], <span class="s">"prev_hash"</span>: <span class="s">"…"</span> },
+    { <span class="s">"type"</span>: <span class="s">"salt.state"</span>,        <span class="s">"at"</span>: <span class="s">"2026-10-20T13:10:05Z"</span>, <span class="s">"transaction_id"</span>: <span class="s">"6714…c2"</span>, <span class="s">"state"</span>: <span class="s">"broadcast"</span>, <span class="s">"unsigned_tx_hash"</span>: <span class="s">"0x5c…9e"</span>, <span class="s">"prev_hash"</span>: <span class="s">"…"</span> },
+    { <span class="s">"type"</span>: <span class="s">"chain.receipt"</span>,     <span class="s">"at"</span>: <span class="s">"2026-10-20T13:10:31Z"</span>, <span class="s">"tx_hash"</span>: <span class="s">"0xa1…07"</span>, <span class="s">"status"</span>: <span class="s">"success"</span>, <span class="s">"prev_hash"</span>: <span class="s">"…"</span> },
+    { <span class="s">"type"</span>: <span class="s">"ledger.entry"</span>,      <span class="s">"at"</span>: <span class="s">"2026-10-20T14:00:02Z"</span>, <span class="s">"source"</span>: <span class="s">"parsera"</span>, <span class="s">"ref"</span>: <span class="s">"je_88213"</span>, <span class="s">"prev_hash"</span>: <span class="s">"…"</span> }
+  ],
+  <span class="s">"seal"</span>: { <span class="s">"head_hash"</span>: <span class="s">"sha3-256:9c4e…e8a5"</span>, <span class="s">"suite"</span>: <span class="s">"hybrid classical + post-quantum (FIPS 204)"</span>, <span class="s">"at"</span>: <span class="s">"2026-10-20T14:00:03Z"</span> }
+}</code></pre>
+
+<h2 id="reasons">Reason codes</h2>
+<div class="tbl"><table>
+<thead><tr><th>Code</th><th>Raised by</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>ELIG_CONCENTRATION_OBLIGOR</code></td><td>Q² eligibility</td><td>Would breach the per-obligor limit against current NAV.</td></tr>
+<tr><td><code>ELIG_CONCENTRATION_PLATFORM</code></td><td>Q² eligibility</td><td>Would breach the per-platform limit.</td></tr>
+<tr><td><code>ELIG_SUBSCRIPTION_UNACCEPTED</code></td><td>Q² eligibility</td><td>Subscription funds not yet matched, screened and accepted by the GP.</td></tr>
+<tr><td><code>ELIG_CONTEXT_UNAVAILABLE</code></td><td>Q² eligibility</td><td>Fund context missing or stale. Fails closed.</td></tr>
+<tr><td><code>APPROVAL_EXPIRED</code></td><td>Q² approvals</td><td>Quorum not met before the decision expired.</td></tr>
+<tr><td><code>APPROVAL_REJECTED</code></td><td>Q² approvals</td><td>An approver rejected the movement.</td></tr>
+<tr><td><code>SEPARATION_OF_DUTIES</code></td><td>Q² approvals</td><td>The credential that changed the policy tried to execute under it.</td></tr>
+<tr><td><code>SALT_POLICY_BREACH</code></td><td>Salt</td><td><code>PolicyCheck.policyBreach</code> was true; Salt's <code>rejectedPolicies</code> attached.</td></tr>
+<tr><td><code>PARAMS_MISMATCH</code></td><td>Q²</td><td>Salt's transaction params differ from the approved action.</td></tr>
+<tr><td><code>SALT_FAILURE</code></td><td>Salt</td><td>Salt reported state <code>failure</code>.</td></tr>
+</tbody></table></div>
+
+<h2 id="sandbox">Sandbox and tenants</h2>
+<ul class="plain">
+  <li><strong>Q² sandbox</strong> runs on synthetic data, with no touch on Chayne, Salt or Parsera systems. Phase 1 is built here, negative path first.</li>
+  <li><strong>Salt test tenant.</strong> Salt segregates data by tenant id and creates a tenant that accepts authentication from a supplied domain (SIWE). We will send Salt the sandbox domain for the Chayne wrapper.</li>
+  <li><strong>Environments.</strong> Salt <code>TESTNET</code> for attachment tests. Mainnet only in the pilot phase, on a read-only shadow feed first.</li>
+</ul>
+
+<h2 id="security">Security boundaries</h2>
+<ul class="plain">
+  <li>Q² holds no keys, key shares, signing credentials or funds, under any integration pattern.</li>
+  <li>Q² never calls Salt to sign or originate. It only receives what the wrapper reports.</li>
+  <li>Fail closed: missing context, an expired decision or an unreachable Q² means the movement does not proceed. The read and export plane stays available when the decision plane is not.</li>
+  <li>No investor PII leaves Parsera. Context is passed by reference.</li>
+  <li>Data residency, retention (five years, first two readily accessible) and the subprocessor list are set in Phase 0.</li>
+</ul>
+
+<h2 id="open">Open questions for Salt</h2>
+<div class="tbl"><table>
+<thead><tr><th>#</th><th>Question</th><th>What we know now</th></tr></thead>
+<tbody>
+<tr><td>S-1</td><td>Can a transaction carry an external reference and return it on events?</td><td>Salt: objects carry <code>id</code>; can be extended in the Chayne wrapper. Option A proposed. Is native carriage (B) on the roadmap?</td></tr>
+<tr><td>S-2</td><td>Event catalog and delivery</td><td>Policy results return inside the transaction. Which socket events signal state changes, and with what payload?</td></tr>
+<tr><td>S-3</td><td>Sandbox tenant</td><td>Salt creates a tenant for a supplied domain. We send the domain.</td></tr>
+<tr><td>S-4</td><td>What policies can express today</td><td>Allowed and denied recipients, per-transfer limit, contract parameter restriction, denied proposers. Fail-closed when the validator is unavailable?</td></tr>
+<tr><td>S-5</td><td>A hook that treats an external eligibility decision as a precondition</td><td>Roadmap question. Also the <code>nominated_approvers</code> timeline.</td></tr>
+<tr><td>S-6</td><td>How post-quantum signing is described in customer material</td><td>Shared accuracy item across the three parties.</td></tr>
+</tbody></table></div>
+
+<footer>
+  <p>Draft v0.1 for the Q² × Salt × Chayne technical session. Not a published API; paths and payloads may change. Salt types and method names are taken from Salt's public SDK reference (developer.salt.space) as of 20 Oct 2026. Q² supports compliance evidence; it does not by itself make a firm compliant. Contact: info@quantumqustody.com</p>
+</footer>
+</main>
+</div>
+
+<script>
+document.querySelectorAll("pre.code").forEach(function (pre) {
+  var b = document.createElement("button");
+  b.type = "button"; b.className = "copy"; b.textContent = "Copy";
+  b.addEventListener("click", function () {
+    var t = pre.querySelector("code").innerText;
+    var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(done, function () { var r = document.createRange(); r.selectNodeContents(pre); var s = getSelection(); s.removeAllRanges(); s.addRange(r); });
+    }
+  });
+  pre.appendChild(b);
+});
+</script>
+
+</html>

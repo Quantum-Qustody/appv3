@@ -37,7 +37,7 @@
   <script>
     // Set the surface before first paint so the site never flashes the dark platform background.
     (function(){try{var p=location.pathname,k=Object.keys(localStorage).some(function(x){return /^sb-.+-auth-token$/.test(x)});
-    document.documentElement.setAttribute("data-surface", (k&&!/^\/(research|brand|design-partner|pricing|regulation)/.test(p))?"app":"site");}catch(e){document.documentElement.setAttribute("data-surface","site")}})();
+    document.documentElement.setAttribute("data-surface", (k&&!/^\/(research|brand|design-partner|pricing|regulation|docs)/.test(p))?"app":"site");}catch(e){document.documentElement.setAttribute("data-surface","site")}})();
   </script>
 </head>
 <body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body>

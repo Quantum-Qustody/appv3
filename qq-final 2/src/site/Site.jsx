@@ -5,6 +5,7 @@ import Landing from "./Landing.jsx";
 import BrandPage from "./BrandPage.jsx";
 import PricingPage from "./Pricing.jsx";
 import RegulationPage from "./Regulation.jsx";
+import DocsPage from "./Docs.jsx";
 
 // Heavier or rarely visited views load on demand.
 const ResearchIndex = lazy(() => import("./Research.jsx").then((m) => ({ default: m.ResearchIndex })));
@@ -15,6 +16,7 @@ const TITLES = {
   "/": "Q² · Independent authority record for digital assets",
   "/pricing": "Pricing · Q²",
   "/regulation": "Regulation · Q²",
+  "/docs": "Developer docs · Q²",
   "/research": "Research · Q²",
   "/brand": "Brand · Q²",
   "/design-partner": "Design partner intake · Q²",
@@ -107,7 +109,7 @@ function Footer({ go, enterPlatform }) {
               <li><a href="/#how" onClick={to("/#how")}>How it works</a></li>
               <li><a href="/regulation" onClick={to("/regulation")}>Regulation</a></li>
               <li><a href="/pricing" onClick={to("/pricing")}>Pricing</a></li>
-              <li><a href="/#developers" onClick={to("/#developers")}>Developers</a></li>
+              <li><a href="/docs" onClick={to("/docs")}>Developer docs</a></li>
               <li><a href="/#start" onClick={to("/#start")}>Design partner programme</a></li>
               <li><button type="button" onClick={() => enterPlatform("auth")}>Sandbox sign in</button></li>
             </ul>
@@ -173,6 +175,7 @@ export default function Site({ enterPlatform }) {
   else if (path.startsWith("/research/")) view = <Suspense fallback={<Fallback />}><ResearchArticle id={path.split("/")[2]} go={go} /></Suspense>;
   else if (path === "/pricing") view = <PricingPage go={go} enterPlatform={enterPlatform} />;
   else if (path === "/regulation") view = <RegulationPage go={go} />;
+  else if (path === "/docs") view = <DocsPage go={go} />;
   else if (path === "/brand" || path.startsWith("/brand/")) view = <BrandPage />;
   else view = (
     <main id="main" className="section" style={{ borderTop: 0 }}>

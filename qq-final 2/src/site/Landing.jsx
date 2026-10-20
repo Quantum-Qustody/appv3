@@ -467,6 +467,7 @@ export default function Landing({ go, enterPlatform }) {
               <li>Get a quorum or signed-policy decision. Agents never approve.</li>
               <li>Your own signer executes; the record comes back to store, share or verify.</li>
             </ul>
+            <div style={{ marginTop: "var(--space-8)" }}><Pill href="/docs" onClick={link("/docs")} variant="ghost">Read the developer docs</Pill></div>
           </div>
           <CodeSample />
         </div>

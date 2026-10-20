@@ -24,7 +24,7 @@ function initialRoute() {
   const search = window.location.search;
   const hash = window.location.hash;
   // Public-only routes always render the site.
-  if (/^\/(research|brand|design-partner|pricing|regulation)(\/|$)/.test(path)) return null;
+  if (/^\/(research|brand|design-partner|pricing|regulation|docs)(\/|$)/.test(path)) return null;
   // Auth redirects (magic link, recovery, invite acceptance) need the platform.
   if (/access_token=|type=recovery|type=invite|type=signup|error_description=/.test(hash + search)) return "boot";
   if (new URLSearchParams(search).has("invite")) return "auth";

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /design-partner
+
+Sitemap: https://www.quantumqustody.com/sitemap.xml

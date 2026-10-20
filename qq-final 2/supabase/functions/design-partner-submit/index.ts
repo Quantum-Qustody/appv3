@@ -1,7 +1,7 @@
 // Supabase Edge Function: design-partner-submit
 //
 // Stores a completed Design Partner discovery submission and emails a PDF of
-// every question + answer to Quantum Qustody.
+// every question + answer to Q².
 //
 // Body: { partner, partner_name, respondent, submitted_at, answered, total,
 //         answers, sections, pdf_base64, filename }
@@ -9,7 +9,7 @@
 // Required secrets (Supabase → Edge Functions → Secrets):
 //   RESEND_API_KEY   — Resend key with sending access on the verified domain
 // Optional:
-//   DP_MAIL_FROM     — default "Quantum Qustody <noreply@moods.build>"
+//   DP_MAIL_FROM     — default "Q Squared <noreply@moods.build>"
 //   DP_MAIL_TO       — default "gdb@quantumqustody.com"
 //
 // Deploy:  supabase functions deploy design-partner-submit
@@ -64,7 +64,7 @@ Deno.serve(async (req: Request) => {
   // ── 2. Email the PDF ───────────────────────────────────────────────
   let emailed = false, email_error: string | null = null;
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  const MAIL_FROM = Deno.env.get("DP_MAIL_FROM") || "Quantum Qustody <noreply@moods.build>";
+  const MAIL_FROM = Deno.env.get("DP_MAIL_FROM") || "Q Squared <noreply@moods.build>";
   // Comma-separated list — every recipient gets the transcript + PDF.
   const MAIL_TO = (Deno.env.get("DP_MAIL_TO") ||
     "gdb@moodglobalservices.com,chee@quantumqustody.com,sohil@quantumqustody.com")

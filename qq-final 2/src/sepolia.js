@@ -176,7 +176,7 @@ function getCoinbaseDetail() {
   try {
     if (!coinbaseProvider) {
       const sdk = createCoinbaseWalletSDK({
-        appName: "Quantum Qustody",
+        appName: "Q Squared",
         appLogoUrl: window.location.origin + "/qq-logo.svg",
         appChainIds: [SEPOLIA_CHAIN_ID],
       });

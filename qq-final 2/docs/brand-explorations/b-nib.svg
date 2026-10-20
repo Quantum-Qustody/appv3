@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-labelledby="t">
+  <title id="t">Direction B · Nib: the Q's tail is a tapered pen stroke, a hand signing.</title>
+  <circle cx="26" cy="27" r="17" fill="none" stroke="#5B3BEA" stroke-width="7"/>
+  <!-- Tapered wedge from the ring's lower right out to a point -->
+  <path d="M30.6 41.2 L40.2 31.6 L58 58 Z" fill="#5B3BEA"/>
+  <path d="M50.5 9.5a4.25 4.25 0 1 1 7.5 2.7L50.5 19.5H59" fill="none" stroke="#5B3BEA" stroke-width="3"/>
+</svg>

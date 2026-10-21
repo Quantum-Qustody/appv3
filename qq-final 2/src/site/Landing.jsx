@@ -484,8 +484,8 @@ export default function Landing({ go, enterPlatform }) {
           <div className="dp">
             <div data-reveal>
               <ol className="ladder">
-                <li><span className="mono">01</span><div><h3>Diagnostic <b>from EUR 5,000</b></h3><p>Two to three weeks. We map how your movements are approved and evidenced today, against the rules you answer to. Synthetic data only; no access to your systems or keys.</p></div></li>
-                <li><span className="mono">02</span><div><h3>Pilot <b>from USD 20,000, credited to year one</b></h3><p>Eight to twelve weeks on one real flow, with written success criteria.</p></div></li>
+                <li><span className="mono">01</span><div><h3>Diagnostic <b>from EUR 5,000</b></h3><p>Two to three weeks. We map how your movements are approved and evidenced today, against the rules you answer to. Synthetic data only; no access to your systems or keys. Credited to a pilot signed within 60 days.</p></div></li>
+                <li><span className="mono">02</span><div><h3>Pilot <b>from USD 20,000</b></h3><p>Eight to twelve weeks on one real flow, with written success criteria. Part of the fee is credited to year one when you subscribe.</p></div></li>
                 <li><span className="mono">03</span><div><h3>Subscription <b>from USD 24,000 a year</b></h3><p>One entity, your signer and administrator connected, evidence packs, the post-quantum seal.</p></div></li>
               </ol>
               <p className="ladder__more"><a href="/pricing" onClick={link("/pricing")}>See pricing</a> · or <a href="/" onClick={(e) => { e.preventDefault(); enterPlatform("auth"); }}>try the sandbox free</a> on the Ethereum Sepolia testnet.</p>

@@ -15,13 +15,13 @@ const PLANS = [
   {
     name: "Diagnostic", from: true, price: "EUR 5,000", unit: "",
     body: "Two to three weeks. We map how your movements are approved and evidenced today, against the rules you answer to.",
-    items: ["A written map of approvals and evidence", "Mapped against the rules you answer to", "Synthetic data only; no access to your systems or keys"],
+    items: ["A written map of approvals and evidence", "Mapped against the rules you answer to", "Synthetic data only; no access to your systems or keys", "Credited to a pilot signed within 60 days"],
     cta: "Book a diagnostic call", action: "start",
   },
   {
-    name: "Pilot", from: true, price: "USD 20,000", unit: "credited to year one", featured: true,
+    name: "Pilot", from: true, price: "USD 20,000", unit: "", featured: true,
     body: "Eight to twelve weeks on one real flow, with written success criteria.",
-    items: ["One real flow, bounded scope", "Success criteria agreed in writing", "Fee credited to the first subscription year"],
+    items: ["One real flow, bounded scope", "Success criteria agreed in writing", "Part of the fee credited to year one when you subscribe"],
     cta: "Talk to us", action: "start",
   },
   {

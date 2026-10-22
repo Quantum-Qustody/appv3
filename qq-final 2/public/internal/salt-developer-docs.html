@@ -108,7 +108,7 @@ html { scroll-behavior: smooth; }
 <div class="shell">
 <nav class="toc" aria-label="Contents">
   <div class="brand"><svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true"><circle cx="26" cy="27" r="17" fill="none" stroke="currentColor" stroke-width="7"/><rect x="26" y="42" width="25" height="5.5" fill="currentColor"/><circle cx="51.5" cy="44.75" r="6.5" fill="currentColor"/><path d="M50.3 9.6a4.4 4.4 0 1 1 7.8 2.8L50.3 19.8h9" fill="none" stroke="currentColor" stroke-width="3.2"/></svg><b>Developer Docs</b></div>
-  <div class="ver">Draft v0.1 · 20 Oct 2026</div>
+  <div class="ver">Draft v0.2 · 22 Oct 2026</div>
   <div class="grp">Start</div>
   <ol>
     <li><a href="#overview">Overview</a></li>
@@ -242,7 +242,8 @@ sequenceDiagram
 
 <h2 id="salt">With the Salt SDK</h2>
 <p>Salt is an SDK. As Salt describes it, fund platforms wrap the SDK in their own API calls to record extra information or run additional approval flows before requesting signing. Q² attaches at exactly that point, inside the fund's wrapper, so Salt's code and policies do not change.</p>
-<div class="note warn"><p><strong>Why the approval step sits in Q².</strong> Salt's <code>nominated_approvers</code> policy type exists on the API but is documented as not yet implemented: approval is not enforced and <code>createAccountPolicy</code> refuses to create one. Until Salt enforces approvals natively, the quorum is enforced in the wrapper and evidenced by Q², before <code>submitTx</code>.</p></div>
+<div class="note"><p><strong>Who proposes and signs.</strong> Chayne's platform is the Salt proposer and signer. Its wrapper runs <code>submitTx</code>, listens for Salt's state updates (Salt sends them to the proposer at each stage) and passes them to Q² with the MRID attached. Q² is not a signer or user on the Salt account: it holds no key material, never signs and never originates a transaction.</p></div>
+<div class="note warn"><p><strong>Approvals.</strong> Salt confirmed on 21 Oct that the nominated approver check runs at the proposing stage. The public SDK reference still describes <code>nominated_approvers</code> as not yet enforced, so we are confirming the current status with Salt. Either way, Q² records the quorum decision before <code>submitTx</code>, and records Salt's approver check as part of the evidence once its status is confirmed.</p></div>
 
 <h3 id="salt-wrap">The wrapper pattern</h3>
 <p>Below, the Chayne wrapper around the Salt SDK. Salt method names are from the public SDK reference; check the Salt docs for exact parameters of <code>submitTx</code>. The Q² client is illustrative and follows the draft API.</p>
@@ -279,8 +280,9 @@ sequenceDiagram
   <span class="k">return</span> { mrid: mv.mrid, saltTransactionId: tx.id };
 }
 
-<span class="c">// 5. Relay Salt state changes as they happen (Salt pushes events over its socket).</span>
-salt.subscribeToUserEvent(<span class="s">"transaction"</span>, <span class="k">async</span> (evt) => {   <span class="c">// event name to confirm with Salt</span>
+<span class="c">// 5. Relay Salt state changes as they happen. Salt sends them to the proposer at each stage;</span>
+<span class="c">//    Salt will share example listener code. Event name and payload to confirm.</span>
+salt.subscribeToUserEvent(<span class="s">"transaction"</span>, <span class="k">async</span> (evt) => {
   <span class="k">const</span> mrid = <span class="k">await</span> db.mridBySaltTx.get(evt.id);
   <span class="k">if</span> (mrid) <span class="k">await</span> q2.movements.saltState(mrid, <span class="k">await</span> salt.getTransaction(evt.id));
 });</code></pre>
@@ -434,15 +436,16 @@ salt.subscribeToUserEvent(<span class="s">"transaction"</span>, <span class="k">
 <thead><tr><th>#</th><th>Question</th><th>What we know now</th></tr></thead>
 <tbody>
 <tr><td>S-1</td><td>Can a transaction carry an external reference and return it on events?</td><td>Salt: objects carry <code>id</code>; can be extended in the Chayne wrapper. Option A proposed. Is native carriage (B) on the roadmap?</td></tr>
-<tr><td>S-2</td><td>Event catalog and delivery</td><td>Policy results return inside the transaction. Which socket events signal state changes, and with what payload?</td></tr>
+<tr><td>S-2</td><td>Event catalog and delivery</td><td><strong>Mostly answered (21 Oct).</strong> The proposer receives an update at each stage (propose, sign, broadcast, success, failure) through listeners; Salt will share example code. Policy results return inside the transaction. Open: payload per stage (does each carry <code>id</code>, <code>state</code>, <code>policyCheck</code>, <code>unsignedTxHash</code>?).</td></tr>
+<tr><td>S-2b</td><td>Independent feed</td><td>Is there a read-only or observer role for a non-signing party such as Q² to receive state events directly, rather than only through the proposer?</td></tr>
 <tr><td>S-3</td><td>Sandbox tenant</td><td>Salt creates a tenant for a supplied domain. We send the domain.</td></tr>
 <tr><td>S-4</td><td>What policies can express today</td><td>Allowed and denied recipients, per-transfer limit, contract parameter restriction, denied proposers. Fail-closed when the validator is unavailable?</td></tr>
-<tr><td>S-5</td><td>A hook that treats an external eligibility decision as a precondition</td><td>Roadmap question. Also the <code>nominated_approvers</code> timeline.</td></tr>
+<tr><td>S-5</td><td>A hook that treats an external eligibility decision as a precondition</td><td>Roadmap question. Approver check: Salt says it runs at the proposing stage; confirm whether it is enforced today and from which version.</td></tr>
 <tr><td>S-6</td><td>How post-quantum signing is described in customer material</td><td>Shared accuracy item across the three parties.</td></tr>
 </tbody></table></div>
 
 <footer>
-  <p>Draft v0.1 for the Q² × Salt × Chayne technical session. Not a published API; paths and payloads may change. Salt types and method names are taken from Salt's public SDK reference (developer.salt.space) as of 20 Oct 2026. Q² supports compliance evidence; it does not by itself make a firm compliant. Contact: info@quantumqustody.com</p>
+  <p>Draft v0.2 for the Q² × Salt × Chayne technical session (v0.2: roles and S-2 updated after Salt's answers of 21 Oct). Not a published API; paths and payloads may change. Salt types and method names are taken from Salt's public SDK reference (developer.salt.space) as of 20 Oct 2026. Q² supports compliance evidence; it does not by itself make a firm compliant. Contact: info@quantumqustody.com</p>
 </footer>
 </main>
 </div>

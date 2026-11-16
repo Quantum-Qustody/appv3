@@ -24,7 +24,7 @@ export default function RegulationPage({ go }) {
         <div className="wrap">
           <div className="head" data-reveal>
             <h1 id="reg-page-title">Regulation already asks for this evidence.</h1>
-            <p>Records that cannot be altered, every instruction including rejected ones, named approvers, two-person authorisation and cryptography that can be updated. Here is what each rule says, in its own words, next to what Q² produces.</p>
+            <p>Records that cannot be altered, every instruction including rejected ones, named approvers, two-person authorisation and cryptography that can be updated. Here is what each rule says, in its own words where we quote it, next to what Q² produces. iGaming rules are summarised for orientation.</p>
           </div>
 
           <ul className="rulegrid">
@@ -32,10 +32,10 @@ export default function RegulationPage({ go }) {
               <li key={r.id} className="rulecard" data-reveal data-reveal-delay={(i % 2) * 80}>
                 <div className="rulecard__top">
                   <span className={`rstatus rstatus--${r.status.toLowerCase()}`}>{r.status}</span>
-                  <a className="mono rulecard__cite" href={r.url} target="_blank" rel="noopener noreferrer">{r.cite}</a>
+                  {r.url ? <a className="mono rulecard__cite" href={r.url} target="_blank" rel="noopener noreferrer">{r.cite}</a> : <span className="mono rulecard__cite">{r.cite}</span>}
                 </div>
                 <h2>{r.rule}</h2>
-                <blockquote>“{r.quote}”</blockquote>
+                {r.summary ? <p className="rulecard__sum"><span className="mono">In summary</span> {r.quote}</p> : <blockquote>“{r.quote}”</blockquote>}
                 <p className="rulecard__gives"><span>What Q² gives you</span>{r.gives}</p>
                 <p className="rulecard__binds">{r.binds}</p>
               </li>
@@ -89,7 +89,7 @@ export default function RegulationPage({ go }) {
           </div>
           <p className="diagram__note">The GENIUS Act covers payment-stablecoin issuers, and the CLARITY Act failed its Senate vote on 15 Sep 2026, so neither sets approval or record duties for these buyers. OCC custody letters apply to national banks.</p>
           <p className="rules__note" style={{ marginTop: "var(--space-8)" }}>Q² supports your compliance work. It does not replace legal advice, and using it does not by itself make a firm compliant.</p>
-          <div style={{ marginTop: "var(--space-8)" }}><Pill href="/#start" onClick={(e) => { e.preventDefault(); go("/#start"); }}>Book a 30-minute diagnostic call</Pill></div>
+          <div style={{ marginTop: "var(--space-8)" }}><Pill href="/#start" onClick={(e) => { e.preventDefault(); go("/#start"); }}>Book a 30-minute call</Pill></div>
         </div>
       </section>
     </main>

@@ -63,3 +63,7 @@ html[data-theme="light"] .tip-wrap .tip-body{background:#fff;color:#15112B;borde
   *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important;scroll-behavior:auto!important}
   .anim,.anim-d1,.anim-d2,.anim-d3,.anim-d4{opacity:1!important}
 }
+
+/* Tooltips near the right edge open leftwards; never wider than the screen. */
+.tip-wrap.tip-end .tip-body{left:auto;right:0;transform:none}
+@media (max-width:640px){.tip-wrap .tip-body{width:min(260px,calc(100vw - 32px))}}

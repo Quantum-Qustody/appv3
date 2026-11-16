@@ -2,32 +2,32 @@ import { useEffect, useRef } from "react";
 import { Pill } from "./Landing.jsx";
 import { initMotion, spotlight } from "./motion.js";
 
-// The entry ladder from the pricing strategy (v4), as set out in the website
-// review of 13 Oct 2026. "From" prices leave room to learn. Never priced per
-// approval or per transaction.
+// The entry ladder from the Website Blueprint v3 (13 Nov 2026): a free call,
+// a diagnostic, a four-week pilot, a subscription. "From" prices leave room to
+// learn. Never priced per approval or per transaction.
 const PLANS = [
   {
-    name: "Sandbox", price: "Free", unit: "",
-    body: "Try the approval and record flow on testnet. Self-serve.",
-    items: ["Ethereum Sepolia testnet", "Quorum approvals and authority records", "Preview API"],
-    cta: "Open the sandbox", action: "sandbox",
+    name: "Call", price: "Free", unit: "30 minutes",
+    body: "We map one of your flows to the six questions. You leave with the gaps and what a pilot would test.",
+    items: ["One of your flows, mapped", "The gaps, in writing", "No access to your systems or keys"],
+    cta: "Book a 30-minute call", action: "start",
   },
   {
     name: "Diagnostic", from: true, price: "EUR 5,000", unit: "",
-    body: "Two to three weeks. We map how your movements are approved and evidenced today, against the rules you answer to.",
-    items: ["A written map of approvals and evidence", "Mapped against the rules you answer to", "Synthetic data only; no access to your systems or keys", "Credited to a pilot signed within 60 days"],
-    cta: "Book a diagnostic call", action: "start",
+    body: "Two to three weeks. How your movements are approved and evidenced today, against the rules you answer to.",
+    items: ["A written map of approvals and evidence", "Mapped against the rules you answer to", "Credited to a pilot signed within 60 days"],
+    cta: "Book a call", action: "start",
   },
   {
     name: "Pilot", from: true, price: "USD 20,000", unit: "", featured: true,
-    body: "Eight to twelve weeks on one real flow, with written success criteria.",
-    items: ["One real flow, bounded scope", "Success criteria agreed in writing", "Part of the fee credited to year one when you subscribe"],
+    body: "Four weeks on one real flow, beside your own signer and administrator.",
+    items: ["Seven pass criteria agreed in writing first", "The nine breach attempts, each refused", "Part of the fee credited to year one when you subscribe"],
     cta: "Talk to us", action: "start",
   },
   {
     name: "Subscription", from: true, price: "USD 24,000", unit: "a year",
     body: "One entity, your signer and administrator connected, evidence packs, the post-quantum seal.",
-    items: ["Reviewers unlimited", "Never priced per approval", "Evidence packs on demand"],
+    items: ["Reviewers unlimited", "Never priced per approval", "Add-ons priced on their own"],
     cta: "Talk to us", action: "start",
   },
 ];
@@ -43,7 +43,7 @@ export default function PricingPage({ go, enterPlatform }) {
         <div className="wrap">
           <div className="head" data-reveal>
             <h1 id="pricing-title">Pricing.</h1>
-            <p>Start free, then move up one step at a time. Each step is priced so you can stop after it.</p>
+            <p>Start small. Pass on evidence. Each step is priced so you can stop after it.</p>
           </div>
           <div className="plans">
             {PLANS.map((p, i) => (

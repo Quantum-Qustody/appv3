@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, createContext, useContext } f
 import { supabase, supabaseAnonKey, FUNCTIONS_URL } from "./supabaseClient.js";
 import { useWallet, useTestnetValue, FAUCETS, CIRCLE_FAUCET, explorerTx, explorerAddr, shortAddr, fetchWalletTxHistory } from "./sepolia.js";
 import { Mark, Lockup } from "./brand/Logo.jsx";
+import { EXAMPLE } from "./site/filmsList.js";
 
 // ─── localStorage account picker (Phase 1, item 1) ─────────────────
 const KNOWN_EMAILS_KEY = "qq:known_emails";
@@ -10,11 +11,11 @@ const rememberEmail = (email) => {
   if (!email) return;
   const list = readKnownEmails().filter(e => e !== email);
   list.unshift(email);
-  localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list.slice(0, 5)));
+  try { localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list.slice(0, 5))); } catch {}
 };
 const forgetEmail = (email) => {
   const list = readKnownEmails().filter(e => e !== email);
-  localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list));
+  try { localStorage.setItem(KNOWN_EMAILS_KEY, JSON.stringify(list)); } catch {}
 };
 
 // ─── Built-in reference data (fallback when the DB table is empty) ──
@@ -124,7 +125,7 @@ function AppProvider({ children, initialPhase = "landing" }) {
   const [evidenceStore, setEvidenceStore] = useState({});
   const [activeScenario, setActiveScenario] = useState(null);
   const [phase, setPhase] = useState(initialPhase);
-  const [activeView, setActiveView] = useState("hub");
+  const [activeView, setActiveView] = useState("start");
   const [fading, setFading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
@@ -236,6 +237,9 @@ function AppProvider({ children, initialPhase = "landing" }) {
     supabase.auth.getSession().then(({ data: { session: authSession } }) => {
       if (authSession?.user) {
         setUser(authSession.user);
+        // Returning users are remembered on this device, even if they first
+        // signed in before the account picker existed.
+        if (authSession.user.email) rememberEmail(authSession.user.email);
         tryAcceptInvitationFromUrl(authSession.user.id);
         loadActiveSession(authSession.user.id);
       } else {
@@ -246,6 +250,7 @@ function AppProvider({ children, initialPhase = "landing" }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, authSession) => {
       setUser(authSession?.user ?? null);
       if (authSession?.user) {
+        if (authSession.user.email) rememberEmail(authSession.user.email);
         tryAcceptInvitationFromUrl(authSession.user.id);
       } else if (event === "SIGNED_OUT") {
         setSession(null);
@@ -618,6 +623,7 @@ function AppProvider({ children, initialPhase = "landing" }) {
     setMovements({});
     setTransactions([]);
     setEvidenceStore({});
+    setActiveView("start");
     go("landing");
   };
 
@@ -794,7 +800,7 @@ const Sun = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" st
 const Moon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>;
 
 // Tooltip — ".tip-wrap" CSS handles hover state
-const Tip = ({ text, children }) => <span className="tip-wrap">{children || <span className="text-purple-400 cursor-help inline-flex items-center align-middle"><InfoI/></span>}<span className="tip-body">{text}</span></span>;
+const Tip = ({ text, children, align }) => <span className={`tip-wrap${align==="end"?" tip-end":""}`}>{children || <span className="text-purple-400 cursor-help inline-flex items-center align-middle"><InfoI/></span>}<span className="tip-body">{text}</span></span>;
 
 // Field with optional inline tooltip
 const Field = ({ label, hint, children }) => <div><label className="fm text-xs text-gray-500 mb-2 block">{label}{hint && <Tip text={hint}><span className="ml-1.5 text-purple-400 cursor-help inline-flex items-center align-middle"><InfoI/></span></Tip>}</label>{children}</div>;
@@ -964,12 +970,12 @@ const ActionBar = ({ active, onPick }) => (<div className="flex flex-wrap gap-2"
 </div>);
 
 // Quantum Safety Score atom (animated SVG ring + number)
-const QuantumSafetyAtom = ({ score, label }) => {
+const QuantumSafetyAtom = ({ score, label, align }) => {
   const r = 14, c = 2 * Math.PI * r;
   const off = c - (score / 100) * c;
   const tone = score >= 80 ? "#22c55e" : score >= 60 ? "#8E78F6" : score >= 40 ? "#eab308" : "#ef4444";
-  const tier = score >= 80 ? "STRONG" : score >= 60 ? "GUARDED" : score >= 40 ? "MODERATE" : "AT-RISK";
-  return (<Tip text={`Quantum Safety Score: ${score}/100 — ${tier}. Computed live from PQC posture, control model, threshold settings, active team, connected wallets, and persisted settings. Higher score = stronger institutional posture.`}>
+  const tier = score >= 80 ? "Strong" : score >= 60 ? "Guarded" : score >= 40 ? "Moderate" : "At risk";
+  return (<Tip align={align} text={`Quantum safety score: ${score} of 100 (${tier.toLowerCase()}). Based on your approval rule, team, connected wallets and settings. A higher score means your setup follows more of the recommended controls.`}>
     <div className="flex items-center gap-2 px-3 py-1.5 glass cursor-help">
       <div className="relative w-10 h-10 flex items-center justify-center">
         <svg width="40" height="40" viewBox="0 0 40 40" className="absolute inset-0">
@@ -983,7 +989,7 @@ const QuantumSafetyAtom = ({ score, label }) => {
         </div>
       </div>
       <div className="hidden sm:flex flex-col leading-tight">
-        <span className="fm text-[10px] text-gray-500">QSAFETY</span>
+        <span className="fm text-[10px] text-gray-500">Quantum safety</span>
         <span className="fm text-xs font-bold whitespace-nowrap" style={{color:tone}}>{score} · {tier}</span>
       </div>
     </div>
@@ -1034,7 +1040,7 @@ function exportJSON(rows, filename) {
 const AuditLog = () => {
   const { logs } = useApp();
   return (<div className="w-72 flex-shrink-0 flex flex-col" style={{height:"calc(100vh - 56px)"}}>
-    <div className="p-4 border-b border-purple-500/20 flex items-center gap-2">{sIcons.log}<span className="fm text-sm font-bold text-purple-400">EVALUATION_LOG</span><span className="ml-auto fm text-xs text-gray-600">{logs.length}</span></div>
+    <div className="p-4 border-b border-purple-500/20 flex items-center gap-2">{sIcons.log}<span className="fm text-sm font-bold text-purple-400">Activity log</span><span className="ml-auto fm text-xs text-gray-600">{logs.length}</span></div>
     <div className="flex-1 overflow-y-auto p-3 space-y-2">{logs.map(l=>(
       <div key={l.id} className="p-3 border-l-2 anim" style={{background:"rgba(23,19,44,.5)",borderLeftColor:l.log_type==="success"||l.type==="success"?"#22c55e":l.log_type==="warning"||l.type==="warning"?"#eab308":l.log_type==="error"||l.type==="error"?"#ef4444":l.log_type==="evidence"||l.type==="evidence"?"#3b82f6":"rgba(142,120,246,.4)"}}>
         <div className="fm text-xs text-gray-500 mb-1">{l.time}</div>
@@ -1043,7 +1049,7 @@ const AuditLog = () => {
         {l.actor&&<div className="fm text-xs text-gray-600 mt-0.5">{l.actor}</div>}
         {l.detail&&<div className="fm text-xs text-gray-600 mt-0.5">{l.detail}</div>}
       </div>))}
-      {logs.length===0&&<div className="text-center text-gray-600 fm text-xs py-8">NO_EVENTS</div>}
+      {logs.length===0&&<div className="text-center text-gray-600 fm text-xs py-8">No activity yet</div>}
     </div>
   </div>);
 };
@@ -1073,10 +1079,10 @@ const AuthScreen = () => {
         <button type="button" onClick={()=>go("landing")} className="fm text-xs text-gray-400 hover:text-purple-300 cursor-pointer mb-6">← Back to site</button>
         <div className="text-center mb-8"><div className="flex items-center justify-center"><Lockup size={34} className="q-lockup--platform"/></div></div>
         <GC className="p-8">
-          <SL>SIGN IN / SIGN UP</SL>
+          <h1 className="text-xl font-bold mb-1">Sign in or create your account</h1><p className="text-sm text-gray-400 mb-6">One account per person. Your fund’s workspace and records are saved to it.</p>
           {knownEmails.length > 0 && (
             <div className="mb-5">
-              <div className="fm text-xs text-gray-500 mb-2">CONTINUE AS</div>
+              <div className="fm text-xs text-gray-500 mb-2">Continue as</div>
               <div className="flex flex-wrap gap-2">
                 {knownEmails.map(e => (
                   <div key={e} className={`flex items-center gap-1 px-3 py-1.5 fm text-xs border cursor-pointer transition-all ${email===e?"border-purple-500 bg-purple-500/15 text-purple-200":"border-purple-500/30 bg-purple-500/5 text-gray-300 hover:bg-purple-500/10"}`}>
@@ -1085,21 +1091,21 @@ const AuthScreen = () => {
                   </div>
                 ))}
               </div>
-              <div className="fm text-[10px] text-gray-600 mt-2">Pick an email to pre-fill, then type your password. ✕ to forget.</div>
+              <div className="fm text-[10px] text-gray-600 mt-2">Remembered on this device. Pick one, then type your password. Use × to forget it.</div>
             </div>
           )}
           <div className="space-y-4">
-            <div><label className="fm text-xs text-gray-500 mb-2 block">FULL_NAME (new users only)</label><input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/></div>
-            <div><label className="fm text-xs text-gray-500 mb-2 block">EMAIL</label><input type="email" placeholder="you@institution.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
-            <div><label className="fm text-xs text-gray-500 mb-2 block">PASSWORD</label><input type="password" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/></div>
+            <div><label htmlFor="auth-name" className="fm text-xs text-gray-500 mb-2 block">Your name (new accounts only)</label><input id="auth-name" autoComplete="name" placeholder="Your name" value={name} onChange={e=>setName(e.target.value)}/></div>
+            <div><label htmlFor="auth-email" className="fm text-xs text-gray-500 mb-2 block">Work email</label><input id="auth-email" autoComplete="email" type="email" placeholder="you@institution.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+            <div><label htmlFor="auth-password" className="fm text-xs text-gray-500 mb-2 block">Password</label><input id="auth-password" autoComplete="current-password" type="password" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/></div>
             {authError && <div className={`p-3 fm text-xs ${isInfo?"bg-emerald-500/10 border border-emerald-500/30 text-emerald-300":"bg-red-500/10 border border-red-500/30 text-red-300"}`}>{authError}</div>}
-            <Btn full onClick={handleSubmit} disabled={loading || !email || !password}>{loading?"WORKING...":"SIGN_IN_OR_CREATE_ACCOUNT"} <Arr /></Btn>
+            <Btn full onClick={handleSubmit} disabled={loading || !email || !password}>{loading?"Working…":"Continue"} <Arr /></Btn>
             <div className="flex items-center justify-between gap-3 fm text-xs">
               <button onClick={()=>sendPasswordReset(email)} disabled={loading} className="text-purple-400 hover:text-purple-300 cursor-pointer disabled:opacity-40">Forgot password?</button>
               <button onClick={()=>resendConfirmation(email)} disabled={loading} className="text-gray-500 hover:text-gray-300 cursor-pointer disabled:opacity-40">Resend confirmation email</button>
             </div>
           </div>
-          <div className="mt-6 p-3 bg-purple-500/5 border border-purple-500/20 fm text-xs text-gray-500"><span className="text-purple-400">NEW USERS:</span> Fill in all fields. <span className="text-purple-400">EXISTING USERS:</span> Email + password.</div>
+          <div className="mt-6 p-3 bg-purple-500/5 border border-purple-500/20 text-xs text-gray-400 leading-relaxed"><span className="text-purple-300 font-semibold">New here?</span> Enter your name, email and a password and we create your account. Next time, this device remembers you.</div>
         </GC>
       </div>
     </div>
@@ -1112,7 +1118,7 @@ const AuthScreen = () => {
 const SandboxSetup = () => {
   const { createSession, addLog, loading, user } = useApp();
   const [step, setStep] = useState(0);
-  const [f, setF] = useState({orgName:"",instType:"Asset Manager",jurisdiction:"",evalObjective:"",controlModel:"threshold",trustEnv:"current",inviteCode:"",joinOrgId:""});
+  const [f, setF] = useState({orgName:"",instType:"Fund",jurisdiction:"",evalObjective:"",controlModel:"threshold",trustEnv:"current",inviteCode:"",joinOrgId:""});
   const [suggestions, setSuggestions] = useState([]);
   const [joinError, setJoinError] = useState(null);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -1150,45 +1156,45 @@ const SandboxSetup = () => {
       try { await createSession(f); } catch(err){}
     }
   };
-  const steps=[{l:"CONTEXT",n:"01"},{l:"ROLES",n:"02"},{l:"POSTURE",n:"03"},{l:"LAUNCH",n:"04"}];
+  const steps=[{l:"Your fund",n:"01"},{l:"Who does what",n:"02"},{l:"Approval rule",n:"03"},{l:"Open workspace",n:"04"}];
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative"><div className="absolute inset-0 pointer-events-none" style={{background:"radial-gradient(circle at center,rgba(142,120,246,.06) 0%,transparent 50%)"}}/>
-      <div className="w-full max-w-2xl anim"><div className="text-center mb-10"><div className="flex items-center justify-center"><Lockup size={34} className="q-lockup--platform"/></div><h1 className="text-3xl font-bold mb-2 mt-4">Sandbox Setup</h1><p className="fm text-sm text-gray-500">CONFIGURE EVALUATION ENVIRONMENT</p></div>
+      <div className="w-full max-w-2xl anim"><div className="text-center mb-10"><div className="flex items-center justify-center"><Lockup size={34} className="q-lockup--platform"/></div><h1 className="text-3xl font-bold mb-2 mt-4">Set up your fund</h1><p className="text-sm text-gray-400">Four short steps. You can change everything later.</p></div>
         <div className="flex items-center justify-center gap-1 mb-10">{steps.map((s,i)=><div key={i} className="flex items-center"><div className={`flex items-center gap-2 px-3 py-1.5 fm text-xs transition-all ${i===step?"text-purple-400 bg-purple-500/10 border border-purple-500/30":i<step?"text-emerald-400":"text-gray-600"}`}><span>{i<step?"✓":s.n}</span><span className="hidden sm:inline">{s.l}</span></div>{i<3&&<div className={`w-8 h-px mx-1 ${i<step?"bg-emerald-500/50":"bg-gray-800"}`}/>}</div>)}</div>
         <GC className="p-8">
           {step===0&&<div className="space-y-5 anim" key="s0">
-            <SL>ORGANIZATION CONTEXT</SL>
+            <SL>Your fund</SL>
 
             {/* Phase 3, item 9 — join existing org */}
             <div className="p-3 bg-purple-500/5 border border-purple-500/20">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="fm text-xs text-purple-300">HAVE AN INVITE CODE?</div>
-                <div className="flex gap-2"><input placeholder="ABC123" maxLength={8} value={f.inviteCode} onChange={e=>u("inviteCode",e.target.value.toUpperCase())} style={{width:120}}/><Btn v="secondary" onClick={()=>resolveInviteCode(f.inviteCode)}>JOIN</Btn></div>
+                <div className="fm text-xs text-purple-300">Joining a colleague’s fund? Enter their invite code</div>
+                <div className="flex gap-2"><input placeholder="ABC123" maxLength={8} value={f.inviteCode} onChange={e=>u("inviteCode",e.target.value.toUpperCase())} style={{width:120}}/><Btn v="secondary" onClick={()=>resolveInviteCode(f.inviteCode)}>Join</Btn></div>
               </div>
               {f.joinOrgId && <div className="fm text-xs text-emerald-400 mt-2">✓ Joining <b>{f.orgName}</b>. Continue to confirm.</div>}
               {joinError && <div className="fm text-xs text-red-300 mt-2">{joinError}</div>}
             </div>
 
-            <div><label className="fm text-xs text-gray-500 mb-2 block">ORGANIZATION *</label><input placeholder="Institution name" value={f.orgName} onChange={e=>{ u("orgName",e.target.value); u("joinOrgId",""); }}/></div>
+            <div><label className="fm text-xs text-gray-500 mb-2 block">Fund or firm name *</label><input placeholder="e.g. Example Credit Fund" value={f.orgName} onChange={e=>{ u("orgName",e.target.value); u("joinOrgId",""); }}/></div>
 
             {/* Suggested orgs based on email domain / name match */}
             {!f.joinOrgId && suggestions.length>0 && <div className="p-3 bg-emerald-500/5 border border-emerald-500/20">
-              <div className="fm text-xs text-emerald-300 mb-2">DID YOU MEAN ONE OF THESE? <span className="text-gray-500">— matches existing orgs by name or email domain</span></div>
+              <div className="fm text-xs text-emerald-300 mb-2">Did you mean one of these? <span className="text-gray-500">Existing workspaces that match your name or email domain.</span></div>
               <div className="space-y-1">{suggestions.map(s => (
                 <button key={s.id} onClick={()=>setF(prev=>({...prev, joinOrgId: s.id, orgName: s.name, inviteCode: s.invite_code || ""}))} className="w-full flex items-center justify-between gap-3 p-2 hover:bg-emerald-500/10 cursor-pointer text-left">
                   <span className="fm text-xs text-gray-200">{s.name}</span>
-                  <span className="fm text-[10px] text-emerald-400">{s.match_reason === "domain" ? "DOMAIN MATCH" : "NAME MATCH"}</span>
+                  <span className="fm text-[10px] text-emerald-400">{s.match_reason === "domain" ? "Email domain match" : "Name match"}</span>
                 </button>
               ))}</div>
             </div>}
 
-            <div className="grid grid-cols-2 gap-4"><div><label className="fm text-xs text-gray-500 mb-2 block">INSTITUTION_TYPE</label><select value={f.instType} onChange={e=>u("instType",e.target.value)}><option value="">Select...</option><option>Asset Manager</option><option>Bank / Custodian</option><option>Fund</option><option>Corporate Treasury</option></select></div><div><label className="fm text-xs text-gray-500 mb-2 block">JURISDICTION</label><select value={f.jurisdiction} onChange={e=>u("jurisdiction",e.target.value)}><option value="">Select...</option><option>United States</option><option>European Union</option><option>United Kingdom</option><option>Singapore</option></select></div></div>
-            <div><label className="fm text-xs text-gray-500 mb-2 block">EVALUATION_OBJECTIVE</label><input placeholder="e.g., Assess governed treasury controls" value={f.evalObjective} onChange={e=>u("evalObjective",e.target.value)}/></div>
+            <div className="grid grid-cols-2 gap-4"><div><label className="fm text-xs text-gray-500 mb-2 block">Type of firm</label><select value={f.instType} onChange={e=>u("instType",e.target.value)}><option value="">Select...</option><option>Asset Manager</option><option>Bank / Custodian</option><option>Fund</option><option>Corporate Treasury</option></select></div><div><label className="fm text-xs text-gray-500 mb-2 block">Where you are regulated</label><select value={f.jurisdiction} onChange={e=>u("jurisdiction",e.target.value)}><option value="">Select...</option><option>United States</option><option>European Union</option><option>United Kingdom</option><option>Singapore</option></select></div></div>
+            <div><label className="fm text-xs text-gray-500 mb-2 block">What you want to test (optional)</label><input placeholder="e.g. Prove who approved each loan drawdown" value={f.evalObjective} onChange={e=>u("evalObjective",e.target.value)}/></div>
           </div>}
-          {step===1&&<div className="space-y-5 anim" key="s1"><SL>ROLES & ACCESS</SL><p className="fm text-xs text-gray-400 mb-4">After launch, add real team members on the Team page. Each governance function maps to a role:</p><div className="space-y-2">{["Requester — initiates movement requests","Approver — approves under threshold policy","Reviewer — reviews policy application","Oversight — risk, audit, compliance","Observer — finance, reporting"].map((r)=><div key={r} className="flex items-center gap-3 p-3 bg-black/30 border border-gray-800/50 fm text-xs text-gray-300"><span className="text-purple-400">▹</span>{r}</div>)}</div></div>}
-          {step===2&&<div className="space-y-5 anim" key="s2"><SL>CONTROL POSTURE</SL><div><label className="fm text-xs text-gray-500 mb-3 block">CONTROL_MODEL</label><div className="grid grid-cols-3 gap-3">{[{id:"single",l:"Single",d:"One approver"},{id:"threshold",l:"Threshold",d:"Multi-approval"},{id:"committee",l:"Committee",d:"Full governance"}].map(o=><div key={o.id} onClick={()=>u("controlModel",o.id)} className={`p-4 cursor-pointer border transition-all ${f.controlModel===o.id?"border-purple-500 bg-purple-500/10 text-white":"border-gray-800 bg-gray-900/30 text-gray-500 hover:border-gray-700"}`}><div className="fm text-sm font-bold mb-1">{o.l}</div><div className="text-xs">{o.d}</div></div>)}</div></div><div><label className="fm text-xs text-gray-500 mb-3 block">TRUST_ENVIRONMENT</label><div className="grid grid-cols-2 gap-3">{[{id:"current",l:"Current Trust",d:"Standard crypto"},{id:"pqc",l:"PQC Target",d:"Post-quantum view"}].map(o=><div key={o.id} onClick={()=>u("trustEnv",o.id)} className={`p-4 cursor-pointer border transition-all ${f.trustEnv===o.id?"border-fuchsia-500 bg-fuchsia-500/10 text-white":"border-gray-800 bg-gray-900/30 text-gray-500 hover:border-gray-700"}`}><div className="fm text-sm font-bold mb-1">{o.l}</div><div className="text-xs">{o.d}</div></div>)}</div></div></div>}
-          {step===3&&<div className="space-y-5 anim" key="s3"><SL>LAUNCH SANDBOX</SL><div className="text-center py-4"><div className="inline-block p-4 rounded-full bg-purple-500/10 border border-purple-500/30 mb-4"><Shld/></div><h3 className="text-xl font-bold mb-2">Ready to Launch</h3><p className="fm text-sm text-gray-500">Session will be persisted to Supabase.</p></div><div className="space-y-2 p-4 bg-black/40 border border-gray-800 fm text-xs"><div className="flex justify-between"><span className="text-gray-500">ORG:</span><span>{f.orgName||"—"}</span></div><div className="flex justify-between"><span className="text-gray-500">CONTROL:</span><span className="text-purple-400">{f.controlModel.toUpperCase()}</span></div><div className="flex justify-between"><span className="text-gray-500">TRUST:</span><span className="text-fuchsia-400">{f.trustEnv==="pqc"?"PQC TARGET":"CURRENT"}</span></div><div className="flex justify-between"><span className="text-gray-500">BACKEND:</span><span className="text-emerald-400">SUPABASE LIVE</span></div></div></div>}
-          <div className="flex justify-between mt-8 pt-6 border-t border-purple-500/10"><Btn v="ghost" onClick={()=>step>0&&setStep(step-1)} disabled={step===0||loading}>BACK</Btn><Btn onClick={next} disabled={loading||(step===0&&!f.orgName)}>{loading?"LAUNCHING...":step===3?"LAUNCH_SANDBOX":"CONTINUE"} <Arr/></Btn></div>
+          {step===1&&<div className="space-y-5 anim" key="s1"><SL>Who does what</SL><p className="text-sm text-gray-400 mb-4">After this, add your people on the Team page. A typical fund uses these roles:</p><div className="space-y-2">{["Proposer (Requester): asks for a movement, for example an analyst. Can never approve their own request","Approver: a partner who approves the exact transaction, on their own device","Reviewer: checks how a rule was applied","Oversight: risk, compliance or audit, reads every record","Observer: finance or reporting, read only"].map((r)=><div key={r} className="flex items-center gap-3 p-3 bg-black/30 border border-gray-800/50 fm text-xs text-gray-300"><span className="text-purple-400">▹</span>{r}</div>)}</div></div>}
+          {step===2&&<div className="space-y-5 anim" key="s2"><SL>Approval rule</SL><div><label className="fm text-xs text-gray-500 mb-3 block">How many people must approve a movement?</label><div className="grid grid-cols-1 sm:grid-cols-3 gap-3">{[{id:"single",l:"One approver",d:"For a quick test only"},{id:"threshold",l:"Two of three approvers (recommended)",d:"The usual rule for funds"},{id:"committee",l:"Committee",d:"Three of five"}].map(o=><div key={o.id} onClick={()=>u("controlModel",o.id)} className={`p-4 cursor-pointer border transition-all ${f.controlModel===o.id?"border-purple-500 bg-purple-500/10 text-white":"border-gray-800 bg-gray-900/30 text-gray-500 hover:border-gray-700"}`}><div className="fm text-sm font-bold mb-1">{o.l}</div><div className="text-xs">{o.d}</div></div>)}</div></div><div><label className="fm text-xs text-gray-500 mb-3 block">Record seal</label><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{[{id:"current",l:"Standard view",d:"Classical signatures"},{id:"pqc",l:"Post-quantum view",d:"Show the hybrid post-quantum seal"}].map(o=><div key={o.id} onClick={()=>u("trustEnv",o.id)} className={`p-4 cursor-pointer border transition-all ${f.trustEnv===o.id?"border-fuchsia-500 bg-fuchsia-500/10 text-white":"border-gray-800 bg-gray-900/30 text-gray-500 hover:border-gray-700"}`}><div className="fm text-sm font-bold mb-1">{o.l}</div><div className="text-xs">{o.d}</div></div>)}</div></div></div>}
+          {step===3&&<div className="space-y-5 anim" key="s3"><SL>Open your workspace</SL><div className="text-center py-4"><div className="inline-block p-4 rounded-full bg-purple-500/10 border border-purple-500/30 mb-4"><Shld/></div><h3 className="text-xl font-bold mb-2">Ready</h3><p className="text-sm text-gray-400">Your workspace is saved to your account, so it is here next time you sign in.</p></div><div className="space-y-2 p-4 bg-black/40 border border-gray-800 fm text-xs"><div className="flex justify-between"><span className="text-gray-500">Fund</span><span>{f.orgName||"Not set"}</span></div><div className="flex justify-between"><span className="text-gray-500">Approval rule</span><span className="text-purple-400">{f.controlModel==="single"?"One approver":f.controlModel==="committee"?"Committee, three of five":"Two of three approvers"}</span></div><div className="flex justify-between"><span className="text-gray-500">Seal view</span><span className="text-fuchsia-400">{f.trustEnv==="pqc"?"Post-quantum":"Standard"}</span></div><div className="flex justify-between"><span className="text-gray-500">Network</span><span className="text-emerald-400">Ethereum Sepolia testnet</span></div></div></div>}
+          <div className="flex justify-between mt-8 pt-6 border-t border-purple-500/10"><Btn v="ghost" onClick={()=>step>0&&setStep(step-1)} disabled={step===0||loading}>Back</Btn><Btn onClick={next} disabled={loading||(step===0&&!f.orgName)}>{loading?"Opening…":step===3?"Open my workspace":"Continue"} <Arr/></Btn></div>
         </GC></div></div>
   );
 };
@@ -1199,21 +1205,176 @@ const SandboxSetup = () => {
 const SideNav = ({ onSelect }) => {
   const { activeView, setActiveView, signOut, user } = useApp();
   const pick = (id) => { setActiveView(id); if (onSelect) onSelect(); };
-  const nav=[
-    {id:"hub",l:"DASHBOARD",i:sIcons.hub},
-    {id:"assets",l:"DIGITAL ASSETS",i:sIcons.assets},
-    {id:"import-bank",l:"IMPORT BANK",i:sIcons.bank,soon:true},
-    {id:"movement",l:"GOVERNED MOVEMENT",i:sIcons.movement},
-    {id:"overview",l:"OVERVIEW",i:sIcons.overview},
-    {id:"team",l:"TEAM",i:sIcons.participants},
-    {id:"evidence",l:"EVIDENCE VIEWER",i:sIcons.evidence},
-    {id:"how-it-works",l:"HOW IT WORKS",i:sIcons.help},
-    {id:"user-guide",l:"USER GUIDE",i:sIcons.evidence},
-    {id:"support",l:"SUPPORT",i:sIcons.mail},
-    {id:"billing",l:"BILLING",i:sIcons.card},
-    {id:"settings",l:"SETTINGS",i:sIcons.config},
+  const openTab = (href) => { window.open(href, "_blank", "noopener"); if (onSelect) onSelect(); };
+  const groups = [
+    { g: null, items: [
+      { id:"start", l:"Start here", i:sIcons.help },
+      { id:"hub", l:"Dashboard", i:sIcons.hub },
+      { id:"overview", l:"Overview", i:sIcons.overview },
+    ]},
+    { g: "Movements", items: [
+      { id:"movement", l:"New movement", i:sIcons.movement },
+      { id:"evidence", l:"Evidence", i:sIcons.evidence },
+    ]},
+    { g: "Set up", items: [
+      { id:"team", l:"Team and approvers", i:sIcons.participants },
+      { id:"assets", l:"Wallets and assets", i:sIcons.assets },
+      { id:"import-bank", l:"Bank accounts", i:sIcons.bank, soon:true },
+    ]},
+    { g: "Learn", items: [
+      { id:"how-it-works", l:"How it works", i:sIcons.help },
+      { id:"user-guide", l:"User guide", i:sIcons.evidence },
+      { href:"/demo", l:"Demo films", i:sIcons.overview },
+    ]},
+    { g: "Account", items: [
+      { id:"billing", l:"Billing", i:sIcons.card },
+      { id:"settings", l:"Settings", i:sIcons.config },
+      { id:"support", l:"Support", i:sIcons.mail },
+    ]},
   ];
-  return (<div className="w-56 flex-shrink-0 border-r border-purple-500/20 flex flex-col h-full" style={{background:"rgba(15,12,31,.95)"}}><div className="p-4 space-y-1 flex-1 overflow-y-auto">{nav.map(n=><button key={n.id} onClick={()=>pick(n.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 fm text-xs transition-all cursor-pointer ${activeView===n.id?"text-purple-400 bg-purple-500/10 border-l-2 border-purple-500":"text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"}`}>{n.i}<span className="flex-1 text-left">{n.l}</span>{n.soon&&<span className="fm text-[8px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 border border-yellow-400/40">SOON</span>}</button>)}</div><div className="p-4 border-t border-purple-500/10 space-y-2"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{(user?.email||"U")[0].toUpperCase()}</div><div className="fm text-xs text-gray-400 truncate">{user?.email}</div></div><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-purple-400 transition-colors cursor-pointer text-left px-1 py-1">⇄ SWITCH_ACCOUNT</button><button onClick={signOut} className="w-full fm text-xs text-gray-600 hover:text-red-400 transition-colors cursor-pointer text-left px-1 py-1">← EXIT_SANDBOX</button></div></div>);
+  const name = user?.user_metadata?.full_name || user?.email || "";
+  return (<nav aria-label="Platform" className="w-56 flex-shrink-0 border-r border-purple-500/20 flex flex-col h-full" style={{background:"rgba(15,12,31,.95)"}}>
+    <div className="p-3 flex-1 overflow-y-auto">
+      {groups.map((grp, gi) => (<div key={gi} className={gi ? "mt-4" : ""}>
+        {grp.g && <div className="fm text-[10px] tracking-[0.12em] uppercase text-gray-600 px-3 mb-1">{grp.g}</div>}
+        <div className="space-y-0.5">{grp.items.map(n => {
+          const active = n.id && activeView === n.id;
+          return (<button key={n.id || n.href} onClick={() => n.href ? openTab(n.href) : pick(n.id)} aria-current={active ? "page" : undefined}
+            className={`w-full flex items-center gap-3 px-3 py-2 text-[13px] transition-all cursor-pointer ${active?"text-purple-300 bg-purple-500/10 border-l-2 border-purple-500":"text-gray-400 hover:text-gray-200 hover:bg-white/5 border-l-2 border-transparent"}`}>
+            {n.i}<span className="flex-1 text-left">{n.l}</span>
+            {n.soon && <span className="fm text-[9px] px-1.5 py-0.5 bg-yellow-400/15 text-yellow-400 border border-yellow-400/40">Soon</span>}
+            {n.href && <span aria-hidden="true" className="text-gray-600 text-xs">↗</span>}
+          </button>);
+        })}</div>
+      </div>))}
+    </div>
+    <div className="p-4 border-t border-purple-500/10 space-y-2">
+      <div className="flex items-center gap-2 min-w-0"><div className="w-7 h-7 flex-shrink-0 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold">{(name||"U")[0].toUpperCase()}</div><div className="min-w-0"><div className="text-xs text-gray-300 truncate">{name}</div>{name !== user?.email && <div className="fm text-[10px] text-gray-500 truncate">{user?.email}</div>}</div></div>
+      <button onClick={signOut} className="w-full text-xs text-gray-500 hover:text-purple-300 transition-colors cursor-pointer text-left px-1 py-1">⇄ Switch account</button>
+      <button onClick={signOut} className="w-full text-xs text-gray-500 hover:text-red-400 transition-colors cursor-pointer text-left px-1 py-1">← Sign out</button>
+    </div>
+  </nav>);
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// START HERE: how a fund uses Q², with a live setup checklist
+// ═══════════════════════════════════════════════════════════════════
+const FLOW_STEPS = [
+  { k:"Request", who:"Fund", d:"An analyst asks to move money: amount, wallet, destination and purpose, captured once.", view:"movement", where:"New movement" },
+  { k:"Check", who:"Q²", d:"Checked against your rules before anything is signed: registered destination, limits, approvers. The record starts here.", view:"movement", where:"New movement" },
+  { k:"Approve", who:"Fund", d:"Two named partners approve the exact transaction, each on their own device. The proposer cannot approve.", view:"team", where:"Team and approvers" },
+  { k:"Sign", who:"Signer", d:"Your signer or wallet runs its own policies, then signs. Q² never holds keys.", view:"movement", where:"New movement" },
+  { k:"Settle", who:"Chain", d:"The transfer settles and is matched to what was approved.", view:"evidence", where:"Evidence" },
+  { k:"Book", who:"Administrator", d:"The ledger entry is linked to the same record.", view:"evidence", where:"Evidence" },
+  { k:"Prove", who:"Q²", d:"One sealed export per movement for your auditor or investors.", view:"evidence", where:"Evidence" },
+];
+
+const StartHere = () => {
+  const { user, org, participants, threshold, wallets, transactions, evidenceStore, setActiveView, addLog } = useApp();
+  const w = useSharedWallet();
+  const name = (user?.user_metadata?.full_name || user?.email?.split("@")[0] || "").split(" ")[0];
+  const proposers = participants.filter(p => p.scenario_role === "Requester").length;
+  const approvers = participants.filter(p => p.scenario_role === "Approver").length;
+  const quorum = Number(threshold?.required_approvals || 1);
+  const hasWallet = wallets.length > 0 || w.isConnected;
+  const moved = transactions.length > 0;
+  const proved = Object.keys(evidenceStore || {}).length > 0 || transactions.some(t => t.current_step === "complete" || t.step_data?.status === "complete");
+  const checklist = [
+    { done: !!org, t: "Create your fund’s workspace", d: "Your fund, its people and its records live here, saved to your account.", cta: "Settings", view: "settings", state: org ? org.name : "Not created" },
+    { done: proposers >= 1 && approvers >= 2, t: "Add your team: one proposer, two approvers", d: "Who can ask for a movement and who can approve it. A proposer can never approve their own request.", cta: "Open Team", view: "team", state: `${proposers} proposer${proposers===1?"":"s"} · ${approvers} approver${approvers===1?"":"s"}` },
+    { done: quorum >= 2, t: "Set the approval rule: at least two people", d: "How many approvers each movement needs. The sandbox starts at one so you can test quickly; funds usually use two of three.", cta: "Set the rule", view: "team", state: `${quorum} approval${quorum===1?"":"s"} required` },
+    { done: hasWallet, t: "Connect a test wallet", d: "A wallet on the Sepolia testnet stands in for your signer. No real money moves.", cta: "Connect a wallet", view: "movement", state: hasWallet ? "Connected" : "No wallet yet" },
+    { done: moved, t: "Propose your first movement", d: "Fill in a request. Q² checks it against your rules and starts its record.", cta: "New movement", view: "movement", state: moved ? `${transactions.length} on record` : "None yet" },
+    { done: proved, t: "Open the evidence for a movement", d: "Who asked, which rule, who approved, what was signed and settled: in one record your auditor can check.", cta: "Open Evidence", view: "evidence", state: proved ? "Ready" : "After your first movement" },
+  ];
+  const doneCount = checklist.filter(c => c.done).length;
+  const next = checklist.find(c => !c.done);
+  const goView = (v, label) => { addLog({ type: "info", message: `Start here: ${label}` }); setActiveView(v); };
+  const openTab = (href) => window.open(href, "_blank", "noopener");
+  const ex = EXAMPLE;
+
+  return (<div className="p-4 md:p-6 space-y-6 overflow-y-auto flex-1">
+    <div className="anim">
+      <div className="fm text-[11px] tracking-[0.12em] uppercase text-purple-300 mb-2">Start here</div>
+      <h2 className="text-2xl md:text-3xl font-bold mb-2">{name ? `Welcome, ${name}.` : "Welcome."} Here is how {org?.name || "your fund"} uses Q².</h2>
+      <p className="text-sm text-gray-400 max-w-3xl leading-relaxed">Q² checks every movement of your digital assets before it is signed, and keeps one record of who approved it. You keep your keys, your signer and your administrator. This workspace runs on the Sepolia testnet, so you can try every step without moving real money.</p>
+    </div>
+
+    {/* Setup checklist */}
+    <GC className="p-5 md:p-6 anim-d1" style={{borderTop:"2px solid rgba(142,120,246,.5)"}}>
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+        <div><h3 className="text-lg font-bold">Set up your fund</h3><p className="text-xs text-gray-500 mt-1">{doneCount} of {checklist.length} done{next ? `. Next: ${next.t.toLowerCase()}.` : ". You are ready to run real flows in a pilot."}</p></div>
+        <div className="flex items-center gap-1" aria-hidden="true">{checklist.map((c,i)=><span key={i} className={`w-6 h-1.5 ${c.done?"bg-emerald-400":"bg-gray-700"}`}/>)}</div>
+      </div>
+      <ol className="space-y-2">
+        {checklist.map((c, i) => (
+          <li key={c.t} className={`flex items-start gap-3 p-3 border ${c.done?"border-emerald-500/20 bg-emerald-500/5":c===next?"border-purple-500/40 bg-purple-500/5":"border-gray-800 bg-black/20"}`}>
+            <span className={`mt-0.5 w-6 h-6 flex-shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold ${c.done?"bg-emerald-500/20 text-emerald-300 border border-emerald-500/40":"border border-gray-600 text-gray-400"}`} aria-label={c.done?"Done":"To do"}>{c.done ? "✓" : i+1}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-gray-100">{c.t}</div>
+              <div className="text-xs text-gray-400 mt-0.5 leading-relaxed">{c.d}</div>
+              <div className={`fm text-[11px] mt-1 ${c.done?"text-emerald-400":"text-gray-500"}`}>{c.done ? "Done · " : ""}{c.state}</div>
+            </div>
+            <button onClick={()=>goView(c.view, c.cta)} className={`flex-shrink-0 text-xs px-3 py-2 border transition-all cursor-pointer whitespace-nowrap ${c===next?"bg-purple-600 border-purple-500 text-white hover:bg-purple-500":"border-purple-500/30 text-purple-300 hover:bg-purple-500/10"}`}>{c.cta}</button>
+          </li>
+        ))}
+      </ol>
+    </GC>
+
+    {/* One movement, start to proof */}
+    <GC className="p-5 md:p-6 anim-d2">
+      <h3 className="text-lg font-bold mb-1">One movement, start to proof</h3>
+      <p className="text-xs text-gray-400 mb-5 max-w-3xl">Every movement goes through the same seven steps. Each step adds one fact to the same record, under one ID.</p>
+      <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2">
+        {FLOW_STEPS.map((st, i) => (
+          <li key={st.k} className={`p-3 border flex flex-col ${st.who==="Q²"?"border-purple-500/40 bg-purple-500/5":"border-gray-800 bg-black/20"}`}>
+            <div className="flex items-baseline justify-between gap-2"><span className="fm text-[10px] text-gray-500">{String(i+1).padStart(2,"0")}</span><span className={`fm text-[10px] ${st.who==="Q²"?"text-purple-300":"text-gray-400"}`}>{st.who}</span></div>
+            <div className="text-sm font-bold mt-1">{st.k}</div>
+            <div className="text-[11px] text-gray-400 leading-relaxed mt-1 flex-1">{st.d}</div>
+            <button onClick={()=>goView(st.view, st.where)} className="mt-2 text-[11px] text-purple-300 hover:text-purple-200 cursor-pointer text-left">In the app: {st.where} →</button>
+          </li>
+        ))}
+      </ol>
+    </GC>
+
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      {/* Example record */}
+      <GC className="p-5 lg:col-span-3 anim-d3">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <h3 className="text-lg font-bold">What a finished record looks like</h3>
+          <Badge c="yellow">Example</Badge>
+        </div>
+        <p className="text-xs text-gray-400 mb-4">An illustrative loan from {ex.fund}. Names and numbers are invented; your records use your own.</p>
+        <div className="border border-purple-500/30 bg-black/30 p-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-3"><span className="fm text-[11px] text-gray-500">Movement record</span><span className="mono text-xs text-purple-300">{ex.record}</span></div>
+          <div className="text-lg font-bold mb-3">Send {ex.amount}</div>
+          <dl className="space-y-1.5 text-xs">
+            {[["Asked by", `${ex.proposer}, analyst`], ["Rule", ex.rule], ["Approved", ex.approvers.join(" · ")], ["Signed", "Matches what was approved"], ["Settled", `${ex.amount} to ${ex.borrower}`], ["Booked", `Ledger entry ${ex.ledger}`]].map(([k,v]) => (
+              <div key={k} className="flex gap-3 py-1 border-b border-gray-800/60"><dt className="w-20 flex-shrink-0 text-gray-500">{k}</dt><dd className="text-gray-200 min-w-0">{v}</dd></div>
+            ))}
+          </dl>
+          <div className="mt-3 flex items-center gap-2 text-xs text-amber-300"><span aria-hidden="true">●</span>Sealed · ready for your auditor</div>
+        </div>
+      </GC>
+
+      <div className="lg:col-span-2 space-y-4">
+        <GC className="p-5 anim-d3">
+          <h3 className="text-lg font-bold mb-1">Watch how it works</h3>
+          <p className="text-xs text-gray-400 mb-4">Ten short films, one question each, on the same example loan. Or read the whitepaper.</p>
+          <div className="space-y-2">
+            <button onClick={()=>openTab("/demo")} className="w-full text-left p-3 border border-purple-500/30 hover:bg-purple-500/10 transition-all cursor-pointer"><div className="text-sm font-semibold text-gray-100">Demo films ↗</div><div className="text-[11px] text-gray-500">About a minute each</div></button>
+            <button onClick={()=>openTab("/whitepaper")} className="w-full text-left p-3 border border-gray-800 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-pointer"><div className="text-sm font-semibold text-gray-100">Whitepaper ↗</div><div className="text-[11px] text-gray-500">Proof of authorisation, section by section</div></button>
+            <button onClick={()=>goView("user-guide","User guide")} className="w-full text-left p-3 border border-gray-800 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-pointer"><div className="text-sm font-semibold text-gray-100">User guide</div><div className="text-[11px] text-gray-500">Every screen in this workspace</div></button>
+          </div>
+        </GC>
+        <GC className="p-5 anim-d4">
+          <h3 className="text-sm font-bold mb-2">What Q² never does</h3>
+          <ul className="flex flex-wrap gap-1.5 mb-3">{["Hold your keys","Sign","Approve","Move funds"].map(x => <li key={x} className="text-[11px] px-2 py-1 border border-gray-700 text-gray-300"><span className="text-red-400 mr-1" aria-hidden="true">✕</span>{x}</li>)}</ul>
+          <p className="text-[11px] text-gray-400 leading-relaxed">Your keys stay with you and your signer. Q² checks, records and proves, so taking it over moves no money.</p>
+        </GC>
+      </div>
+    </div>
+  </div>);
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1236,36 +1397,36 @@ const EvaluationHub = () => {
   const qsScore = computeQSafety({ org, threshold, participants, wallets, settings, scenarios, progress });
   const goAction = (id) => { addLog({ type:"info", message:`${id.toUpperCase()} initiated from Dashboard` }); setActiveView("movement"); };
   const actions = [
-    { id:"send", l:"SEND", I:Send, d:"Move assets to a counterparty under policy and threshold approval.", tone:"#8E78F6" },
-    { id:"swap", l:"SWAP", I:Swap, d:"Exchange assets within a wallet, evidence-recorded.", tone:"#AE9CFF" },
-    { id:"bridge", l:"BRIDGE", I:Bridge, d:"Move assets across chains with continuity proofs.", tone:"#818cf8" },
+    { id:"send", l:"Send", I:Send, d:"Pay a counterparty, checked against your rules and approved by your approvers.", tone:"#8E78F6" },
+    { id:"swap", l:"Swap", I:Swap, d:"Exchange assets inside a wallet, with the movement on record.", tone:"#AE9CFF" },
+    { id:"bridge", l:"Bridge", I:Bridge, d:"Move assets across networks. Testnet demo.", tone:"#818cf8" },
   ];
   const setupCards = [
-    { id:"assets", l:"IMPORT CRYPTO", I:Wallet, d:"Connect chains, import wallets, and bind in-scope assets via your governance EOA.", tone:"#22c55e", route:"assets" },
-    { id:"import-bank", l:"IMPORT BANK", I:()=>sIcons.bank, d:"Connect institutional bank accounts via open-banking for fiat reconciliation.", tone:"#3b82f6", route:"import-bank", soon:true },
+    { id:"assets", l:"Wallets and assets", I:Wallet, d:"Add the wallets and assets your rules cover.", tone:"#22c55e", route:"assets" },
+    { id:"import-bank", l:"Bank accounts", I:()=>sIcons.bank, d:"Connect bank accounts for fiat reconciliation.", tone:"#3b82f6", route:"import-bank", soon:true },
   ];
   const quickLinks = [
-    { id:"team", l:"TEAM", d:"Roles & threshold" },
-    { id:"evidence", l:"EVIDENCE", d:"Audit logs & TX history" },
-    { id:"how-it-works", l:"HOW IT WORKS", d:"Customer journey" },
-    { id:"settings", l:"SETTINGS", d:"Language, theme, posture" },
+    { id:"start", l:"Start here", d:"Setup checklist and the seven steps" },
+    { id:"team", l:"Team and approvers", d:"Roles and approval rule" },
+    { id:"evidence", l:"Evidence", d:"Records and transaction history" },
+    { id:"settings", l:"Settings", d:"Language, theme" },
   ];
 
   return (<div className="p-6 space-y-5 overflow-y-auto flex-1">
     <div className="anim flex items-end justify-between flex-wrap gap-3">
-      <div><h2 className="text-2xl font-bold mb-1">Dashboard</h2><p className="fm text-sm text-gray-500">{org?.name||"—"} · {(org?.control_model||"threshold").toUpperCase()} CONTROL · LIVE</p></div>
+      <div><h2 className="text-2xl font-bold mb-1">Dashboard</h2><p className="text-sm text-gray-500">{org?.name||"Your fund"} · {org?.control_model==="single"?"One approver":org?.control_model==="committee"?"Committee":"Two of three approvers"} · Sepolia testnet</p></div>
     </div>
 
     {/* Hero row — bento: total value (wide) + qsafety (square) */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <GC className="p-7 md:col-span-2 anim-d1 relative overflow-hidden" style={{borderTop:"2px solid rgba(142,120,246,.5)"}}>
-        <div className="fm text-xs text-purple-500 tracking-widest mb-3">[ TOTAL_VALUE ]</div>
+        <div className="fm text-xs text-purple-400 mb-3">Total value</div>
         <div className="text-5xl md:text-6xl font-black tg leading-none mb-3">{money(totalUsd)}</div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 fm text-xs">
-          <span className="text-gray-500">BANKS:</span><span className="text-blue-400 font-bold">{money(banksUsd)}</span>
+          <span className="text-gray-500">Banks</span><span className="text-blue-400 font-bold">{money(banksUsd)}</span>
           <span className="text-gray-700">·</span>
-          <span className="text-gray-500">CRYPTO:</span><span className="text-purple-400 font-bold">{money(cryptoUsd)}</span>
-          {w.isConnected && <><span className="text-gray-700">·</span><span className="text-gray-500">SEPOLIA:</span><span className="text-emerald-400 font-bold">{tv.eth.toFixed(4)} ETH ({money(tv.ethUsd)})</span></>}
+          <span className="text-gray-500">Crypto</span><span className="text-purple-400 font-bold">{money(cryptoUsd)}</span>
+          {w.isConnected && <><span className="text-gray-700">·</span><span className="text-gray-500">Sepolia</span><span className="text-emerald-400 font-bold">{tv.eth.toFixed(4)} ETH ({money(tv.ethUsd)})</span></>}
         </div>
         {w.isConnected
           ? <div className="fm text-[10px] text-gray-500 mt-2">ETH @ {money(tv.ethPriceUsd)}{tv.priceLive?" · live":" · indicative"} · testnet USDC/EURC pegged $1{(tv.usdc+tv.eurc)>0?` · ${tv.usdc.toFixed(2)} USDC · ${tv.eurc.toFixed(2)} EURC`:""}</div>
@@ -1273,10 +1434,10 @@ const EvaluationHub = () => {
         <div className="absolute -right-12 -bottom-12 w-48 h-48 rounded-full" style={{background:"radial-gradient(circle, rgba(142,120,246,.15), transparent 70%)"}}/>
       </GC>
       <GC className="p-7 anim-d2 flex flex-col items-center justify-center text-center" style={{borderTop:"2px solid rgba(174,156,255,.5)"}}>
-        <div className="fm text-xs text-fuchsia-500 tracking-widest mb-4">[ QSAFETY ]</div>
+        <div className="fm text-xs text-fuchsia-400 mb-4">Quantum safety score</div>
         <QuantumSafetyAtom score={qsScore}/>
-        <div className="fm text-[10px] text-gray-500 mt-3 mb-4">Live institutional posture</div>
-        <button onClick={()=>{addLog({type:"info",message:"Opened Quantum Safety module"}); setActiveView("how-it-works"); setTimeout(()=>{ const el = document.getElementById("quantum-safety-module"); if (el) el.scrollIntoView({behavior:"smooth",block:"start"}); }, 60);}} className="fm text-xs px-3 py-2 border border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300 hover:bg-fuchsia-500/20 transition-all cursor-pointer flex items-center gap-2">WHY QUANTUM SAFE? <Arr/></button>
+        <div className="text-[11px] text-gray-500 mt-3 mb-4">How far your setup follows the recommended controls</div>
+        <button onClick={()=>{addLog({type:"info",message:"Opened Quantum Safety module"}); setActiveView("how-it-works"); setTimeout(()=>{ const el = document.getElementById("quantum-safety-module"); if (el) el.scrollIntoView({behavior:"smooth",block:"start"}); }, 60);}} className="fm text-xs px-3 py-2 border border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300 hover:bg-fuchsia-500/20 transition-all cursor-pointer flex items-center gap-2">What this score means <Arr/></button>
       </GC>
     </div>
 
@@ -1289,7 +1450,7 @@ const EvaluationHub = () => {
           </div>
           <h3 className="text-2xl font-black mb-2">{a.l}</h3>
           <p className="fm text-xs text-gray-400 mb-5 leading-relaxed flex-1">{a.d}</p>
-          <div className="fm text-xs flex items-center gap-2 group-hover:gap-3 transition-all" style={{color:a.tone}}>START <Arr/></div>
+          <div className="fm text-xs flex items-center gap-2 group-hover:gap-3 transition-all" style={{color:a.tone}}>Start <Arr/></div>
         </GC>
       ))}
     </div>
@@ -1305,7 +1466,7 @@ const EvaluationHub = () => {
             </div>
             <h3 className="text-2xl font-black mb-2">{a.l}</h3>
             <p className="fm text-xs text-gray-400 mb-5 leading-relaxed flex-1">{a.d}</p>
-            <div className="fm text-xs flex items-center gap-2 group-hover:gap-3 transition-all" style={{color:a.tone}}>{a.soon?"AVAILABLE SOON":"OPEN"} <Arr/></div>
+            <div className="fm text-xs flex items-center gap-2 group-hover:gap-3 transition-all" style={{color:a.tone}}>{a.soon?"Available soon":"Open"} <Arr/></div>
           </GC>
         );
         return a.soon ? <ComingSoon key={a.id} className="w-full block">{card}</ComingSoon> : <div key={a.id}>{card}</div>;
@@ -1315,17 +1476,17 @@ const EvaluationHub = () => {
     {/* Stat row */}
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {[
-        { l:"BANKS", v:banks.length, c:"text-blue-400" },
-        { l:"WALLETS", v:liveWalletCount, c:"text-fuchsia-400" },
-        { l:"TEAM", v:participants.length, c:"text-indigo-400" },
-        { l:"THRESHOLD", v:`${threshold?.required_approvals||1}/${participants.length||0}`, c:"text-yellow-400" },
-        { l:"TRUST", v:org?.trust_environment==="pqc"?"PQC":"CURRENT", c:"text-emerald-400" },
+        { l:"Banks", v:banks.length, c:"text-blue-400" },
+        { l:"Wallets", v:liveWalletCount, c:"text-fuchsia-400" },
+        { l:"Team", v:participants.length, c:"text-indigo-400" },
+        { l:"Approvals needed", v:`${threshold?.required_approvals||1} of ${participants.length||0}`, c:"text-yellow-400" },
+        { l:"Seal view", v:org?.trust_environment==="pqc"?"Post-quantum":"Standard", c:"text-emerald-400" },
       ].map((c,i) => (<GC key={c.l} className={`p-4 anim-d${Math.min(i,3)+1}`}><div className="fm text-[10px] text-gray-500 mb-1">{c.l}</div><div className={`text-xl font-bold ${c.c}`}>{c.v}</div></GC>))}
     </div>
 
     {/* Bottom bento: recent activity (wide) + quick links (narrow) */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <GC className="p-5 md:col-span-2"><SL>RECENT ACTIVITY</SL>
+      <GC className="p-5 md:col-span-2"><SL>Recent activity</SL>
         <div className="space-y-1 fm text-xs">
           {logs.length === 0 && <Empty>No activity yet.</Empty>}
           {logs.slice(0,8).map(l => { const t = l.log_type||l.type||"info"; const tc = t==="error"?"text-red-400":t==="success"?"text-emerald-400":t==="evidence"?"text-blue-400":t==="warning"?"text-yellow-400":"text-purple-400"; return (
@@ -1337,7 +1498,7 @@ const EvaluationHub = () => {
           );})}
         </div>
       </GC>
-      <GC className="p-5"><SL>QUICK LINKS</SL>
+      <GC className="p-5"><SL>Quick links</SL>
         <div className="space-y-2">{quickLinks.map(q => (
           <button key={q.id} onClick={()=>setActiveView(q.id)} className="w-full text-left p-3 border border-gray-800 hover:border-purple-500/40 hover:bg-purple-500/5 transition-all cursor-pointer">
             <div className="fm text-xs font-bold text-gray-300 mb-0.5">{q.l}</div>
@@ -1428,13 +1589,13 @@ const AssetBoundary = () => {
           {!w.hasProvider && <div className="fm text-xs text-yellow-300">No EIP-1193 wallet detected. Install <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">MetaMask</a>, Coinbase Wallet, Rabby, or Brave to import.</div>}
           {w.hasProvider && !w.isConnected && <div className="fm text-xs text-gray-400 mb-3">Click CONNECT WALLET — MetaMask will ask permission and we'll auto-switch to Sepolia. Your private key never leaves your wallet; the address is delegated for policy enforcement only.</div>}
           {w.isConnected && (<div className="space-y-2 fm text-xs">
-            <div className="flex items-center gap-2 flex-wrap"><span className="text-gray-500">ADDRESS:</span><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="mono text-purple-300 hover:text-purple-200 hover:underline">{shortAddr(w.address)}</a><Badge c={w.isSepolia?"green":"red"}>{w.isSepolia?"SEPOLIA":`WRONG NETWORK (${w.chainId||"?"})`}</Badge></div>
-            <div className="flex items-center gap-4 flex-wrap"><span className="text-gray-500">ETH:</span><span className="text-emerald-400 font-bold">{liveEth.toFixed(6)} SEP</span><span className="text-gray-500">WETH:</span><span className="text-fuchsia-400 font-bold">{liveWeth.toFixed(6)}</span><button onClick={()=>w.refreshBalance()} className="fm text-[10px] text-purple-400 hover:text-purple-300 cursor-pointer">[ REFRESH ]</button></div>
+            <div className="flex items-center gap-2 flex-wrap"><span className="text-gray-500">Address</span><a href={explorerAddr(w.address)} target="_blank" rel="noopener noreferrer" className="mono text-purple-300 hover:text-purple-200 hover:underline">{shortAddr(w.address)}</a><Badge c={w.isSepolia?"green":"red"}>{w.isSepolia?"Sepolia":`Wrong network (${w.chainId||"?"})`}</Badge></div>
+            <div className="flex items-center gap-4 flex-wrap"><span className="text-gray-500">ETH:</span><span className="text-emerald-400 font-bold">{liveEth.toFixed(6)} SEP</span><span className="text-gray-500">WETH:</span><span className="text-fuchsia-400 font-bold">{liveWeth.toFixed(6)}</span><button onClick={()=>w.refreshBalance()} className="fm text-[10px] text-purple-400 hover:text-purple-300 cursor-pointer">Refresh</button></div>
           </div>)}
         </div>
         <div className="flex gap-2 flex-wrap">
           {!w.isConnected && <WalletPicker w={w}/>}
-          {w.isConnected && !w.isSepolia && <Btn v="secondary" onClick={w.ensureSepolia}>SWITCH TO SEPOLIA</Btn>}
+          {w.isConnected && !w.isSepolia && <Btn v="secondary" onClick={w.ensureSepolia}>Switch to Sepolia</Btn>}
           {w.isConnected && <Btn v="ghost" onClick={()=>setMode(null)}>DONE</Btn>}
         </div>
       </div>
@@ -1603,27 +1764,36 @@ const GovernedMovement = () => {
   const totalUsd = cryptoUsd + banksUsd;
   const teamCount = participants.length;
   const cards = [
-    { l: "TOTAL VALUE", v: `$${totalUsd.toLocaleString()}`, c: "emerald" },
-    { l: "BANK BALANCE", v: `$${banksUsd.toLocaleString()}`, c: "blue" },
-    { l: "CRYPTO VALUE", v: `$${cryptoUsd.toLocaleString()}`, c: "purple" },
-    { l: "WALLETS", v: Math.max(wallets.length, w.isConnected?1:0), c: "fuchsia" },
-    { l: "TEAM", v: teamCount, c: "indigo" },
-    { l: "THRESHOLD", v: `${threshold?.required_approvals || 1}/${teamCount || 0}`, c: "yellow" },
+    { l: "Total value", v: `$${totalUsd.toLocaleString()}`, c: "emerald" },
+    { l: "Bank balance", v: `$${banksUsd.toLocaleString()}`, c: "blue" },
+    { l: "Crypto value", v: `$${cryptoUsd.toLocaleString()}`, c: "purple" },
+    { l: "Wallets", v: Math.max(wallets.length, w.isConnected?1:0), c: "fuchsia" },
+    { l: "Team", v: teamCount, c: "indigo" },
+    { l: "Approvals needed", v: `${threshold?.required_approvals || 1} of ${teamCount || 0}`, c: "yellow" },
   ];
 
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
-    <div className="flex items-start justify-between flex-wrap gap-3"><div><h2 className="text-2xl font-bold mb-1">Governed Movement</h2><p className="fm text-sm text-gray-500">REAL ON-CHAIN TRANSACTIONS · ETHEREUM SEPOLIA TESTNET</p></div></div>
+    <div className="flex items-start justify-between flex-wrap gap-3"><div><h2 className="text-2xl font-bold mb-1">New movement</h2><p className="text-sm text-gray-500">Real transactions on the Ethereum Sepolia testnet. No real money moves.</p></div></div>
+
+    <GC className="p-4 md:p-5" style={{borderLeft:"3px solid #8E78F6"}}>
+      <div className="text-sm font-bold mb-3">How this page works</div>
+      <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+        {["Fill in the request","Q² checks it against your rules","Your approvers approve","Your wallet signs on the Sepolia testnet","The record appears in Evidence"].map((t,i)=>(
+          <li key={t} className="flex items-start gap-2 p-2 border border-gray-800 bg-black/20"><span className="w-5 h-5 flex-shrink-0 rounded-full border border-purple-500/40 text-purple-300 text-[10px] flex items-center justify-center">{i+1}</span><span className="text-xs text-gray-300 leading-snug">{t}</span></li>
+        ))}
+      </ol>
+    </GC>
 
     {/* Spec §5 — Funding lock banner. Reflects org.smart_account_status. */}
     {org && org.smart_account_status !== "GovernedActive" && (
       <GC className="p-4" style={{borderLeft:"3px solid #ef4444"}}>
         <div className="flex items-center gap-3 flex-wrap fm text-xs">
-          <Badge c="red">FUNDING LOCKED</Badge>
-          <span className="text-red-300 font-bold">Smart Account is not Governed-Active.</span>
+          <Badge c="red">Funding locked</Badge>
+          <span className="text-red-300 font-bold">Your fund’s smart account is not active yet.</span>
           <span className="text-gray-400">Status: <span className="text-purple-300">{org.smart_account_status || "NotDeployed"}</span></span>
         </div>
         <p className="fm text-xs text-gray-400 mt-2">Any send / swap / bridge will be rejected by the active policy validator until <em>(a)</em> the initial policy is activated on the Team page and <em>(b)</em> the approver set is verified. Sending to the Root EOA is allowed but those assets are <b>not</b> protected by smart-account rules — recovery only.</p>
-        <div className="mt-2"><Btn v="secondary" onClick={()=>setActiveView("team")}>OPEN_TEAM_TO_ACTIVATE <Arr/></Btn></div>
+        <div className="mt-2"><Btn v="secondary" onClick={()=>setActiveView("team")}>Open Team to activate <Arr/></Btn></div>
       </GC>
     )}
 
@@ -1636,7 +1806,7 @@ const GovernedMovement = () => {
     <GC className="p-5" style={{borderTop:"2px solid rgba(34,197,94,.4)"}}>
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div className="flex-1 min-w-[240px]">
-          <SL>WALLET · SEPOLIA TESTNET</SL>
+          <SL>Step 1 · Your test wallet</SL>
           {!w.hasProvider && <div className="fm text-xs text-yellow-300">No EIP-1193 wallet detected. Install <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">MetaMask</a> to test on-chain transactions.</div>}
           {w.hasProvider && !w.isConnected && <div className="fm text-xs text-gray-400 mb-3">Connect MetaMask to send / swap real ETH on Sepolia. We never store your private key — your wallet signs every transaction locally.</div>}
           {w.isConnected && (<div className="space-y-2 fm text-xs">
@@ -1647,8 +1817,8 @@ const GovernedMovement = () => {
         <div className="flex gap-2 flex-wrap">
           {!w.isConnected && <WalletPicker w={w}/>}
           {w.isConnected && !w.isSepolia && <Btn v="secondary" onClick={w.ensureSepolia}>SWITCH TO SEPOLIA</Btn>}
-          {w.isConnected && <Btn v="ghost" onClick={w.reconnect} disabled={w.busy}>SWITCH ACCOUNT</Btn>}
-          {w.isConnected && <Btn v="ghost" onClick={w.disconnect}>DISCONNECT</Btn>}
+          {w.isConnected && <Btn v="ghost" onClick={w.reconnect} disabled={w.busy}>Switch wallet</Btn>}
+          {w.isConnected && <Btn v="ghost" onClick={w.disconnect}>Disconnect</Btn>}
         </div>
       </div>
       {w.error && <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 fm text-xs text-red-300">{w.error}</div>}
@@ -1656,7 +1826,7 @@ const GovernedMovement = () => {
 
     {/* Faucet card */}
     <GC className="p-5" style={{borderLeft:"3px solid #facc15"}}>
-      <SL>NEED SEPOLIA ETH?</SL>
+      <SL>Need test ETH?</SL>
       <p className="fm text-xs text-gray-400 mb-3">Sepolia is a free testnet. Pick a faucet, paste your wallet address, claim a small amount, then come back here.{w.address && <> Your address: <code className="text-purple-300">{w.address}</code></>}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {FAUCETS.map(f => (<a key={f.url} href={f.url} target="_blank" rel="noopener noreferrer" className="block p-3 border border-yellow-500/20 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-all cursor-pointer">
@@ -1671,14 +1841,14 @@ const GovernedMovement = () => {
 
     {/* On-chain transaction form (works without scenario; alongside scenario flow when active) */}
     <GC className="p-6 max-w-2xl">
-      <SL>{action.toUpperCase()} · ETHEREUM SEPOLIA</SL>
+      <SL>Step 2 · The request: {action} on Sepolia</SL>
       <div className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="AMOUNT (ETH)"><input type="number" step="0.0001" placeholder="0.001" value={fd.amount} onChange={e=>up("amount",e.target.value)}/></Field>
-          <Field label="ASSET"><select value={fd.asset} onChange={e=>up("asset",e.target.value)} disabled={action!=="send"}><option>ETH</option>{action==="send" && <><option>USDC</option><option>WETH</option></>}</select></Field>
-          {action==="send" && <Field label="DESTINATION ADDRESS *"><input placeholder="0x..." value={fd.destination} onChange={e=>up("destination",e.target.value)}/></Field>}
-          {action==="swap" && <Field label="SWAP TYPE" hint="ETH ↔ WETH wrap/unwrap on the canonical Sepolia WETH9 contract."><div className="fm text-xs text-gray-400 px-3 py-2.5 border border-gray-800 bg-black/30">ETH → WETH (wrap)</div></Field>}
-          {action==="bridge" && <Field label="BRIDGE NOTE" hint="Cross-chain bridge integration is on the roadmap. The demo loops a Sepolia tx back to the connected wallet so you can see the on-chain flow."><div className="fm text-xs text-yellow-300 px-3 py-2.5 border border-yellow-500/20 bg-yellow-500/5">Demo: loopback on Sepolia</div></Field>}
+          <Field label="Amount (ETH)"><input type="number" step="0.0001" placeholder="0.001" value={fd.amount} onChange={e=>up("amount",e.target.value)}/></Field>
+          <Field label="Asset"><select value={fd.asset} onChange={e=>up("asset",e.target.value)} disabled={action!=="send"}><option>ETH</option>{action==="send" && <><option>USDC</option><option>WETH</option></>}</select></Field>
+          {action==="send" && <Field label="Destination address *"><input placeholder="0x..." value={fd.destination} onChange={e=>up("destination",e.target.value)}/></Field>}
+          {action==="swap" && <Field label="Swap type" hint="ETH ↔ WETH wrap/unwrap on the canonical Sepolia WETH9 contract."><div className="fm text-xs text-gray-400 px-3 py-2.5 border border-gray-800 bg-black/30">ETH → WETH (wrap)</div></Field>}
+          {action==="bridge" && <Field label="Bridge note" hint="Cross-chain bridge integration is on the roadmap. The demo loops a Sepolia tx back to the connected wallet so you can see the on-chain flow."><div className="fm text-xs text-yellow-300 px-3 py-2.5 border border-yellow-500/20 bg-yellow-500/5">Demo: loopback on Sepolia</div></Field>}
         </div>
         {walletWarning && <div className="p-3 bg-red-500/10 border border-red-500/30 fm text-xs text-red-300">{walletWarning}</div>}
         {policyNote && <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 fm text-xs text-yellow-200"><b>Governance note:</b> {policyNote} <span className="text-gray-400">This testnet send from your own EOA proceeds; in production the governed vault would gate it.</span></div>}
@@ -1686,13 +1856,13 @@ const GovernedMovement = () => {
           <div>{pendingTx.status==="signing"?"Awaiting MetaMask signature...":pendingTx.status==="pending"?"Broadcasted — waiting for confirmation...":pendingTx.status==="complete"?"✓ Confirmed on Sepolia":"✗ Failed"}</div>
           {pendingTx.hash && <a href={explorerTx(pendingTx.hash)} target="_blank" rel="noopener noreferrer" className="mono text-purple-400 hover:underline break-all">{pendingTx.hash} ↗</a>}
         </div>)}
-        <Btn full onClick={onChainSubmit} disabled={!w.isConnected || pendingTx?.status==="signing" || pendingTx?.status==="pending"}>{pendingTx?.status==="signing"?"AWAITING SIGNATURE...":pendingTx?.status==="pending"?"CONFIRMING...":`SUBMIT_${action.toUpperCase()}_ON_SEPOLIA`} <Arr/></Btn>
+        <Btn full onClick={onChainSubmit} disabled={!w.isConnected || pendingTx?.status==="signing" || pendingTx?.status==="pending"}>{pendingTx?.status==="signing"?"Waiting for your wallet to sign…":pendingTx?.status==="pending"?"Confirming…":`Submit ${action} on Sepolia`} <Arr/></Btn>
         {!w.isConnected && <div className="fm text-xs text-gray-500 text-center">Connect MetaMask above to enable submission.</div>}
       </div>
     </GC>
 
     {/* Recent txs (this page) */}
-    {recentTxs.length>0 && <GC className="p-5"><SL>RECENT (THIS SESSION)</SL><div className="space-y-2 fm text-xs">{recentTxs.map(t=>(<div key={t.hash} className="flex items-center gap-3 py-2 border-b border-gray-800/40">
+    {recentTxs.length>0 && <GC className="p-5"><SL>Recent, this session</SL><div className="space-y-2 fm text-xs">{recentTxs.map(t=>(<div key={t.hash} className="flex items-center gap-3 py-2 border-b border-gray-800/40">
       <span className="text-purple-400 uppercase w-16">{t.action}</span>
       <span className="text-gray-300 font-bold w-24">{t.amount} ETH</span>
       <Badge c={t.status==="complete"?"green":t.status==="failed"?"red":"yellow"}>{t.status.toUpperCase()}</Badge>
@@ -1710,7 +1880,7 @@ const GovernedMovement = () => {
     </>)}
 
     {/* Connected wallets list */}
-    {wallets.length>0 && <GC className="p-4"><SL>SAVED WALLETS</SL><div className="space-y-2">{wallets.map(wl=>(<div key={wl.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50"><div className="flex items-center gap-3"><Wallet/><div className="fm text-xs"><div className="text-gray-300 font-bold">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><div className="mono text-gray-600 truncate max-w-md">{wl.address}</div></div></div><div className="flex items-center gap-2"><Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>))}</div></GC>}
+    {wallets.length>0 && <GC className="p-4"><SL>Saved wallets</SL><div className="space-y-2">{wallets.map(wl=>(<div key={wl.id} className="flex items-center justify-between p-3 bg-black/30 border border-gray-800/50"><div className="flex items-center gap-3"><Wallet/><div className="fm text-xs"><div className="text-gray-300 font-bold">{wl.label||wl.address?.slice(0,10)} · {wl.chain?.name}{wl.chain?.is_testnet?" (Testnet)":""}</div><div className="mono text-gray-600 truncate max-w-md">{wl.address}</div></div></div><div className="flex items-center gap-2"><Badge c={wl.chain?.is_testnet?"yellow":"green"}>{(wl.type||"EOA").toUpperCase()}</Badge><button onClick={()=>removeWallet(wl.id, wl.label)} className="text-gray-600 hover:text-red-400 cursor-pointer p-1"><TrashI/></button></div></div>))}</div></GC>}
   </div>);
 };
 
@@ -1744,13 +1914,13 @@ const Team = () => {
   const pending = (invitations||[]).filter(i => i.status === "pending");
 
   return (<div className="p-6 space-y-6 overflow-y-auto flex-1">
-    <div className="flex items-start justify-between gap-4 flex-wrap"><div><h2 className="text-2xl font-bold mb-1">Team</h2><p className="fm text-sm text-gray-500">INVITATIONS · ROLES · AUTHORITY · THRESHOLD</p></div><div className="flex gap-2 flex-wrap"><Btn v="ghost" onClick={refresh} disabled={refreshing}>{refreshing?"REFRESHING...":"REFRESH"}</Btn><Btn onClick={()=>setMode("invite")}>{sIcons.mail}INVITE_BY_EMAIL</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> ADD_MANUALLY</Btn></div></div>
+    <div className="flex items-start justify-between gap-4 flex-wrap"><div><h2 className="text-2xl font-bold mb-1">Team and approvers</h2><p className="text-sm text-gray-500">Who can propose a movement, who approves it, and how many approvals each movement needs.</p></div><div className="flex gap-2 flex-wrap"><Btn v="ghost" onClick={refresh} disabled={refreshing}>{refreshing?"Refreshing…":"Refresh"}</Btn><Btn onClick={()=>setMode("invite")}>{sIcons.mail}Invite by email</Btn><Btn v="secondary" onClick={()=>setMode("manual")}><Plus/> Add manually</Btn></div></div>
 
-    <GC className="p-5"><SL>THRESHOLD SETTINGS</SL><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Field label="REQUIRED_APPROVALS" hint="Number of Approver-role members who must approve before a movement can execute."><input type="number" min="1" value={t.required_approvals} onChange={e=>setT(p=>({...p,required_approvals:e.target.value}))}/></Field>
-      <Field label="REQUIRED_REVIEWERS"><input type="number" min="0" value={t.required_reviewers} onChange={e=>setT(p=>({...p,required_reviewers:e.target.value}))}/></Field>
-      <Field label="POLICY_VERSION"><input value={t.policy_version} onChange={e=>setT(p=>({...p,policy_version:e.target.value}))}/></Field>
-    </div><div className="mt-4"><Btn v="secondary" onClick={saveThresh}>SAVE_THRESHOLD <Chk/></Btn></div></GC>
+    <GC className="p-5"><SL>Approval rule</SL><p className="text-xs text-gray-400 -mt-2 mb-4">Funds usually require two approvals. The proposer of a movement can never count as one of them.</p><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Field label="Approvals required" hint="How many members with the Approver role must approve before a movement can be signed."><input type="number" min="1" value={t.required_approvals} onChange={e=>setT(p=>({...p,required_approvals:e.target.value}))}/></Field>
+      <Field label="Reviews required"><input type="number" min="0" value={t.required_reviewers} onChange={e=>setT(p=>({...p,required_reviewers:e.target.value}))}/></Field>
+      <Field label="Rule version"><input value={t.policy_version} onChange={e=>setT(p=>({...p,policy_version:e.target.value}))}/></Field>
+    </div><div className="mt-4"><Btn v="secondary" onClick={saveThresh}>Save rule <Chk/></Btn></div></GC>
 
     {mode==="invite" && <GC className="p-5" style={{borderTop:"2px solid rgba(142,120,246,.5)"}}><SL>SEND INVITATION</SL>
       <p className="fm text-xs text-gray-400 mb-4">An email is sent via Supabase Auth. The invitee clicks the link, signs up, and is automatically added to your org with the role you pick.</p>
@@ -1758,7 +1928,7 @@ const Team = () => {
         <Field label="EMAIL *"><input type="email" placeholder="name@org.com" value={inv.email} onChange={e=>ui("email",e.target.value)}/></Field>
         <Field label="FULL NAME (optional)"><input placeholder="Their full name" value={inv.full_name} onChange={e=>ui("full_name",e.target.value)}/></Field>
         <Field label="FUNCTION"><select value={inv.institution_fn} onChange={e=>ui("institution_fn",e.target.value)}><option value="">— Select —</option><option>Treasury / Operations</option><option>Risk Management</option><option>Compliance</option><option>Audit / Internal Audit</option><option>Finance</option><option>Legal</option><option>Engineering</option></select></Field>
-        <Field label="ROLE"><select value={inv.scenario_role} onChange={e=>ui("scenario_role",e.target.value)}><option>Requester</option><option>Approver</option><option>Reviewer</option><option>Oversight</option><option>Observer</option></select></Field>
+        <Field label="ROLE"><select value={inv.scenario_role} onChange={e=>ui("scenario_role",e.target.value)}><option value="Requester">Proposer (Requester)</option><option>Approver</option><option>Reviewer</option><option>Oversight</option><option>Observer</option></select></Field>
         <Field label="THRESHOLD_WEIGHT"><input type="number" min="1" value={inv.threshold_weight} onChange={e=>ui("threshold_weight",Number(e.target.value))}/></Field>
       </div><div className="flex gap-3 mt-5"><Btn onClick={sendInvite} disabled={busy||!inv.email}>{busy?"SENDING...":"SEND_INVITATION"} {sIcons.mail}</Btn><Btn v="ghost" onClick={()=>setMode(null)}>CANCEL</Btn></div>
     </GC>}
@@ -1769,7 +1939,7 @@ const Team = () => {
         <Field label="NAME *"><input placeholder="Full name" value={m.name} onChange={e=>um("name",e.target.value)}/></Field>
         <Field label="EMAIL"><input type="email" placeholder="name@org" value={m.email} onChange={e=>um("email",e.target.value)}/></Field>
         <Field label="FUNCTION"><select value={m.institution_fn} onChange={e=>um("institution_fn",e.target.value)}><option value="">— Select —</option><option>Treasury / Operations</option><option>Risk Management</option><option>Compliance</option><option>Audit / Internal Audit</option><option>Finance</option><option>Legal</option><option>Engineering</option></select></Field>
-        <Field label="ROLE"><select value={m.scenario_role} onChange={e=>um("scenario_role",e.target.value)}><option>Requester</option><option>Approver</option><option>Reviewer</option><option>Oversight</option><option>Observer</option></select></Field>
+        <Field label="ROLE"><select value={m.scenario_role} onChange={e=>um("scenario_role",e.target.value)}><option value="Requester">Proposer (Requester)</option><option>Approver</option><option>Reviewer</option><option>Oversight</option><option>Observer</option></select></Field>
         <Field label="THRESHOLD_WEIGHT"><input type="number" min="1" value={m.threshold_weight} onChange={e=>um("threshold_weight",Number(e.target.value))}/></Field>
       </div><div className="flex gap-3 mt-5"><Btn onClick={submitManual}>SAVE_MEMBER <Chk/></Btn><Btn v="ghost" onClick={()=>setMode(null)}>CANCEL</Btn></div>
     </GC>}
@@ -2521,7 +2691,7 @@ function AppShell({ onHome }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   useEffect(() => { if (phase === "landing") onHome?.(); }, [phase]);
-  const views = { hub:<EvaluationHub/>, "scenario-detail":<ScenarioDetail/>, overview:<EvalOverview/>, assets:<AssetBoundary/>, "import-bank":<ImportBank/>, movement:<GovernedMovement/>, team:<Team/>, evidence:<EvidenceViewer/>, "how-it-works":<HowItWorks/>, "user-guide":<UserGuide/>, support:<Support/>, billing:<Billing/>, settings:<SettingsPage/> };
+  const views = { start:<StartHere/>, hub:<EvaluationHub/>, "scenario-detail":<ScenarioDetail/>, overview:<EvalOverview/>, assets:<AssetBoundary/>, "import-bank":<ImportBank/>, movement:<GovernedMovement/>, team:<Team/>, evidence:<EvidenceViewer/>, "how-it-works":<HowItWorks/>, "user-guide":<UserGuide/>, support:<Support/>, billing:<Billing/>, settings:<SettingsPage/> };
 
   return (<div style={{opacity:fading?0:1,transition:"opacity 0.3s ease"}}>
     {(phase==="landing"||phase==="boot")&&<div className="min-h-screen flex items-center justify-center fm text-xs text-gray-500" aria-busy="true">Loading sandbox…</div>}
@@ -2533,17 +2703,16 @@ function AppShell({ onHome }) {
           <button onClick={()=>setSidebarOpen(true)} className="md:hidden text-gray-300 hover:text-purple-400 cursor-pointer flex-shrink-0" aria-label="Open menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
           <span className="text-purple-300 flex-shrink-0 inline-flex"><Mark size={26} title="Q²"/></span>
           <span className="q-word truncate">Q Squared</span>
-          <span className="hidden sm:inline fm text-[10px] text-gray-500 border border-gray-700 px-1.5 py-0.5">SANDBOX</span>
+          <span className="hidden sm:inline fm text-[10px] text-gray-500 border border-gray-700 px-1.5 py-0.5">Testnet workspace</span>
           {activeScenario&&<><span className="hidden md:inline text-gray-700">|</span><span className="hidden md:inline fm text-xs text-gray-500">SCENARIO {activeScenario.num}</span></>}
         </div>
         <div className="flex items-center gap-2 md:gap-4 fm text-xs flex-shrink-0">
           {/* Item 3 / Fix 2 — header faucet: claim testnet USDC + EURC on Sepolia via Circle */}
           <FaucetMenu/>
           <WalletChip w={hw}/>
-          <QuantumSafetyAtom score={qsScore}/>
+          <QuantumSafetyAtom score={qsScore} align="end"/>
           <span className="hidden lg:inline text-gray-700">|</span>
-          <span className="hidden lg:inline text-gray-500">USER:</span>
-          <span className="hidden lg:inline text-gray-300 truncate max-w-[180px]">{user?.email}</span>
+                    <span className="hidden lg:inline text-gray-300 truncate max-w-[180px]">{user?.email}</span>
           <button onClick={()=>setAuditOpen(true)} className="lg:hidden text-gray-400 hover:text-purple-400 cursor-pointer" aria-label="Open audit log">{sIcons.log}</button>
         </div>
       </div>
@@ -2554,7 +2723,7 @@ function AppShell({ onHome }) {
           <div className="md:hidden fixed inset-0 z-40 bg-black/70" onClick={()=>setSidebarOpen(false)}/>
           <div className="md:hidden fixed left-0 top-14 bottom-0 z-50 anim" style={{animation:"slideInL .25s ease"}}><SideNav onSelect={()=>setSidebarOpen(false)}/></div>
         </>)}
-        <div className="flex-1 overflow-hidden flex flex-col min-w-0">{views[activeView]||views.hub}</div>
+        <div className="flex-1 overflow-hidden flex flex-col min-w-0">{views[activeView]||views.start}</div>
         {/* Audit log — desktop persistent, mobile drawer */}
         <div className="hidden lg:block border-l border-purple-500/20" style={{background:"rgba(15,12,31,.5)"}}><AuditLog/></div>
         {auditOpen && (<>

@@ -1,17 +1,27 @@
 import { useEffect } from "react";
+import { FigShares, FigQuorum, FigChain, FigLattice, FigDisclose } from "./Figures.jsx";
 
 // Public developer docs. Generic on purpose: no partner or customer is named,
 // and every capability carries its status. Partner-specific guides (for a given
 // signing SDK or administrator) are shared privately on request.
 
 const TOC = [
-  ["Start", [["overview", "Overview"], ["status", "Status of these docs"], ["boundary", "Who does what"]]],
+  ["Start", [["overview", "Overview"], ["boundary", "Who does what"]]],
   ["Concepts", [["movement-record", "Movement Record and MRID"], ["evidence-chain", "Movement Evidence Chain"], ["refusals", "Refusal Records"], ["seal", "The seal"]]],
   ["Integrate", [["flow", "End-to-end flow"], ["signer", "With your signer"], ["carriage", "Carrying the MRID"], ["administrator", "With your administrator"]]],
-  ["Reference", [["api", "API (draft)"], ["webhooks", "Webhooks"], ["schema", "Evidence chain schema"], ["reasons", "Reason codes"], ["sandbox", "Sandbox"], ["security", "Security boundaries"]]],
+  ["Reference", [["api", "API"], ["webhooks", "Webhooks"], ["schema", "Evidence chain schema"], ["reasons", "Reason codes"], ["sandbox", "Sandbox"], ["security", "Security boundaries"], ["maths", "The mathematics"]]],
 ];
 
-const Tag = ({ s }) => <span className={`status status--${s}`}>{{ sandbox: "Sandbox", design: "In design", roadmap: "Roadmap" }[s]}</span>;
+// Maturity labels were removed from the public site (Website Blueprint v3, part H).
+const Tag = () => null;
+
+const MATHS = [
+  { C: FigShares, name: "Key shares", note: "f(x) = s + a₁x + a₂x². Shares are points on f; f(0) = s is the key. Your signer holds them; Q² never does." },
+  { C: FigQuorum, name: "Quorum", note: "Approve when Σ vᵢ ≥ k. The proposer and agents propose; they never vote." },
+  { C: FigChain, name: "Record", note: "hᵢ = H(hᵢ₋₁ ‖ rᵢ). Each entry commits to the one before it, so changing one fact breaks every entry after it." },
+  { C: FigLattice, name: "Seal", note: "t = A·s₁ + s₂ (mod q). The module lattice behind FIPS 204 signatures in the hybrid seal." },
+  { C: FigDisclose, name: "Disclose", note: "π ⊢ ∀m ∈ Q₃: approvals(m) ≥ 2. Prove a fact without showing the positions." },
+];
 
 const Endpoint = ({ verb, path, children }) => (
   <div className="ep">
@@ -54,7 +64,6 @@ export default function DocsPage({ go }) {
             <p className="docs__kicker">Developer docs</p>
             <h1>Integrate Q² with your fund estate</h1>
             <p className="docs__lede">Q² produces one exportable evidence chain per movement: who proposed it, which policy and fund context it was decided against, who approved it, what your signer checked and signed, what settled on chain and how it was booked. These docs show how a platform that already calls a signing SDK feeds that chain, and what the Q² API looks like.</p>
-            <div className="docs__tags"><Tag s="design" /> API and integrations <Tag s="sandbox" /> evidence services</div>
           </header>
 
           <section>
@@ -64,15 +73,6 @@ export default function DocsPage({ go }) {
             <div className="docs__note"><p><strong>In short.</strong> Nothing changes in how your signer signs or enforces its own policies. Your platform makes one call to Q² before asking the signer to sign, one after submission, and relays the transaction state as it changes. Q² never holds key material and never asks a signer to sign.</p></div>
           </section>
 
-          <section>
-            <h2 id="status">Status of these docs</h2>
-            <p>This is a draft specification for discussion, not a published API. Nothing here is live in production.</p>
-            <dl className="docs__dl">
-              <div><dt><Tag s="sandbox" /></dt><dd>Demonstrated in the Q² evaluation sandbox: evidence and audit-log services, policy-change attestation, the governance data model, the scenario engine.</dd></div>
-              <div><dt><Tag s="design" /></dt><dd>Specified, not yet built: the public API, MRID issuance, the evidence-chain export, the eligibility engine, signer and administrator adapters, webhooks.</dd></div>
-            </dl>
-            <p>Paths, fields and payloads are versioned under <code>/v0</code> and may change. Partner-specific integration guides are shared on request.</p>
-          </section>
 
           <section>
             <h2 id="boundary">Who does what</h2>
@@ -143,7 +143,7 @@ export default function DocsPage({ go }) {
             <h2 id="signer">With your signer</h2>
             <p>Most signing SDKs are wrapped by the fund's own platform, which already records extra data or runs its own approval flow before requesting a signature. Q² attaches at exactly that point, inside your wrapper, so the signer's code and policies do not change.</p>
             <Code label="wrapper.ts">
-<span className="k">import</span> {"{ Q2 }"} <span className="k">from</span> <span className="s">"./q2-client"</span>;   <span className="c">// draft client for the API below</span>{"\n"}
+<span className="k">import</span> {"{ Q2 }"} <span className="k">from</span> <span className="s">"./q2-client"</span>;   <span className="c">// client for the API below</span>{"\n"}
 <span className="k">import</span> {"{ signer }"} <span className="k">from</span> <span className="s">"./your-signer-sdk"</span>;{"\n\n"}
 <span className="k">export async function</span> moveFunds(req) {"{"}{"\n"}
 {"  "}<span className="c">// 1. Decide before anything is signed. Q² mints the MRID here.</span>{"\n"}
@@ -184,7 +184,7 @@ export default function DocsPage({ go }) {
           </section>
 
           <section>
-            <h2 id="api">API (draft) <Tag s="design" /></h2>
+            <h2 id="api">API</h2>
             <p>REST over HTTPS with JSON bodies. Bearer API keys, one per environment. Every write is idempotent with an <code>Idempotency-Key</code> header.</p>
             <Endpoint verb="POST" path="/v0/movements"><p>Propose a movement and get an eligibility decision. Mints the MRID. A refusal is a result, not an error.</p></Endpoint>
             <Code label="POST /v0/movements">
@@ -281,10 +281,23 @@ export default function DocsPage({ go }) {
             </ul>
           </section>
 
+          <section>
+            <h2 id="maths">The mathematics</h2>
+            <p>The ideas behind each claim, drawn as the formula itself.</p>
+            <div className="fig-grid">
+              {MATHS.map(({ C, name, note }) => (
+                <figure key={name} className="fig-tile is-in">
+                  <C />
+                  <figcaption><b>{name}</b><span>{note}</span></figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+
           <section className="docs__cta">
             <h2>Integrating Q²?</h2>
             <p>We share partner-specific guides for signing SDKs and fund administrators, and run integration sessions with your engineers.</p>
-            <p>Write to <strong className="docs__mail">info@quantumqustody.com</strong>, or <a href="/#start" onClick={(e) => { e.preventDefault(); go("/#start"); }}>book a 30-minute diagnostic call</a>.</p>
+            <p>Write to <strong className="docs__mail">info@quantumqustody.com</strong>, or <a href="/#start" onClick={(e) => { e.preventDefault(); go("/#start"); }}>book a 30-minute call</a>.</p>
           </section>
           <p className="docs__fine">Q² supports compliance evidence; it does not by itself make a firm compliant.</p>
         </article>

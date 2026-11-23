@@ -305,6 +305,18 @@ export default function Landing({ go, enterPlatform }) {
         </div>
       </section>
 
+      {/* Hero film: Q² in two and a half minutes */}
+      <section className="bp-herofilm" id="film" aria-label="Q² in two and a half minutes">
+        <div className="wrap">
+          <figure className="bp-herofilm__frame" data-reveal>
+            <video controls playsInline preload="none" poster="/q2-hero-poster.jpg" aria-label="Q² film: who approved that, and how to prove it">
+              <source src="/q2-hero.mp4" type="video/mp4" />
+            </video>
+          </figure>
+          <p className="bp-herofilm__cap mono">Q² in two and a half minutes · sound on</p>
+        </div>
+      </section>
+
       {/* 01 · The problem */}
       <section className="section-x" id="problem" aria-labelledby="s01-t">
         <div className="wrap">
